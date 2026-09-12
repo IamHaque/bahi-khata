@@ -7,6 +7,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
+import { TransactionsPage } from "@/pages/TransactionsPage";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/customers/import" element={<ImportPage />} />
+              <Route path="/transactions" element={<TransactionsPage />} />
             </Route>
           </Route>
         </Routes>
