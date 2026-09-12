@@ -149,3 +149,29 @@ export async function getAllCustomerBalances(): Promise<
 
   return balances;
 }
+
+export async function getTodayActivity(): Promise<{
+  count: number;
+  net: number;
+}> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("type, amount")
+    .eq("status", "active")
+    .gte("occurred_at", today.toISOString())
+    .lt("occurred_at", tomorrow.toISOString());
+
+  if (error) throw error;
+
+  const txs = data as Array<{ type: TransactionType; amount: number }>;
+  const net = txs.reduce((sum, tx) => {
+    return tx.type === "charge" ? sum + tx.amount : sum - tx.amount;
+  }, 0);
+
+  return { count: txs.length, net };
+}
