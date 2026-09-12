@@ -1,0 +1,22 @@
+customer_name,customer_phone,type,amount,date,note
+Rajesh Kumar,+91 98765 43210,charge,15000,2026-07-15,Wholesale order - July
+Rajesh Kumar,+91 98765 43210,payment,5000,2026-07-25,Partial payment received
+Rajesh Kumar,+91 98765 43210,charge,8500,2026-08-10,Restocking order
+Rajesh Kumar,+91 98765 43210,payment,3000,2026-08-20,
+Priya Sharma,+91 91234 56789,charge,22000,2026-06-01,Bulk fabric purchase
+Priya Sharma,+91 91234 56789,payment,10000,2026-06-15,First installment
+Priya Sharma,+91 91234 56789,payment,5000,2026-07-01,Second installment
+Amit Patel,,charge,7500,2026-08-05,Small order - prepaid
+Sunita Devi,+91 99887 76655,charge,35000,2026-05-10,Large wholesale order
+Sunita Devi,+91 99887 76655,payment,12000,2026-05-30,Partial payment
+Sunita Devi,+91 99887 76655,payment,8000,2026-06-20,
+Sunita Devi,+91 99887 76655,charge,5000,2026-07-12,Additional items
+Mohammed Ali,+91 87654 32100,charge,18000,2026-04-20,Seasonal stock
+Mohammed Ali,+91 87654 32100,payment,18000,2026-06-01,Fully settled
+Neha Gupta,+91 76543 21098,charge,9200,2026-09-01,Monsoon collection
+Neha Gupta,+91 76543 21098,payment,4200,2026-09-10,First payment
+Vikram Singh,+91 65432 10987,charge,45000,2026-03-15,Annual contract
+Vikram Singh,+91 65432 10987,payment,15000,2026-04-01,
+Vikram Singh,+91 65432 10987,payment,15000,2026-05-15,
+Vikram Singh,+91 65432 10987,payment,10000,2026-07-01,
+Deepa Nair,,charge,6300,2026-08-25,Festival order
