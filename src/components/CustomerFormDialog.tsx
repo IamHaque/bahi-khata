@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -131,6 +132,7 @@ export function CustomerFormDialog({
         tags: tags.length > 0 ? tags : undefined,
         notes: notes.trim() || undefined,
       });
+      toast.success(mode === "add" ? "Customer added" : "Customer updated");
       onOpenChange(false);
     } catch (err) {
       const message =

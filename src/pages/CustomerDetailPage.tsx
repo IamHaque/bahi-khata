@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
@@ -22,6 +22,7 @@ export function CustomerDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const balanceRef = useRef<HTMLParagraphElement>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -36,6 +37,12 @@ export function CustomerDetailPage() {
       setCustomer(cust);
       setTransactions(txs);
       setBalance(bal);
+
+      if (balanceRef.current) {
+        balanceRef.current.classList.remove("balance-flash");
+        void balanceRef.current.offsetWidth;
+        balanceRef.current.classList.add("balance-flash");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load customer");
     } finally {
@@ -123,6 +130,7 @@ export function CustomerDetailPage() {
       <div>
         <p className="text-sm text-muted-foreground">Current Balance</p>
         <p
+          ref={balanceRef}
           className={`text-4xl font-semibold tabular-nums ${balanceClass}`}
         >
           ₹{Math.abs(balance).toLocaleString("en-IN")}

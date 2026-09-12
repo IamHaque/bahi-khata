@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { Toaster } from "@/components/ui/sonner";
 import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/pages/CustomersPage";
@@ -26,6 +27,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      <Toaster position="bottom-right" richColors />
     </AuthProvider>
   );
 }

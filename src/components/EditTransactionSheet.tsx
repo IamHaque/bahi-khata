@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -108,6 +109,7 @@ export function EditTransactionSheet({
         occurred_at: new Date(date).toISOString(),
         note: note.trim() || null,
       });
+      toast.success("Transaction updated");
       onTransactionUpdated();
       onOpenChange(false);
     } catch (err) {
@@ -122,6 +124,7 @@ export function EditTransactionSheet({
   const handleVoid = async () => {
     try {
       await updateTransactionStatus(transaction.id, "voided");
+      toast.success("Transaction voided");
       setVoidConfirmOpen(false);
       onTransactionUpdated();
       onOpenChange(false);

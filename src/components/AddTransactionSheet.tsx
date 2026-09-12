@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -99,6 +100,9 @@ export function AddTransactionSheet({
         occurred_at: new Date(date).toISOString(),
         note: note.trim() || undefined,
       });
+      toast.success(
+        type === "charge" ? "Charge added" : "Payment recorded",
+      );
       onTransactionAdded();
       onOpenChange(false);
     } catch (err) {
