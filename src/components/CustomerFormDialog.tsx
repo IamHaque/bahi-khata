@@ -19,6 +19,9 @@ interface CustomerFormDialogProps {
     phone?: string;
     email?: string;
     address?: string;
+    alternate_contact_name?: string;
+    alternate_contact_phone?: string;
+    tags?: string[];
     notes?: string;
   }) => Promise<void>;
   initialData?: Customer;
@@ -29,6 +32,7 @@ interface FormErrors {
   name?: string;
   phone?: string;
   email?: string;
+  alternate_contact_phone?: string;
 }
 
 function validateName(name: string): string | undefined {
@@ -62,6 +66,11 @@ export function CustomerFormDialog({
   const [phone, setPhone] = useState(initialData?.phone ?? "");
   const [email, setEmail] = useState(initialData?.email ?? "");
   const [address, setAddress] = useState(initialData?.address ?? "");
+  const [altName, setAltName] = useState(initialData?.alternate_contact_name ?? "");
+  const [altPhone, setAltPhone] = useState(initialData?.alternate_contact_phone ?? "");
+  const [tagsInput, setTagsInput] = useState(
+    initialData?.tags?.join(", ") ?? "",
+  );
   const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -73,6 +82,9 @@ export function CustomerFormDialog({
       setPhone(initialData?.phone ?? "");
       setEmail(initialData?.email ?? "");
       setAddress(initialData?.address ?? "");
+      setAltName(initialData?.alternate_contact_name ?? "");
+      setAltPhone(initialData?.alternate_contact_phone ?? "");
+      setTagsInput(initialData?.tags?.join(", ") ?? "");
       setNotes(initialData?.notes ?? "");
       setErrors({});
       setSaveError(null);
@@ -86,12 +98,14 @@ export function CustomerFormDialog({
     const nameError = validateName(name);
     const phoneError = validatePhone(phone);
     const emailError = validateEmail(email);
+    const altPhoneError = validatePhone(altPhone);
 
-    if (nameError || phoneError || emailError) {
+    if (nameError || phoneError || emailError || altPhoneError) {
       setErrors({
         name: nameError,
         phone: phoneError,
         email: emailError,
+        alternate_contact_phone: altPhoneError,
       });
       if (nameError) nameRef.current?.focus();
       return;
@@ -101,12 +115,20 @@ export function CustomerFormDialog({
     setSaving(true);
     setSaveError(null);
 
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     try {
       await onSubmit({
         name: name.trim(),
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
         address: address.trim() || undefined,
+        alternate_contact_name: altName.trim() || undefined,
+        alternate_contact_phone: altPhone.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
         notes: notes.trim() || undefined,
       });
       onOpenChange(false);
@@ -121,7 +143,7 @@ export function CustomerFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {mode === "add" ? "Add Customer" : "Edit Customer"}
@@ -198,6 +220,57 @@ export function CustomerFormDialog({
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Address"
             />
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Additional details
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer-alt-name">Alternate contact name</Label>
+                <Input
+                  id="customer-alt-name"
+                  value={altName}
+                  onChange={(e) => setAltName(e.target.value)}
+                  placeholder="Contact person name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customer-alt-phone">Alternate contact phone</Label>
+                <Input
+                  id="customer-alt-phone"
+                  type="tel"
+                  value={altPhone}
+                  onChange={(e) => setAltPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  aria-invalid={!!errors.alternate_contact_phone}
+                  aria-describedby={
+                    errors.alternate_contact_phone ? "alt-phone-error" : undefined
+                  }
+                />
+                {errors.alternate_contact_phone && (
+                  <p id="alt-phone-error" className="text-sm text-destructive" role="alert">
+                    {errors.alternate_contact_phone}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customer-tags">Tags</Label>
+                <Input
+                  id="customer-tags"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="wholesale, regular (comma-separated)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Separate multiple tags with commas
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

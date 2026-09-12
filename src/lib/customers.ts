@@ -1,6 +1,20 @@
 import { supabase } from "@/lib/supabase";
 import type { Customer } from "@/types";
 
+export type CustomerInput = Pick<Customer, "name"> &
+  Partial<
+    Pick<
+      Customer,
+      | "phone"
+      | "email"
+      | "address"
+      | "alternate_contact_name"
+      | "alternate_contact_phone"
+      | "tags"
+      | "notes"
+    >
+  >;
+
 export async function listCustomers() {
   const { data, error } = await supabase
     .from("customers")
@@ -22,9 +36,6 @@ export async function getCustomer(id: string) {
   return data as Customer;
 }
 
-export type CustomerInput = Pick<Customer, "name"> &
-  Partial<Pick<Customer, "phone" | "email" | "address" | "notes">>;
-
 export async function createCustomer(input: CustomerInput) {
   const { data, error } = await supabase
     .from("customers")
@@ -33,6 +44,9 @@ export async function createCustomer(input: CustomerInput) {
       phone: input.phone ?? null,
       email: input.email ?? null,
       address: input.address ?? null,
+      alternate_contact_name: input.alternate_contact_name ?? null,
+      alternate_contact_phone: input.alternate_contact_phone ?? null,
+      tags: input.tags ?? null,
       notes: input.notes ?? null,
     })
     .select()
@@ -42,10 +56,7 @@ export async function createCustomer(input: CustomerInput) {
   return data as Customer;
 }
 
-export async function updateCustomer(
-  id: string,
-  input: Partial<Pick<Customer, "name" | "phone" | "email" | "address" | "notes">>,
-) {
+export async function updateCustomer(id: string, input: Partial<CustomerInput>) {
   const { data, error } = await supabase
     .from("customers")
     .update({
