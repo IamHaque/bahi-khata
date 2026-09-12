@@ -1,35 +1,51 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
+import { AddTransactionSheet } from "@/components/AddTransactionSheet";
+import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { getCustomer, updateCustomer } from "@/lib/customers";
-import type { Customer } from "@/types";
+import {
+  listTransactionsByCustomer,
+  getCustomerBalance,
+} from "@/lib/transactions";
+import type { Customer, Transaction } from "@/types";
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [addTxOpen, setAddTxOpen] = useState(false);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
 
-  const fetchCustomer = async () => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
       setError(null);
-      const data = await getCustomer(id);
-      setCustomer(data);
+      const [cust, txs, bal] = await Promise.all([
+        getCustomer(id),
+        listTransactionsByCustomer(id),
+        getCustomerBalance(id),
+      ]);
+      setCustomer(cust);
+      setTransactions(txs);
+      setBalance(bal);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load customer");
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    void fetchCustomer();
-  }, [id]);
+    void fetchData();
+  }, [fetchData]);
 
   const handleEdit = async (data: {
     name: string;
@@ -59,7 +75,7 @@ export function CustomerDetailPage() {
         {error}
         <button
           type="button"
-          onClick={() => void fetchCustomer()}
+          onClick={() => void fetchData()}
           className="ml-3 underline hover:no-underline"
         >
           Retry
@@ -69,6 +85,15 @@ export function CustomerDetailPage() {
   }
 
   if (!customer) return null;
+
+  const balanceClass =
+    balance > 0
+      ? "text-receivable"
+      : balance < 0
+        ? "text-credit"
+        : "text-muted-foreground";
+  const balanceLabel =
+    balance > 0 ? "Owes" : balance < 0 ? "In credit" : "Settled";
 
   return (
     <div className="space-y-6">
@@ -85,7 +110,9 @@ export function CustomerDetailPage() {
             {customer.name}
           </h2>
           {customer.phone && (
-            <p className="mt-1 text-sm text-muted-foreground">{customer.phone}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {customer.phone}
+            </p>
           )}
         </div>
         <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
@@ -95,15 +122,90 @@ export function CustomerDetailPage() {
 
       <div>
         <p className="text-sm text-muted-foreground">Current Balance</p>
-        <p className="text-4xl font-semibold tabular-nums text-foreground">
-          ₹0
+        <p
+          className={`text-4xl font-semibold tabular-nums ${balanceClass}`}
+        >
+          ₹{Math.abs(balance).toLocaleString("en-IN")}
         </p>
-        <p className="text-xs text-muted-foreground">Settled</p>
+        <p className={`text-xs ${balanceClass}`}>{balanceLabel}</p>
       </div>
 
-      <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
-        No transactions yet. Add a charge or payment to get started.
-      </div>
+      <Button
+        variant="outline"
+        onClick={() => setAddTxOpen(true)}
+      >
+        Add Transaction
+      </Button>
+
+      {transactions.length === 0 ? (
+        <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
+          No transactions yet. Add a charge or payment to get started.
+        </div>
+      ) : (
+        <div className="space-y-1" role="list" aria-label="Transaction history">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              role="listitem"
+              className="flex items-center justify-between rounded-md px-4 py-3 transition-colors hover:bg-muted"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
+                      tx.type === "charge"
+                        ? "bg-receivable/10 text-receivable"
+                        : "bg-credit/10 text-credit"
+                    }`}
+                  >
+                    {tx.type === "charge" ? "Charge" : "Payment"}
+                  </span>
+                  {tx.status === "edited" && (
+                    <span className="text-xs text-muted-foreground">
+                      (edited)
+                    </span>
+                  )}
+                  {tx.status === "voided" && (
+                    <span className="text-xs text-muted-foreground line-through">
+                      (voided)
+                    </span>
+                  )}
+                </div>
+                {tx.note && (
+                  <p className="mt-1 text-sm text-muted-foreground truncate">
+                    {tx.note}
+                  </p>
+                )}
+              </div>
+              <div className="ml-4 text-right">
+                <p
+                  className={`text-sm tabular-nums ${
+                    tx.type === "charge" ? "text-receivable" : "text-credit"
+                  } ${tx.status === "voided" ? "line-through opacity-50" : ""}`}
+                >
+                  {tx.type === "charge" ? "+" : "-"}₹
+                  {tx.amount.toLocaleString("en-IN")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(tx.occurred_at).toLocaleDateString("en-IN")}
+                </p>
+              </div>
+              {tx.status !== "voided" && (
+                <button
+                  type="button"
+                  onClick={() => setEditTx(tx)}
+                  className="ml-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={`Edit ${tx.type} of ₹${tx.amount}`}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <CustomerFormDialog
         open={editOpen}
@@ -112,6 +214,25 @@ export function CustomerDetailPage() {
         initialData={customer}
         mode="edit"
       />
+
+      {id && (
+        <AddTransactionSheet
+          open={addTxOpen}
+          onOpenChange={setAddTxOpen}
+          customerId={id}
+          currentBalance={balance}
+          onTransactionAdded={() => void fetchData()}
+        />
+      )}
+
+      {editTx && (
+        <EditTransactionSheet
+          open={!!editTx}
+          onOpenChange={(open) => { if (!open) setEditTx(null); }}
+          transaction={editTx}
+          onTransactionUpdated={() => { setEditTx(null); void fetchData(); }}
+        />
+      )}
     </div>
   );
 }
