@@ -213,6 +213,12 @@ export function TransactionsPage() {
     void fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const handler = () => void fetchData();
+    window.addEventListener("transaction-saved", handler);
+    return () => window.removeEventListener("transaction-saved", handler);
+  }, [fetchData]);
+
   const filtered = useMemo(() => {
     let result = transactions;
 

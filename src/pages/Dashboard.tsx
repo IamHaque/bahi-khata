@@ -71,6 +71,12 @@ export function DashboardPage() {
     void fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const handler = () => void fetchData();
+    window.addEventListener("transaction-saved", handler);
+    return () => window.removeEventListener("transaction-saved", handler);
+  }, [fetchData]);
+
   if (loading) {
     return (
       <div className="space-y-8" role="status" aria-label="Loading dashboard">

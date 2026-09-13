@@ -80,6 +80,12 @@ export function CustomersPage() {
     void fetchCustomers();
   }, []);
 
+  useEffect(() => {
+    const handler = () => void fetchCustomers();
+    window.addEventListener("transaction-saved", handler);
+    return () => window.removeEventListener("transaction-saved", handler);
+  }, [fetchCustomers]);
+
   const customersWithBalance: CustomerWithBalance[] = useMemo(
     () =>
       customers.map((c) => ({

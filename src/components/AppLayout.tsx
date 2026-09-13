@@ -1,9 +1,14 @@
+import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 
 export function AppLayout() {
   const { signOut, user } = useAuth();
   const location = useLocation();
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -47,6 +52,24 @@ export function AppLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickAddOpen(true)}
+              className="hidden sm:flex"
+            >
+              <Plus className="mr-1 size-4" />
+              Add Transaction
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setQuickAddOpen(true)}
+              className="sm:hidden"
+              aria-label="Add Transaction"
+            >
+              <Plus className="size-4" />
+            </Button>
             {user?.email && (
               <span className="hidden text-xs text-muted-foreground sm:inline">
                 {user.email}
@@ -66,6 +89,8 @@ export function AppLayout() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />
       </main>
+
+      <QuickAddTransactionSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
     </div>
   );
 }
