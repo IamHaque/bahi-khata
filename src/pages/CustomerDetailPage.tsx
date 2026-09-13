@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
 import { AddTransactionSheet } from "@/components/AddTransactionSheet";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
+import { DataTable, type Column } from "@/components/DataTable";
+import { useSort } from "@/hooks/useSort";
 import { getCustomer, updateCustomer } from "@/lib/customers";
 import {
   listTransactionsByCustomer,
   getCustomerBalance,
 } from "@/lib/transactions";
 import type { Customer, Transaction } from "@/types";
+
+type TransactionWithSort = Transaction & { occurredAtMs: number };
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +27,7 @@ export function CustomerDetailPage() {
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const balanceRef = useRef<HTMLParagraphElement>(null);
+  const { sortBy, sortDir, toggleSort } = useSort("occurredAtMs", "desc");
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -54,6 +59,12 @@ export function CustomerDetailPage() {
     void fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const handler = () => void fetchData();
+    window.addEventListener("transaction-saved", handler);
+    return () => window.removeEventListener("transaction-saved", handler);
+  }, [fetchData]);
+
   const handleEdit = async (data: {
     name: string;
     phone?: string;
@@ -65,6 +76,105 @@ export function CustomerDetailPage() {
     const updated = await updateCustomer(id, data);
     setCustomer(updated);
   };
+
+  const txsWithSort: TransactionWithSort[] = transactions.map((tx) => ({
+    ...tx,
+    occurredAtMs: new Date(tx.occurred_at).getTime(),
+  }));
+
+  const sorted = [...txsWithSort].sort((a, b) => {
+    if (sortBy === "occurredAtMs") {
+      return sortDir === "asc"
+        ? a.occurredAtMs - b.occurredAtMs
+        : b.occurredAtMs - a.occurredAtMs;
+    }
+    if (sortBy === "amount") {
+      return sortDir === "asc" ? a.amount - b.amount : b.amount - a.amount;
+    }
+    return 0;
+  });
+
+  const columns: Column<TransactionWithSort>[] = [
+    {
+      key: "date",
+      header: "Date",
+      sortable: true,
+      render: (row) => (
+        <span className="tabular-nums">
+          {new Date(row.occurred_at).toLocaleDateString("en-IN")}
+        </span>
+      ),
+      sortValue: (row) => row.occurredAtMs,
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
+              row.type === "charge"
+                ? "bg-receivable/10 text-receivable"
+                : "bg-credit/10 text-credit"
+            }`}
+          >
+            {row.type === "charge" ? "Charge" : "Payment"}
+          </span>
+          {row.status === "edited" && (
+            <span className="text-xs text-muted-foreground">(edited)</span>
+          )}
+          {row.status === "voided" && (
+            <span className="text-xs text-muted-foreground line-through">(voided)</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "right",
+      sortable: true,
+      render: (row) => (
+        <span
+          className={`tabular-nums ${
+            row.type === "charge" ? "text-receivable" : "text-credit"
+          } ${row.status === "voided" ? "line-through opacity-50" : ""}`}
+        >
+          {row.type === "charge" ? "+" : "-"}₹
+          {row.amount.toLocaleString("en-IN")}
+        </span>
+      ),
+      sortValue: (row) => row.amount,
+    },
+    {
+      key: "note",
+      header: "Note",
+      render: (row) =>
+        row.note ? (
+          <span className="truncate text-muted-foreground">{row.note}</span>
+        ) : null,
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (row) =>
+        row.status !== "voided" ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditTx(row);
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={`Edit ${row.type} of ₹${row.amount}`}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+        ) : null,
+    },
+  ];
 
   if (loading) {
     return (
@@ -146,75 +256,20 @@ export function CustomerDetailPage() {
         Add Transaction
       </Button>
 
-      {transactions.length === 0 ? (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
-          No transactions yet. Add a charge or payment to get started.
-        </div>
-      ) : (
-        <div className="space-y-0" role="list" aria-label="Transaction history">
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              role="listitem"
-              className="flex items-center justify-between border-b border-border px-4 py-3 transition-colors hover:bg-muted"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
-                      tx.type === "charge"
-                        ? "bg-receivable/10 text-receivable"
-                        : "bg-credit/10 text-credit"
-                    }`}
-                  >
-                    {tx.type === "charge" ? "Charge" : "Payment"}
-                  </span>
-                  {tx.status === "edited" && (
-                    <span className="text-xs text-muted-foreground">
-                      (edited)
-                    </span>
-                  )}
-                  {tx.status === "voided" && (
-                    <span className="text-xs text-muted-foreground line-through">
-                      (voided)
-                    </span>
-                  )}
-                </div>
-                {tx.note && (
-                  <p className="mt-1 text-sm text-muted-foreground truncate">
-                    {tx.note}
-                  </p>
-                )}
-              </div>
-              <div className="ml-4 text-right">
-                <p
-                  className={`text-sm tabular-nums ${
-                    tx.type === "charge" ? "text-receivable" : "text-credit"
-                  } ${tx.status === "voided" ? "line-through opacity-50" : ""}`}
-                >
-                  {tx.type === "charge" ? "+" : "-"}₹
-                  {tx.amount.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(tx.occurred_at).toLocaleDateString("en-IN")}
-                </p>
-              </div>
-              {tx.status !== "voided" && (
-                <button
-                  type="button"
-                  onClick={() => setEditTx(tx)}
-                  className="ml-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  aria-label={`Edit ${tx.type} of ₹${tx.amount}`}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={sorted}
+        getRowKey={(row) => row.id}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortChange={toggleSort}
+        loading={loading}
+        emptyState={
+          <p className="text-sm text-muted-foreground">
+            No transactions yet. Add a charge or payment to get started.
+          </p>
+        }
+      />
 
       <CustomerFormDialog
         open={editOpen}
