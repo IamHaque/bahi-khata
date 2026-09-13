@@ -1,6 +1,20 @@
 import { supabase } from "@/lib/supabase";
 import type { Transaction, TransactionType } from "@/types";
 
+/**
+ * Pure function: compute balance from an array of transactions.
+ * Charges add to the balance (customer owes us), payments subtract.
+ * Only "active" and "edited" transactions should be passed in —
+ * callers must filter out "voided" rows before calling this.
+ */
+export function computeBalance(
+  transactions: Array<Pick<Transaction, "type" | "amount">>,
+): number {
+  return transactions.reduce((balance, tx) => {
+    return tx.type === "charge" ? balance + tx.amount : balance - tx.amount;
+  }, 0);
+}
+
 export async function listTransactionsByCustomer(customerId: string) {
   const { data, error } = await supabase
     .from("transactions")
@@ -118,12 +132,7 @@ export async function getCustomerBalance(customerId: string): Promise<number> {
 
   if (error) throw error;
 
-  return (data as Array<{ type: TransactionType; amount: number }>).reduce(
-    (balance, tx) => {
-      return tx.type === "charge" ? balance + tx.amount : balance - tx.amount;
-    },
-    0,
-  );
+  return computeBalance(data as Array<Pick<Transaction, "type" | "amount">>);
 }
 
 export async function getAllCustomerBalances(): Promise<
@@ -136,15 +145,22 @@ export async function getAllCustomerBalances(): Promise<
 
   if (error) throw error;
 
-  const balances: Record<string, number> = {};
-  for (const tx of data as Array<{
+  const txs = data as Array<{
     customer_id: string;
     type: TransactionType;
     amount: number;
-  }>) {
-    const current = balances[tx.customer_id] ?? 0;
-    balances[tx.customer_id] =
-      tx.type === "charge" ? current + tx.amount : current - tx.amount;
+  }>;
+
+  // Group by customer, then compute each balance with the pure function
+  const grouped: Record<string, Array<Pick<Transaction, "type" | "amount">>> = {};
+  for (const tx of txs) {
+    const list = grouped[tx.customer_id] ?? (grouped[tx.customer_id] = []);
+    list.push({ type: tx.type, amount: tx.amount });
+  }
+
+  const balances: Record<string, number> = {};
+  for (const [customerId, customerTxs] of Object.entries(grouped)) {
+    balances[customerId] = computeBalance(customerTxs);
   }
 
   return balances;
