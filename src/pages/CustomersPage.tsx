@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
 import { listCustomers, createCustomer } from "@/lib/customers";
+import { getAllCustomerBalances } from "@/lib/transactions";
 import type { Customer, CustomerWithBalance } from "@/types";
 
 type FilterStatus = "all" | "owes" | "credit" | "settled";
@@ -24,13 +25,6 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debounced;
-}
-
-function getBalance(_customer: Customer): number {
-  // Balance is derived from transactions (Section 22).
-  // Until transactions exist (EPIC-003), all balances are 0.
-  // This will be replaced with a real query once EPIC-003 is built.
-  return 0;
 }
 
 function formatBalance(balance: number): string {
@@ -54,6 +48,7 @@ function getBalanceLabel(balance: number): string {
 export function CustomersPage() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [balances, setBalances] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -68,8 +63,12 @@ export function CustomersPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await listCustomers();
-      setCustomers(data);
+      const [customersData, balancesData] = await Promise.all([
+        listCustomers(),
+        getAllCustomerBalances(),
+      ]);
+      setCustomers(customersData);
+      setBalances(balancesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load customers");
     } finally {
@@ -85,9 +84,9 @@ export function CustomersPage() {
     () =>
       customers.map((c) => ({
         ...c,
-        balance: getBalance(c),
+        balance: balances[c.id] ?? 0,
       })),
-    [customers],
+    [customers, balances],
   );
 
   const filtered = useMemo(() => {
