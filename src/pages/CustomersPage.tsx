@@ -11,26 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
+import { DataTable, type Column } from "@/components/DataTable";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useSort } from "@/hooks/useSort";
 import { listCustomers, createCustomer } from "@/lib/customers";
 import { getAllCustomerBalances } from "@/lib/transactions";
 import type { Customer, CustomerWithBalance } from "@/types";
 
 type FilterStatus = "all" | "owes" | "credit" | "settled";
-type SortOption = "name" | "balance-desc" | "balance-asc" | "recent";
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 function formatBalance(balance: number): string {
   if (balance === 0) return "Settled";
-  const abs = Math.abs(balance);
-  return balance > 0 ? `₹${abs.toLocaleString("en-IN")}` : `₹${abs.toLocaleString("en-IN")}`;
+  return `₹${Math.abs(balance).toLocaleString("en-IN")}`;
 }
 
 function getBalanceClass(balance: number): string {
@@ -45,6 +37,40 @@ function getBalanceLabel(balance: number): string {
   return "Settled";
 }
 
+const columns: Column<CustomerWithBalance>[] = [
+  {
+    key: "name",
+    header: "Name",
+    sortable: true,
+    render: (row) => (
+      <div>
+        <p className="font-medium text-foreground">{row.name}</p>
+        {row.phone && (
+          <p className="text-sm text-muted-foreground">{row.phone}</p>
+        )}
+      </div>
+    ),
+    sortValue: (row) => row.name,
+  },
+  {
+    key: "balance",
+    header: "Balance",
+    align: "right",
+    sortable: true,
+    render: (row) => (
+      <div>
+        <p className={`text-sm tabular-nums ${getBalanceClass(row.balance)}`}>
+          {formatBalance(row.balance)}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {getBalanceLabel(row.balance)}
+        </p>
+      </div>
+    ),
+    sortValue: (row) => row.balance,
+  },
+];
+
 export function CustomersPage() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -55,9 +81,9 @@ export function CustomersPage() {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [sort, setSort] = useState<SortOption>("name");
+  const { sortBy, sortDir, toggleSort } = useSort("name", "asc");
 
-  const debouncedSearch = useDebounce(search, 200);
+  const debouncedSearch = useDebouncedValue(search, 200);
 
   const fetchCustomers = async () => {
     try {
@@ -116,25 +142,18 @@ export function CustomersPage() {
     }
 
     result = [...result].sort((a, b) => {
-      switch (sort) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "balance-desc":
-          return b.balance - a.balance;
-        case "balance-asc":
-          return a.balance - b.balance;
-        case "recent":
-          return (
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime()
-          );
-        default:
-          return 0;
+      const aVal = sortBy === "name" ? a.name : a.balance;
+      const bVal = sortBy === "name" ? b.name : b.balance;
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
+      return sortDir === "asc"
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
     });
 
     return result;
-  }, [customersWithBalance, debouncedSearch, filter, sort]);
+  }, [customersWithBalance, debouncedSearch, filter, sortBy, sortDir]);
 
   const handleAddCustomer = async (data: {
     name: string;
@@ -148,9 +167,34 @@ export function CustomersPage() {
   };
 
   const hasCustomers = customers.length > 0;
-  const noSearchResults = hasCustomers && filtered.length === 0 && debouncedSearch.trim();
-  const noFilterResults = hasCustomers && filtered.length === 0 && filter !== "all" && !debouncedSearch.trim();
-  const trueEmpty = !loading && !hasCustomers;
+
+  let emptyMessage: React.ReactNode = null;
+  if (!loading && !hasCustomers) {
+    emptyMessage = (
+      <>
+        <p className="text-sm text-muted-foreground">
+          No customers yet. Add your first customer to get started.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => setDialogOpen(true)}
+        >
+          Add Customer
+        </Button>
+      </>
+    );
+  } else if (hasCustomers && filtered.length === 0 && debouncedSearch.trim()) {
+    emptyMessage = <>No customers match &ldquo;{debouncedSearch}&rdquo;</>;
+  } else if (hasCustomers && filtered.length === 0 && filter !== "all") {
+    emptyMessage = (
+      <>
+        {filter === "owes" && "No customers currently owe you money."}
+        {filter === "credit" && "You don't owe any customers money."}
+        {filter === "settled" && "No customers are fully settled yet."}
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -208,42 +252,10 @@ export function CustomersPage() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Label htmlFor="sort-by" className="text-xs text-muted-foreground">
-                Sort
-              </Label>
-              <Select
-                value={sort}
-                onValueChange={(v) => setSort(v as SortOption)}
-              >
-                <SelectTrigger
-                  id="sort-by"
-                  className="w-[160px]"
-                  aria-label="Sort customers"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="balance-desc">Balance (high–low)</SelectItem>
-                  <SelectItem value="balance-asc">Balance (low–high)</SelectItem>
-                  <SelectItem value="recent">Recently added</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <span className="text-xs text-muted-foreground" aria-live="polite">
               {filtered.length} of {customers.length} customers
             </span>
           </div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="space-y-3" role="status" aria-label="Loading customers">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />
-          ))}
         </div>
       )}
 
@@ -260,67 +272,18 @@ export function CustomersPage() {
         </div>
       )}
 
-      {trueEmpty && (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            No customers yet. Add your first customer to get started.
-          </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => setDialogOpen(true)}
-          >
-            Add Customer
-          </Button>
-        </div>
-      )}
-
-      {noSearchResults && (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
-          No customers match &ldquo;{debouncedSearch}&rdquo;
-        </div>
-      )}
-
-      {noFilterResults && (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
-          {filter === "owes" && "No customers currently owe you money."}
-          {filter === "credit" && "You don't owe any customers money."}
-          {filter === "settled" && "No customers are fully settled yet."}
-        </div>
-      )}
-
-      {!loading && !error && filtered.length > 0 && (
-        <div className="space-y-0" role="list" aria-label="Customer list">
-          {filtered.map((customer) => (
-            <button
-              key={customer.id}
-              type="button"
-              role="listitem"
-              onClick={() => navigate(`/customers/${customer.id}`)}
-              className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">
-                  {customer.name}
-                </p>
-                {customer.phone && (
-                  <p className="truncate text-sm text-muted-foreground">
-                    {customer.phone}
-                  </p>
-                )}
-              </div>
-              <div className="ml-4 text-right">
-                <p className={`text-sm tabular-nums ${getBalanceClass(customer.balance)}`}>
-                  {formatBalance(customer.balance)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {getBalanceLabel(customer.balance)}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        getRowKey={(row) => row.id}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortChange={toggleSort}
+        onRowClick={(row) => navigate(`/customers/${row.id}`)}
+        loading={loading}
+        loadingRowCount={5}
+        emptyState={emptyMessage}
+      />
 
       <CustomerFormDialog
         open={dialogOpen}
