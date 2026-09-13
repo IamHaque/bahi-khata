@@ -10,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DataTable, type Column } from "@/components/DataTable";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useSort } from "@/hooks/useSort";
 import { supabase } from "@/lib/supabase";
 import type { Transaction } from "@/types";
 
@@ -28,15 +31,6 @@ interface PeriodSummary {
   charges: number;
   payments: number;
   net: number;
-}
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
 }
 
 function getTodayRange() {
@@ -124,6 +118,129 @@ function groupTransactions(
   );
 }
 
+const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }>[] = [
+  {
+    key: "date",
+    header: "Date",
+    sortable: true,
+    render: (row) => (
+      <span className="tabular-nums">
+        {new Date(row.occurred_at).toLocaleDateString("en-IN")}
+      </span>
+    ),
+    sortValue: (row) => row.occurredAtMs,
+  },
+  {
+    key: "customer",
+    header: "Customer",
+    render: (row) => (
+      <Link
+        to={`/customers/${row.customer_id}`}
+        className="font-medium text-foreground hover:underline"
+      >
+        {row.customer_name}
+      </Link>
+    ),
+  },
+  {
+    key: "type",
+    header: "Type",
+    render: (row) => (
+      <span
+        className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
+          row.type === "charge"
+            ? "bg-receivable/10 text-receivable"
+            : "bg-credit/10 text-credit"
+        }`}
+      >
+        {row.type === "charge" ? "Charge" : "Payment"}
+      </span>
+    ),
+  },
+  {
+    key: "amount",
+    header: "Amount",
+    align: "right",
+    sortable: true,
+    render: (row) => (
+      <span
+        className={`tabular-nums ${
+          row.type === "charge" ? "text-receivable" : "text-credit"
+        }`}
+      >
+        {row.type === "charge" ? "+" : "-"}₹
+        {row.amount.toLocaleString("en-IN")}
+      </span>
+    ),
+    sortValue: (row) => row.amount,
+  },
+  {
+    key: "note",
+    header: "Note",
+    render: (row) => (
+      <span className="truncate text-muted-foreground max-w-[200px]">
+        {row.note ?? "—"}
+      </span>
+    ),
+  },
+  {
+    key: "source",
+    header: "Source",
+    render: (row) => (
+      <span className="text-xs text-muted-foreground">
+        {row.source === "import" ? "Import" : "Manual"}
+      </span>
+    ),
+  },
+];
+
+const summaryColumns: Column<PeriodSummary & { index: number }>[] = [
+  {
+    key: "label",
+    header: "Period",
+    render: (row) => <span className="font-medium">{row.label}</span>,
+  },
+  {
+    key: "count",
+    header: "Transactions",
+    align: "center",
+    render: (row) => <span className="tabular-nums">{row.count}</span>,
+  },
+  {
+    key: "charges",
+    header: "Charges",
+    align: "right",
+    render: (row) => (
+      <span className="tabular-nums text-receivable">
+        ₹{row.charges.toLocaleString("en-IN")}
+      </span>
+    ),
+  },
+  {
+    key: "payments",
+    header: "Payments",
+    align: "right",
+    render: (row) => (
+      <span className="tabular-nums text-credit">
+        ₹{row.payments.toLocaleString("en-IN")}
+      </span>
+    ),
+  },
+  {
+    key: "net",
+    header: "Net",
+    align: "right",
+    render: (row) => (
+      <span
+        className={`tabular-nums ${row.net >= 0 ? "text-receivable" : "text-credit"}`}
+      >
+        {row.net >= 0 ? "+" : ""}₹
+        {Math.abs(row.net).toLocaleString("en-IN")}
+      </span>
+    ),
+  },
+];
+
 export function TransactionsPage() {
   const [view, setView] = useState<ViewMode>("detailed");
   const [datePreset, setDatePreset] = useState("this-month");
@@ -131,8 +248,7 @@ export function TransactionsPage() {
   const [customEnd, setCustomEnd] = useState("");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"date" | "amount">("date");
-  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const { sortBy, sortDir, toggleSort } = useSort("date", "desc");
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
 
   const [transactions, setTransactions] = useState<TransactionWithCustomer[]>(
@@ -141,7 +257,7 @@ export function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const debouncedSearch = useDebounce(customerSearch, 200);
+  const debouncedSearch = useDebouncedValue(customerSearch, 200);
 
   const dateRange = useMemo(() => {
     switch (datePreset) {
@@ -231,7 +347,11 @@ export function TransactionsPage() {
       );
     }
 
-    result = [...result].sort((a, b) => {
+    return result;
+  }, [transactions, debouncedSearch]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
       if (sortBy === "date") {
         const cmp =
           new Date(a.occurred_at).getTime() -
@@ -241,23 +361,22 @@ export function TransactionsPage() {
       const cmp = a.amount - b.amount;
       return sortDir === "desc" ? -cmp : cmp;
     });
+  }, [filtered, sortBy, sortDir]);
 
-    return result;
-  }, [transactions, debouncedSearch, sortBy, sortDir]);
+  const detailedWithMs = useMemo(
+    () => sorted.map((tx) => ({ ...tx, occurredAtMs: new Date(tx.occurred_at).getTime() })),
+    [sorted],
+  );
 
   const grouped = useMemo(
     () => groupTransactions(filtered, groupBy),
     [filtered, groupBy],
   );
 
-  const toggleSort = (col: "date" | "amount") => {
-    if (sortBy === col) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortBy(col);
-      setSortDir("desc");
-    }
-  };
+  const groupedWithIndex = useMemo(
+    () => grouped.map((g, i) => ({ ...g, index: i })),
+    [grouped],
+  );
 
   return (
     <div className="space-y-4">
@@ -378,14 +497,6 @@ export function TransactionsPage() {
         {filtered.length} of {transactions.length} transactions
       </div>
 
-      {loading && (
-        <div className="space-y-2" role="status" aria-label="Loading transactions">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
-          ))}
-        </div>
-      )}
-
       {error && (
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
           {error}
@@ -399,184 +510,49 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {!loading && !error && transactions.length === 0 && (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            No transactions exist yet. Add a transaction from a customer&apos;s
-            page to get started.
-          </p>
-        </div>
+      {view === "detailed" && (
+        <DataTable
+          columns={detailedColumns}
+          rows={detailedWithMs}
+          getRowKey={(row) => row.id}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSortChange={toggleSort}
+          loading={loading}
+          emptyState={
+            transactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No transactions exist yet. Add a transaction from a customer&apos;s
+                page to get started.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No transactions match these filters.
+              </p>
+            )
+          }
+        />
       )}
 
-      {!loading && !error && transactions.length > 0 && filtered.length === 0 && (
-        <div className="rounded-md border border-border bg-muted/50 px-6 py-8 text-center text-sm text-muted-foreground">
-          No transactions match these filters.
-        </div>
-      )}
-
-      {!loading && !error && view === "detailed" && filtered.length > 0 && (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm" role="table">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th
-                  className="cursor-pointer px-3 py-2 text-left font-medium hover:bg-muted"
-                  onClick={() => toggleSort("date")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSort("date");
-                    }
-                  }}
-                  tabIndex={0}
-                  role="columnheader"
-                  aria-sort={
-                    sortBy === "date"
-                      ? sortDir === "desc"
-                        ? "descending"
-                        : "ascending"
-                      : "none"
-                  }
-                >
-                  Date{" "}
-                  {sortBy === "date" && (sortDir === "desc" ? "↓" : "↑")}
-                </th>
-                <th className="px-3 py-2 text-left font-medium" scope="col">
-                  Customer
-                </th>
-                <th className="px-3 py-2 text-left font-medium" scope="col">
-                  Type
-                </th>
-                <th
-                  className="cursor-pointer px-3 py-2 text-right font-medium hover:bg-muted"
-                  onClick={() => toggleSort("amount")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSort("amount");
-                    }
-                  }}
-                  tabIndex={0}
-                  role="columnheader"
-                  aria-sort={
-                    sortBy === "amount"
-                      ? sortDir === "desc"
-                        ? "descending"
-                        : "ascending"
-                      : "none"
-                  }
-                >
-                  Amount{" "}
-                  {sortBy === "amount" && (sortDir === "desc" ? "↓" : "↑")}
-                </th>
-                <th className="px-3 py-2 text-left font-medium" scope="col">
-                  Note
-                </th>
-                <th className="px-3 py-2 text-center font-medium" scope="col">
-                  Source
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((tx) => (
-                <tr
-                  key={tx.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-3 py-2 tabular-nums">
-                    {new Date(tx.occurred_at).toLocaleDateString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Link
-                      to={`/customers/${tx.customer_id}`}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {tx.customer_name}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
-                        tx.type === "charge"
-                          ? "bg-receivable/10 text-receivable"
-                          : "bg-credit/10 text-credit"
-                      }`}
-                    >
-                      {tx.type === "charge" ? "Charge" : "Payment"}
-                    </span>
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right tabular-nums ${
-                      tx.type === "charge" ? "text-receivable" : "text-credit"
-                    }`}
-                  >
-                    {tx.type === "charge" ? "+" : "-"}₹
-                    {tx.amount.toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">
-                    {tx.note ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-center text-xs text-muted-foreground">
-                    {tx.source === "import" ? "Import" : "Manual"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {!loading && !error && view === "summarized" && grouped.length > 0 && (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm" role="table">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-3 py-2 text-left font-medium" scope="col">
-                  Period
-                </th>
-                <th className="px-3 py-2 text-center font-medium" scope="col">
-                  Transactions
-                </th>
-                <th className="px-3 py-2 text-right font-medium" scope="col">
-                  Charges
-                </th>
-                <th className="px-3 py-2 text-right font-medium" scope="col">
-                  Payments
-                </th>
-                <th className="px-3 py-2 text-right font-medium" scope="col">
-                  Net
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {grouped.map((group, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-3 py-2 font-medium">{group.label}</td>
-                  <td className="px-3 py-2 text-center tabular-nums">
-                    {group.count}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-receivable">
-                    ₹{group.charges.toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-credit">
-                    ₹{group.payments.toLocaleString("en-IN")}
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right tabular-nums ${
-                      group.net >= 0 ? "text-receivable" : "text-credit"
-                    }`}
-                  >
-                    {group.net >= 0 ? "+" : ""}₹
-                    {Math.abs(group.net).toLocaleString("en-IN")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {view === "summarized" && (
+        <DataTable
+          columns={summaryColumns}
+          rows={groupedWithIndex}
+          getRowKey={(row) => String(row.index)}
+          loading={loading}
+          emptyState={
+            transactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No transactions exist yet. Add a transaction from a customer&apos;s
+                page to get started.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No transactions match these filters.
+              </p>
+            )
+          }
+        />
       )}
     </div>
   );
