@@ -1,13 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/public-sans";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-sans: "Public Sans Variable", system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -36,55 +36,57 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Paper-and-ink palette — Section 5.0 */
+  --background: #faf9f5;     /* --paper: cool off-white */
+  --foreground: #211e1b;     /* --ink: iron-gall black */
+  --card: #faf9f5;
+  --card-foreground: #211e1b;
+  --popover: #faf9f5;
+  --popover-foreground: #211e1b;
+  --primary: #8a6a2f;        /* --brass: single accent */
+  --primary-foreground: #faf9f5;
+  --secondary: #f0eee8;
+  --secondary-foreground: #211e1b;
+  --muted: #f0eee8;
+  --muted-foreground: #8a8378; /* --pencil */
+  --accent: #f0eee8;
+  --accent-foreground: #211e1b;
+  --destructive: #9c3b2c;
+  --border: #d8d4ca;
+  --input: #d8d4ca;
+  --ring: #8a6a2f;
   --radius: 0.625rem;
 
-  /* Financial semantic tokens */
-  --receivable: oklch(0.45 0.18 155);
-  --credit: oklch(0.50 0.17 250);
-  --settled: oklch(0.556 0 0);
+  /* Financial semantic tokens — ledger ink colors */
+  --receivable: #9c3b2c;     /* --ledger-red: traditional debit ink */
+  --credit: #28415c;         /* --ledger-blue: traditional credit ink */
+  --settled: #8a8378;        /* --pencil: graphite for settled */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* Under lamplight: warm dark brown-black */
+  --background: #221d17;
+  --foreground: #f2ede4;
+  --card: #2a2420;
+  --card-foreground: #f2ede4;
+  --popover: #2a2420;
+  --popover-foreground: #f2ede4;
+  --primary: #c4a05c;
+  --primary-foreground: #221d17;
+  --secondary: #352f28;
+  --secondary-foreground: #f2ede4;
+  --muted: #352f28;
+  --muted-foreground: #a39c8e;
+  --accent: #352f28;
+  --accent-foreground: #f2ede4;
+  --destructive: #c97a63;
+  --border: #3d362e;
+  --input: #3d362e;
+  --ring: #c4a05c;
 
-  --receivable: oklch(0.65 0.18 155);
-  --credit: oklch(0.65 0.17 250);
-  --settled: oklch(0.708 0 0);
+  --receivable: #c97a63;     /* lightened for dark-mode contrast */
+  --credit: #6c93b8;
+  --settled: #a39c8e;
 }
 
 @layer base {
@@ -103,7 +105,11 @@
     @apply border-border outline-ring/50;
   }
 
-  /* Respect prefers-reduced-motion */
+  /* Numeral treatment: tabular figures, tighter tracking at large sizes */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

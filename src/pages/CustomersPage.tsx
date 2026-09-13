@@ -290,14 +290,14 @@ export function CustomersPage() {
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="space-y-1" role="list" aria-label="Customer list">
+        <div className="space-y-0" role="list" aria-label="Customer list">
           {filtered.map((customer) => (
             <button
               key={customer.id}
               type="button"
               role="listitem"
               onClick={() => navigate(`/customers/${customer.id}`)}
-              className="flex w-full items-center justify-between rounded-md px-4 py-3 text-left transition-colors hover:bg-muted"
+              className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition-colors hover:bg-muted"
             >
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">

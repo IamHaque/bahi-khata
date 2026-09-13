@@ -125,7 +125,8 @@ export function DashboardPage() {
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Total Receivable</p>
           <p
-            className="text-4xl font-semibold tabular-nums text-receivable"
+            className="text-4xl font-bold tabular-nums tracking-tight text-receivable"
+            style={{ letterSpacing: "-0.02em" }}
             aria-label={`Total amount owed to the business: ₹${totalReceivable.toLocaleString("en-IN")}`}
           >
             ₹{totalReceivable.toLocaleString("en-IN")}
@@ -137,7 +138,8 @@ export function DashboardPage() {
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Total Credit</p>
           <p
-            className="text-4xl font-semibold tabular-nums text-credit"
+            className="text-4xl font-bold tabular-nums tracking-tight text-credit"
+            style={{ letterSpacing: "-0.02em" }}
             aria-label={`Total amount the business owes customers: ₹${totalCredit.toLocaleString("en-IN")}`}
           >
             ₹{totalCredit.toLocaleString("en-IN")}

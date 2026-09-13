@@ -131,7 +131,8 @@ export function CustomerDetailPage() {
         <p className="text-sm text-muted-foreground">Current Balance</p>
         <p
           ref={balanceRef}
-          className={`text-4xl font-semibold tabular-nums ${balanceClass}`}
+          className={`text-4xl font-bold tabular-nums tracking-tight ${balanceClass}`}
+          style={{ letterSpacing: "-0.02em" }}
         >
           ₹{Math.abs(balance).toLocaleString("en-IN")}
         </p>
@@ -150,12 +151,12 @@ export function CustomerDetailPage() {
           No transactions yet. Add a charge or payment to get started.
         </div>
       ) : (
-        <div className="space-y-1" role="list" aria-label="Transaction history">
+        <div className="space-y-0" role="list" aria-label="Transaction history">
           {transactions.map((tx) => (
             <div
               key={tx.id}
               role="listitem"
-              className="flex items-center justify-between rounded-md px-4 py-3 transition-colors hover:bg-muted"
+              className="flex items-center justify-between border-b border-border px-4 py-3 transition-colors hover:bg-muted"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
