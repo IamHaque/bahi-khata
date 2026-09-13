@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,8 +242,15 @@ const summaryColumns: Column<PeriodSummary & { index: number }>[] = [
 ];
 
 export function TransactionsPage() {
+  const [searchParams] = useSearchParams();
+  const initialPreset = searchParams.get("range") === "today"
+    ? "today"
+    : searchParams.get("range") === "this-week"
+      ? "this-week"
+      : "this-month";
+
   const [view, setView] = useState<ViewMode>("detailed");
-  const [datePreset, setDatePreset] = useState("this-month");
+  const [datePreset, setDatePreset] = useState(initialPreset);
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");

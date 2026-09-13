@@ -2,8 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { listCustomers } from "@/lib/customers";
-import { getAllCustomerBalances, getTodayActivity } from "@/lib/transactions";
+import { getAllCustomerBalances, getTodayActivity, getTodayTransactions } from "@/lib/transactions";
 import type { CustomerWithBalance } from "@/types";
+
+interface TodayTx {
+  id: string;
+  type: "charge" | "payment";
+  amount: number;
+  occurred_at: string;
+  customer_id: string;
+  customer_name: string;
+}
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -14,17 +23,18 @@ export function DashboardPage() {
   const [topDebtors, setTopDebtors] = useState<CustomerWithBalance[]>([]);
   const [openBalanceCount, setOpenBalanceCount] = useState(0);
   const [todayCount, setTodayCount] = useState(0);
-  const [todayNet, setTodayNet] = useState(0);
+  const [todayTransactions, setTodayTransactions] = useState<TodayTx[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [customers, balances, todayActivity] = await Promise.all([
+      const [customers, balances, todayActivity, todayTxs] = await Promise.all([
         listCustomers(),
         getAllCustomerBalances(),
         getTodayActivity(),
+        getTodayTransactions(5),
       ]);
 
       const customersWithBalance: CustomerWithBalance[] = customers.map((c) => ({
@@ -57,7 +67,7 @@ export function DashboardPage() {
       setTopDebtors(sorted);
 
       setTodayCount(todayActivity.count);
-      setTodayNet(todayActivity.net);
+      setTodayTransactions(todayTxs);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load dashboard",
@@ -173,13 +183,13 @@ export function DashboardPage() {
             All settled — no outstanding balances.
           </div>
         ) : (
-          <div className="mt-3 space-y-1" role="list" aria-label="Top outstanding balances">
+          <div className="mt-3 space-y-0" role="list" aria-label="Top outstanding balances">
             {topDebtors.map((customer) => (
               <Link
                 key={customer.id}
                 to={`/customers/${customer.id}`}
                 role="listitem"
-                className="flex items-center justify-between rounded-md px-3 py-2 transition-colors hover:bg-muted"
+                className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted"
               >
                 <span className="truncate text-sm font-medium text-foreground">
                   {customer.name}
@@ -194,29 +204,50 @@ export function DashboardPage() {
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-foreground">
-          Today&apos;s Activity
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-foreground">
+            Today&apos;s Activity
+          </h3>
+          {todayCount > 0 && (
+            <Link
+              to="/transactions?range=today"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              View all
+            </Link>
+          )}
+        </div>
         {todayCount === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             No activity yet today.
           </p>
         ) : (
-          <Link
-            to="/transactions"
-            className="mt-2 block rounded-md border border-border px-4 py-3 text-sm transition-colors hover:bg-muted"
-          >
-            <span className="font-medium text-foreground">{todayCount}</span>{" "}
-            transaction{todayCount !== 1 ? "s" : ""} today, net{" "}
-            <span
-              className={`tabular-nums ${
-                todayNet >= 0 ? "text-receivable" : "text-credit"
-              }`}
-            >
-              {todayNet >= 0 ? "+" : ""}₹
-              {Math.abs(todayNet).toLocaleString("en-IN")}
-            </span>
-          </Link>
+          <div className="mt-2 space-y-0 rounded-md border border-border">
+            {todayTransactions.map((tx) => (
+              <Link
+                key={tx.id}
+                to={`/customers/${tx.customer_id}`}
+                className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted last:border-0"
+              >
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-foreground">
+                    {tx.customer_name}
+                  </span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {tx.type === "charge" ? "Charge" : "Payment"}
+                  </span>
+                </div>
+                <span
+                  className={`ml-4 text-sm tabular-nums ${
+                    tx.type === "charge" ? "text-receivable" : "text-credit"
+                  }`}
+                >
+                  {tx.type === "charge" ? "+" : "-"}₹
+                  {tx.amount.toLocaleString("en-IN")}
+                </span>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -191,3 +191,33 @@ export async function getTodayActivity(): Promise<{
 
   return { count: txs.length, net };
 }
+
+export async function getTodayTransactions(limit = 5) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, type, amount, occurred_at, customer_id, customers(name)")
+    .eq("status", "active")
+    .gte("occurred_at", today.toISOString())
+    .lt("occurred_at", tomorrow.toISOString())
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data as unknown as Array<{
+    id: string;
+    type: TransactionType;
+    amount: number;
+    occurred_at: string;
+    customer_id: string;
+    customers: { name: string } | null;
+  }>).map((tx) => ({
+    ...tx,
+    customer_name: tx.customers?.name ?? "Unknown",
+  }));
+}
