@@ -2,21 +2,33 @@
 -- BahiKhata — Initial Schema
 -- Generated from live Supabase project (nhjjanrrismmrfeyiegp)
 -- via SQL Editor queries on 2026-09-13.
+-- Made idempotent so db push works on both fresh and existing databases.
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- 1. Custom enum types
 -- ------------------------------------------------------------
 
-CREATE TYPE transaction_type AS ENUM ('charge', 'payment');
-CREATE TYPE transaction_status AS ENUM ('active', 'edited', 'voided');
-CREATE TYPE transaction_source AS ENUM ('manual', 'import');
+DO $$ BEGIN
+  CREATE TYPE transaction_type AS ENUM ('charge', 'payment');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE transaction_status AS ENUM ('active', 'edited', 'voided');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE transaction_source AS ENUM ('manual', 'import');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- ------------------------------------------------------------
 -- 2. customers
 -- ------------------------------------------------------------
 
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id          UUID NOT NULL DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   phone       TEXT,
@@ -36,7 +48,7 @@ CREATE TABLE customers (
 -- 3. transactions
 -- ------------------------------------------------------------
 
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id           UUID NOT NULL DEFAULT gen_random_uuid(),
   customer_id  UUID NOT NULL,
   type         transaction_type   NOT NULL,
@@ -65,18 +77,24 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
 -- Policy: customers
 -- Authenticated users have full read/write access to all rows.
-CREATE POLICY "Authenticated users can manage customers"
-  ON customers
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can manage customers"
+    ON customers
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- Policy: transactions
 -- Authenticated users have full read/write access to all rows.
-CREATE POLICY "Authenticated users can manage transactions"
-  ON transactions
-  FOR ALL
-  TO authenticated
-  USING (true)
-  WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can manage transactions"
+    ON transactions
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
