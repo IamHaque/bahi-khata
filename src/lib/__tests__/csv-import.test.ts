@@ -246,9 +246,8 @@ describe("groupByCustomer", () => {
 
 // BUG-003 regression guard: date-only strings like "2024-01-15" must parse
 // to the local calendar date 2024-01-15, not shift by a day in timezones
-// ahead of UTC (e.g. IST). Currently skipped — will be enabled in STORY-035
-// when the fix lands.
-describe.skip("BUG-003 timezone regression (STORY-035)", () => {
+// ahead of UTC (e.g. IST).
+describe("BUG-003 timezone regression (STORY-035)", () => {
   it("date-only string '2024-01-15' parses to local date 2024-01-15", () => {
     const csv = [
       "customer_name,customer_phone,type,amount,date,note",

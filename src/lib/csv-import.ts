@@ -66,7 +66,18 @@ function validateAmount(value: string): number | null {
 }
 
 function validateDate(value: string): Date | null {
-  const date = new Date(value);
+  const trimmed = value.trim();
+
+  // Parse YYYY-MM-DD as local date, not UTC, to avoid timezone shifting
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let date: Date;
+  if (match) {
+    const [, year, month, day] = match;
+    date = new Date(Number(year), Number(month) - 1, Number(day));
+  } else {
+    date = new Date(trimmed);
+  }
+
   if (isNaN(date.getTime())) return null;
   if (date > new Date()) return null;
   return date;
