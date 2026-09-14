@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Transaction, TransactionType } from "@/types";
+import type { Transaction, TransactionType, TransactionWithCustomer } from "@/types";
 
 /**
  * Pure function: compute balance from an array of transactions.
@@ -125,42 +125,24 @@ export async function updateTransaction(
 
 export async function getCustomerBalance(customerId: string): Promise<number> {
   const { data, error } = await supabase
-    .from("transactions")
-    .select("type, amount")
-    .eq("customer_id", customerId)
-    .in("status", ["active", "edited"]);
+    .rpc("get_customer_balance", { p_customer_id: customerId });
 
   if (error) throw error;
 
-  return computeBalance(data as Array<Pick<Transaction, "type" | "amount">>);
+  return Number(data ?? 0);
 }
 
 export async function getAllCustomerBalances(): Promise<
   Record<string, number>
 > {
   const { data, error } = await supabase
-    .from("transactions")
-    .select("customer_id, type, amount")
-    .in("status", ["active", "edited"]);
+    .rpc("get_all_customer_balances");
 
   if (error) throw error;
 
-  const txs = data as Array<{
-    customer_id: string;
-    type: TransactionType;
-    amount: number;
-  }>;
-
-  // Group by customer, then compute each balance with the pure function
-  const grouped: Record<string, Array<Pick<Transaction, "type" | "amount">>> = {};
-  for (const tx of txs) {
-    const list = grouped[tx.customer_id] ?? (grouped[tx.customer_id] = []);
-    list.push({ type: tx.type, amount: tx.amount });
-  }
-
   const balances: Record<string, number> = {};
-  for (const [customerId, customerTxs] of Object.entries(grouped)) {
-    balances[customerId] = computeBalance(customerTxs);
+  for (const row of data as Array<{ customer_id: string; balance: number }>) {
+    balances[row.customer_id] = row.balance;
   }
 
   return balances;
@@ -190,6 +172,38 @@ export async function getTodayActivity(): Promise<{
   }, 0);
 
   return { count: txs.length, net };
+}
+
+export async function getAllTransactions(options?: {
+  dateRange?: { start: string; end: string } | null;
+  typeFilter?: "all" | "charge" | "payment";
+}): Promise<TransactionWithCustomer[]> {
+  let query = supabase
+    .from("transactions")
+    .select("*, customers(name, phone)")
+    .in("status", ["active", "edited"]);
+
+  if (options?.dateRange) {
+    query = query
+      .gte("occurred_at", options.dateRange.start)
+      .lt("occurred_at", options.dateRange.end);
+  }
+
+  if (options?.typeFilter && options.typeFilter !== "all") {
+    query = query.eq("type", options.typeFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  return (data as Array<Transaction & { customers: { name: string; phone: string } | null }>).map(
+    (tx) => ({
+      ...tx,
+      customer_name: tx.customers?.name ?? "Unknown",
+      customer_phone: tx.customers?.phone ?? "",
+    }),
+  );
 }
 
 export async function getTodayTransactions(limit = 5) {

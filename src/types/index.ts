@@ -35,3 +35,8 @@ export interface Transaction {
 export interface CustomerWithBalance extends Customer {
   balance: number;
 }
+
+export interface TransactionWithCustomer extends Transaction {
+  customer_name: string;
+  customer_phone: string;
+}

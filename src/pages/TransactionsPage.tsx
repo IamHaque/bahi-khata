@@ -13,17 +13,12 @@ import {
 import { DataTable, type Column } from "@/components/DataTable";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
-import { supabase } from "@/lib/supabase";
-import type { Transaction } from "@/types";
+import { getAllTransactions } from "@/lib/transactions";
+import type { TransactionWithCustomer } from "@/types";
 
 type ViewMode = "detailed" | "summarized";
 type FilterType = "all" | "charge" | "payment";
 type GroupBy = "day" | "week" | "month";
-
-interface TransactionWithCustomer extends Transaction {
-  customer_name: string;
-  customer_phone: string;
-}
 
 interface PeriodSummary {
   label: string;
@@ -293,32 +288,10 @@ export function TransactionsPage() {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from("transactions")
-        .select("*, customers(name, phone)")
-        .in("status", ["active", "edited"]);
-
-      if (dateRange) {
-        query = query
-          .gte("occurred_at", dateRange.start)
-          .lt("occurred_at", dateRange.end);
-      }
-
-      if (typeFilter !== "all") {
-        query = query.eq("type", typeFilter);
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-
-      const txsWithNames: TransactionWithCustomer[] = (
-        data as Array<Transaction & { customers: { name: string; phone: string } | null }>
-      ).map((tx) => ({
-        ...tx,
-        customer_name: tx.customers?.name ?? "Unknown",
-        customer_phone: tx.customers?.phone ?? "",
-      }));
+      const txsWithNames = await getAllTransactions({
+        dateRange,
+        typeFilter,
+      });
 
       setTransactions(txsWithNames);
     } catch (err) {
