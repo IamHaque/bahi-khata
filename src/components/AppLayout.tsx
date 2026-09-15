@@ -57,19 +57,25 @@ export function AppLayout() {
 
           {/* Desktop nav — hidden below sm */}
           <nav className="hidden items-center gap-1 sm:flex">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                  location.pathname === item.path
-                    ? "bg-muted font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`relative rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    isActive
+                      ? "font-medium text-primary"
+                      : "text-muted-foreground hover:bg-accent-wash hover:text-foreground"
+                  }`}
+                >
+                  {item.label}
+                  {isActive && (
+                    <span className="absolute inset-x-1 -bottom-[9px] h-0.5 rounded-full bg-primary" />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -141,20 +147,23 @@ export function AppLayout() {
         <SheetContent side="left" showCloseButton={false}>
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <div className="flex flex-col gap-1 pt-6">
-            {navItems.map((item) => (
-              <button
-                key={item.path}
-                type="button"
-                onClick={() => handleNavClick(item.path)}
-                className={`rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
-                  location.pathname === item.path
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => handleNavClick(item.path)}
+                  className={`rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent-wash hover:text-foreground"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-auto border-t border-border pt-4">
             {user?.email && (

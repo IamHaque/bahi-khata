@@ -89,8 +89,12 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-8" role="status" aria-label="Loading dashboard">
-        <div className="grid gap-6 sm:grid-cols-2">
+      <div className="space-y-6" role="status" aria-label="Loading dashboard">
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div className="space-y-2">
+            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+            <div className="h-12 w-40 animate-pulse rounded bg-muted" />
+          </div>
           <div className="space-y-2">
             <div className="h-4 w-28 animate-pulse rounded bg-muted" />
             <div className="h-12 w-40 animate-pulse rounded bg-muted" />
@@ -121,7 +125,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           Dashboard
@@ -131,32 +135,54 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Total Receivable</p>
-          <p
-            className="text-4xl font-bold tabular-nums tracking-tight text-receivable"
-            style={{ letterSpacing: "-0.02em" }}
-            aria-label={`Total amount owed to the business: ₹${totalReceivable.toLocaleString("en-IN")}`}
-          >
-            ₹{totalReceivable.toLocaleString("en-IN")}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Customers owe the business
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Total Credit</p>
-          <p
-            className="text-4xl font-bold tabular-nums tracking-tight text-credit"
-            style={{ letterSpacing: "-0.02em" }}
-            aria-label={`Total amount the business owes customers: ₹${totalCredit.toLocaleString("en-IN")}`}
-          >
-            ₹{totalCredit.toLocaleString("en-IN")}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Business owes customers
-          </p>
+      <div className="rounded-lg bg-accent-wash p-6">
+        <div className="grid gap-6 sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Total Receivable</p>
+            <p
+              className="text-4xl font-bold tabular-nums tracking-tight text-receivable"
+              style={{ letterSpacing: "-0.02em" }}
+              aria-label={`Total amount owed to the business: ₹${totalReceivable.toLocaleString("en-IN")}`}
+            >
+              ₹{totalReceivable.toLocaleString("en-IN")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Customers owe the business
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Total Credit</p>
+            <p
+              className="text-4xl font-bold tabular-nums tracking-tight text-credit"
+              style={{ letterSpacing: "-0.02em" }}
+              aria-label={`Total amount the business owes customers: ₹${totalCredit.toLocaleString("en-IN")}`}
+            >
+              ₹{totalCredit.toLocaleString("en-IN")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Business owes customers
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Net Position</p>
+            <p
+              className={`text-4xl font-bold tabular-nums tracking-tight ${
+                totalReceivable - totalCredit >= 0
+                  ? "text-receivable"
+                  : "text-credit"
+              }`}
+              style={{ letterSpacing: "-0.02em" }}
+              aria-label={`Net position: ₹${Math.abs(totalReceivable - totalCredit).toLocaleString("en-IN")} ${totalReceivable - totalCredit >= 0 ? "receivable" : "payable"}`}
+            >
+              {totalReceivable - totalCredit >= 0 ? "+" : "-"}₹
+              {Math.abs(totalReceivable - totalCredit).toLocaleString("en-IN")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {totalReceivable - totalCredit >= 0
+                ? "Net amount owed to business"
+                : "Net amount owed to customers"}
+            </p>
+          </div>
         </div>
       </div>
 

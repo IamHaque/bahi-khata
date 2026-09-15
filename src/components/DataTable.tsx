@@ -119,7 +119,11 @@ export function DataTable<T>({
                 <TableHead
                   key={col.key}
                   className={`${col.align === "right" ? "text-right" : ""} ${
-                    col.sortable ? "cursor-pointer hover:bg-muted" : ""
+                    col.sortable
+                      ? isActive
+                        ? "cursor-pointer bg-accent-wash font-medium text-primary"
+                        : "cursor-pointer hover:bg-accent-wash"
+                      : ""
                   }`}
                   {...(col.sortable
                     ? {
