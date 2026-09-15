@@ -11,6 +11,7 @@ import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
+import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
                   <Route path="/customers/:id" element={<CustomerDetailPage />} />
                   <Route path="/customers/import" element={<ImportPage />} />
                   <Route path="/transactions" element={<TransactionsPage />} />
+                  <Route path="/transactions/:id" element={<TransactionDetailPage />} />
                 </Route>
               </Route>
             </Routes>

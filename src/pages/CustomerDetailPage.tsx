@@ -287,6 +287,7 @@ export function CustomerDetailPage() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={toggleSort}
+        onRowClick={(row) => navigate(`/transactions/${row.id}`)}
         loading={loading}
         emptyState={
           <p className="text-sm text-muted-foreground">

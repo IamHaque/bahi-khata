@@ -206,6 +206,26 @@ export async function getAllTransactions(options?: {
   );
 }
 
+export async function getTransactionById(id: string): Promise<TransactionWithCustomer | null> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*, customers(name, phone)")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw error;
+  }
+
+  const tx = data as Transaction & { customers: { name: string; phone: string } | null };
+  return {
+    ...tx,
+    customer_name: tx.customers?.name ?? "Unknown",
+    customer_phone: tx.customers?.phone ?? "",
+  };
+}
+
 export async function getTodayTransactions(limit = 5) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

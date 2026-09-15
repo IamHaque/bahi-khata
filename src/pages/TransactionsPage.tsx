@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -240,6 +240,7 @@ const summaryColumns: Column<PeriodSummary & { index: number }>[] = [
 
 export function TransactionsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialPreset = searchParams.get("range") === "today"
     ? "today"
     : searchParams.get("range") === "this-week"
@@ -521,6 +522,7 @@ export function TransactionsPage() {
           sortBy={sortBy}
           sortDir={sortDir}
           onSortChange={toggleSort}
+          onRowClick={(row) => navigate(`/transactions/${row.id}`)}
           loading={loading}
           emptyState={
             transactions.length === 0 ? (
