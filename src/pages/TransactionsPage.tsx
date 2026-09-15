@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/DataTable";
+import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { getAllTransactions } from "@/lib/transactions";
@@ -258,6 +260,7 @@ export function TransactionsPage() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(customerSearch, 200);
 
@@ -360,9 +363,29 @@ export function TransactionsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-        Transactions
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          Transactions
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setQuickAddOpen(true)}
+          className="hidden sm:flex"
+        >
+          <Plus className="mr-1 size-4" />
+          Add Transaction
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setQuickAddOpen(true)}
+          className="sm:hidden"
+          aria-label="Add Transaction"
+        >
+          <Plus className="size-4" />
+        </Button>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
@@ -534,6 +557,8 @@ export function TransactionsPage() {
           }
         />
       )}
+
+      <QuickAddTransactionSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
     </div>
   );
 }

@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Sun, Moon, Menu } from "lucide-react";
+import { Sun, Moon, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 
 export function AppLayout() {
   const { signOut, user } = useAuth();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleSignOut = useCallback(async () => {
@@ -94,26 +92,6 @@ export function AppLayout() {
               )}
             </Button>
 
-            {/* Add Transaction — desktop (label) / mobile (icon) */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setQuickAddOpen(true)}
-              className="hidden sm:flex"
-            >
-              <Plus className="mr-1 size-4" />
-              Add Transaction
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setQuickAddOpen(true)}
-              className="sm:hidden"
-              aria-label="Add Transaction"
-            >
-              <Plus className="size-4" />
-            </Button>
-
             {/* Desktop-only: email + sign out */}
             {user?.email && (
               <span className="hidden text-xs text-muted-foreground sm:inline">
@@ -188,8 +166,6 @@ export function AppLayout() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />
       </main>
-
-      <QuickAddTransactionSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
     </div>
   );
 }
