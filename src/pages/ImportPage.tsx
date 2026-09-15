@@ -213,7 +213,7 @@ export function ImportPage() {
           </div>
 
           {invalidRows.length > 0 && (
-            <div className="max-h-64 overflow-y-auto rounded-md border border-border">
+            <div className="max-h-64 overflow-auto rounded-md border border-border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -270,7 +270,7 @@ export function ImportPage() {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto rounded-md border border-border">
+          <div className="max-h-96 overflow-auto rounded-md border border-border">
             <table className="w-full text-sm" role="table">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -347,7 +347,7 @@ export function ImportPage() {
               <summary className="cursor-pointer px-4 py-2 text-sm font-medium">
                 {invalidRows.length} invalid row(s) (click to expand)
               </summary>
-              <div className="max-h-48 overflow-y-auto border-t border-border">
+              <div className="max-h-48 overflow-auto border-t border-border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
