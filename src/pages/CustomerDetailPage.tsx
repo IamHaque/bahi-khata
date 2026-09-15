@@ -231,6 +231,30 @@ export function CustomerDetailPage() {
               {customer.phone}
             </p>
           )}
+          {customer.email && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="text-xs text-muted-foreground/70">Email: </span>
+              {customer.email}
+            </p>
+          )}
+          {customer.address && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="text-xs text-muted-foreground/70">Address: </span>
+              {customer.address}
+            </p>
+          )}
+          {(customer.alternate_contact_name || customer.alternate_contact_phone) && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="text-xs text-muted-foreground/70">Alt contact: </span>
+              {[customer.alternate_contact_name, customer.alternate_contact_phone].filter(Boolean).join(", ")}
+            </p>
+          )}
+          {customer.tags && customer.tags.length > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="text-xs text-muted-foreground/70">Tags: </span>
+              {customer.tags.join(", ")}
+            </p>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
           Edit
