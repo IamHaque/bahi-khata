@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBalance } from "@/lib/transactions";
+import { computeBalance } from "@/lib/balance";
 
 describe("computeBalance", () => {
   it("returns 0 for empty transaction list", () => {
