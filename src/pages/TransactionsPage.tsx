@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -368,24 +367,9 @@ export function TransactionsPage() {
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           Transactions
         </h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setQuickAddOpen(true)}
-          className="hidden sm:flex"
-        >
-          <Plus className="mr-1 size-4" />
-          Add Transaction
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setQuickAddOpen(true)}
-          className="sm:hidden"
-          aria-label="Add Transaction"
-        >
-          <Plus className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setQuickAddOpen(true)}>Add Transaction</Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
