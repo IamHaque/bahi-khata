@@ -66,30 +66,29 @@
 }
 
 .dark {
-  /* Under lamplight: warm dark brown-black */
-  --background: #221d17;
-  --foreground: #f2ede4;
-  --card: #2a2420;
-  --card-foreground: #f2ede4;
-  --popover: #2a2420;
-  --popover-foreground: #f2ede4;
-  --primary: #c4a05c;
-  --primary-foreground: #221d17;
-  --secondary: #352f28;
-  --secondary-foreground: #f2ede4;
-  --muted: #352f28;
-  --muted-foreground: #b0a99a; /* lightened slightly for dark-mode contrast */
-  --accent: #352f28;
-  --accent-foreground: #f2ede4;
-  --destructive: #c97a63;
-  --border: #4a4238;            /* darkened for deliberate structure */
-  --input: #4a4238;
-  --ring: #c4a05c;
-  --accent-wash: oklch(0.55 0.06 70 / 0.10); /* brass at ~10% opacity for dark bg */
+  --background: #18181b; /* neutral near-black, not warm brown */
+  --foreground: #f4f4f5;
+  --card: #202023;
+  --card-foreground: #f4f4f5;
+  --popover: #202023;
+  --popover-foreground: #f4f4f5;
+  --primary: #d4af6a; /* brass, brightened slightly for the neutral background */
+  --primary-foreground: #18181b;
+  --secondary: #27272a;
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #f4f4f5;
+  --destructive: #e5605a; /* now distinct from --receivable */
+  --border: #6b6b75; /* bright enough to actually read as a border, not just theoretically present */
+  --input: #6b6b75;
+  --ring: #d4af6a;
+  --accent-wash: oklch(0.55 0.06 70 / 0.1); /* unchanged — brass wash works at any neutral */
 
-  --receivable: #c97a63;     /* lightened for dark-mode contrast */
-  --credit: #6c93b8;
-  --settled: #a39c8e;
+  --receivable: #e28a72;
+  --credit: #7fa8c9;
+  --settled: #a1a1aa;
 }
 
 @layer base {
