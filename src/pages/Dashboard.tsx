@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
@@ -139,24 +138,9 @@ export function DashboardPage() {
             Welcome{user?.email ? `, ${user.email.split("@")[0]}` : ""}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setQuickAddOpen(true)}
-          className="hidden sm:flex"
-        >
-          <Plus className="mr-1 size-4" />
-          Add Transaction
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setQuickAddOpen(true)}
-          className="sm:hidden"
-          aria-label="Add Transaction"
-        >
-          <Plus className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setQuickAddOpen(true)}>Add Transaction</Button>
+        </div>
       </div>
 
       <div className="rounded-lg bg-accent-wash p-6">
