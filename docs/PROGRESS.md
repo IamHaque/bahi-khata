@@ -10,7 +10,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | --- | --- | --- | --- |
 | S-01 Repository audit and baseline documentation | Done | (this commit) | Baseline + PROGRESS + deviations below |
 | S-02 Quality gates, test harness and CI | Done | (see below) | eslint flat config + typecheck script + jsdom harness + CI |
-| S-03 Versioned database baseline and manual-steps log | Pending | | |
+| S-03 Versioned database baseline and manual-steps log | Done | (see below) | baseline = 2 existing exported migrations; MANUAL_STEPS + tests README |
 | S-04 Data-access layer and TanStack Query | Pending | | |
 | S-05 Additive schema: profiles, businesses, members, invitations | Pending | | |
 | S-06 Additive RLS policies, helper functions, RPCs, views | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-03 scenarios (checklist)
+
+- [x] Baseline migration reflects the current schema — the two existing exported migrations (`20260913152312_remote_schema.sql`, `20260913170000_add_balance_rpc_functions.sql`) are the baseline: customers, transactions, enums, policies and the balance RPCs, all create-if-not-exists style, marked as exported from project `nhjjanrrismmrfeyiegp`. No `0000_baseline.sql` was created — see DEV-2.
+- [x] docs/MANUAL_STEPS.md explains how to apply migrations in order and warns never to run the baseline against a database that already has these tables without diffing first
+- [x] supabase/tests/ exists with a README describing how RLS tests are run (rolled-back-transaction pattern, `set local role authenticated`, old-policies-dropped workaround)
+- [x] Done when: the baseline reads top to bottom and matches the S-01 audit — verified: baseline §5 and the migrations agree table by table, column by column
+
+**Verification performed:** re-read both migration files against `docs/ARCHITECTURE-BASELINE.md` §5 — customers (12 columns), transactions (11 columns), 3 enums, 2 wide-open RLS policies, 2 security-definer balance RPCs. No drift. No source file changed; build/lint/typecheck/test re-run green.
 
 ## Smoke checklist (operating contract rule 9)
 
