@@ -13,8 +13,11 @@ import { CustomerCombobox } from "@/components/CustomerCombobox";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
 import { TransactionFormFields } from "@/components/TransactionFormFields";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
-import { createTransaction, getCustomerBalance } from "@/lib/transactions";
-import { createCustomer } from "@/lib/customers";
+import { useCreateCustomer } from "@/features/customers/hooks";
+import {
+  useCreateTransaction,
+  useCustomerBalance,
+} from "@/features/transactions/hooks";
 import type { Customer } from "@/types";
 
 interface QuickAddTransactionSheetProps {
@@ -28,28 +31,21 @@ export function QuickAddTransactionSheet({
 }: QuickAddTransactionSheetProps) {
   const form = useTransactionForm();
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const createCustomer = useCreateCustomer();
+  const createTransaction = useCreateTransaction();
+  const { data: currentBalance = 0 } = useCustomerBalance(
+    selectedCustomer?.id ?? "",
+  );
 
   useEffect(() => {
     if (open) {
       form.reset();
       setSelectedCustomer(null);
-      setCurrentBalance(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  useEffect(() => {
-    if (!selectedCustomer) {
-      setCurrentBalance(null);
-      return;
-    }
-    getCustomerBalance(selectedCustomer.id)
-      .then(setCurrentBalance)
-      .catch(() => setCurrentBalance(0));
-  }, [selectedCustomer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +55,7 @@ export function QuickAddTransactionSheet({
     form.setSaveError(null);
 
     try {
-      await createTransaction({
+      await createTransaction.mutateAsync({
         customer_id: selectedCustomer.id,
         type: form.type,
         amount: form.getAmount(),
@@ -69,7 +65,6 @@ export function QuickAddTransactionSheet({
       toast.success(
         form.type === "charge" ? "Charge added" : "Payment recorded",
       );
-      window.dispatchEvent(new CustomEvent("transaction-saved"));
       onOpenChange(false);
     } catch (err) {
       form.setSaveError(
@@ -86,10 +81,7 @@ export function QuickAddTransactionSheet({
     email?: string;
     address?: string;
     notes?: string;
-  }) => {
-    const newCustomer = await createCustomer(data);
-    setSelectedCustomer(newCustomer);
-  };
+  }) => createCustomer.mutate(data);
 
   return (
     <>
@@ -112,7 +104,7 @@ export function QuickAddTransactionSheet({
               />
             </div>
 
-            {selectedCustomer && currentBalance !== null && (
+            {selectedCustomer && (
               <div className="rounded-md bg-muted/50 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">Current balance: </span>
                 <span
@@ -127,7 +119,7 @@ export function QuickAddTransactionSheet({
                   ₹{Math.abs(currentBalance).toLocaleString("en-IN")}
                   {currentBalance > 0 && " owed"}
                   {currentBalance < 0 && " credit"}
-                  {currentBalance === 0 && "Settled"}
+                  {currentBalance === 0 && " Settled"}
                 </span>
               </div>
             )}

@@ -21,23 +21,21 @@ import { Button } from "@/components/ui/button";
 import { TransactionFormFields } from "@/components/TransactionFormFields";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
 import {
-  updateTransaction,
-  updateTransactionStatus,
-} from "@/lib/transactions";
+  useUpdateTransaction,
+  useUpdateTransactionStatus,
+} from "@/features/transactions/hooks";
 import type { Transaction } from "@/types";
 
 interface EditTransactionSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction: Transaction;
-  onTransactionUpdated: () => void;
 }
 
 export function EditTransactionSheet({
   open,
   onOpenChange,
   transaction,
-  onTransactionUpdated,
 }: EditTransactionSheetProps) {
   const [voidConfirmOpen, setVoidConfirmOpen] = useState(false);
   const form = useTransactionForm({
@@ -46,6 +44,8 @@ export function EditTransactionSheet({
     initialDate: transaction.occurred_at.split("T")[0] ?? "",
     initialNote: transaction.note ?? "",
   });
+  const updateTransaction = useUpdateTransaction();
+  const updateTransactionStatus = useUpdateTransactionStatus();
 
   useEffect(() => {
     if (open) {
@@ -67,14 +67,16 @@ export function EditTransactionSheet({
     form.setSaveError(null);
 
     try {
-      await updateTransaction(transaction.id, {
-        type: form.type,
-        amount: form.getAmount(),
-        occurred_at: form.getOccurredAt(),
-        note: form.note.trim() || null,
+      await updateTransaction.mutateAsync({
+        id: transaction.id,
+        input: {
+          type: form.type,
+          amount: form.getAmount(),
+          occurred_at: form.getOccurredAt(),
+          note: form.note.trim() || null,
+        },
       });
       toast.success("Transaction updated");
-      onTransactionUpdated();
       onOpenChange(false);
     } catch (err) {
       form.setSaveError(
@@ -87,9 +89,11 @@ export function EditTransactionSheet({
 
   const handleVoid = async () => {
     try {
-      await updateTransactionStatus(transaction.id, "voided");
+      await updateTransactionStatus.mutateAsync({
+        id: transaction.id,
+        status: "voided",
+      });
       toast.success("Transaction voided");
-      onTransactionUpdated();
       onOpenChange(false);
     } catch (err) {
       form.setSaveError(

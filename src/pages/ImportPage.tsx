@@ -8,12 +8,9 @@ import {
   type ValidationError,
   type CustomerGroup,
 } from "@/lib/csv-import";
-import {
-  listCustomers,
-  createCustomer,
-  type CustomerInput,
-} from "@/lib/customers";
-import { createTransactionsBatch } from "@/lib/transactions";
+import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
+import { useCreateTransactionsBatch } from "@/features/transactions/hooks";
+import type { CustomerInput } from "@/features/customers/api";
 
 type ImportStep = "upload" | "preview" | "importing" | "success" | "error";
 
@@ -34,6 +31,10 @@ export function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  const { data: existingCustomers = [] } = useCustomers();
+  const createCustomer = useCreateCustomer();
+  const importTransactions = useCreateTransactionsBatch();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,7 +75,6 @@ export function ImportPage() {
     setImportError(null);
 
     try {
-      const existingCustomers = await listCustomers();
       const existingMap = new Map(
         existingCustomers.map((c) => [
           c.phone
@@ -102,7 +102,7 @@ export function ImportPage() {
             name: group.customerName,
             phone: group.customerPhone || undefined,
           };
-          const newCustomer = await createCustomer(input);
+          const newCustomer = await createCustomer.mutateAsync(input);
           customerIdMap.set(key, newCustomer.id);
           customersCreated++;
         }
@@ -124,7 +124,7 @@ export function ImportPage() {
         };
       });
 
-      await createTransactionsBatch(transactions);
+      await importTransactions.mutateAsync(transactions);
 
       setImportResult({
         customersCreated,
@@ -290,16 +290,14 @@ export function ImportPage() {
               </thead>
               <tbody>
                 {groups.map((group, i) => {
-                  const balance = group.transactions.reduce((sum, tx) => {
-                    return tx.type === "charge"
-                      ? sum + tx.amount
-                      : sum - tx.amount;
+                  const balance = group.transactions.reduce((sum, transaction) => {
+                    return transaction.type === "charge"
+                      ? sum + transaction.amount
+                      : sum - transaction.amount;
                   }, 0);
                   const key = group.customerPhone
                     ? `${group.customerName.toLowerCase()}|${group.customerPhone}`
                     : group.customerName.toLowerCase();
-                  const existingCustomers = validRows.length > 0 ? [] : [];
-                  void existingCustomers;
 
                   return (
                     <tr

@@ -10,14 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { TransactionFormFields } from "@/components/TransactionFormFields";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
-import { createTransaction } from "@/lib/transactions";
+import { useCreateTransaction } from "@/features/transactions/hooks";
 
 interface AddTransactionSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customerId: string;
   currentBalance: number;
-  onTransactionAdded: () => void;
 }
 
 export function AddTransactionSheet({
@@ -25,9 +24,9 @@ export function AddTransactionSheet({
   onOpenChange,
   customerId,
   currentBalance,
-  onTransactionAdded,
 }: AddTransactionSheetProps) {
   const form = useTransactionForm();
+  const createTransaction = useCreateTransaction();
 
   useEffect(() => {
     if (open) form.reset();
@@ -41,7 +40,7 @@ export function AddTransactionSheet({
     form.setSaveError(null);
 
     try {
-      await createTransaction({
+      await createTransaction.mutateAsync({
         customer_id: customerId,
         type: form.type,
         amount: form.getAmount(),
@@ -51,7 +50,6 @@ export function AddTransactionSheet({
       toast.success(
         form.type === "charge" ? "Charge added" : "Payment recorded",
       );
-      onTransactionAdded();
       onOpenChange(false);
     } catch (err) {
       form.setSaveError(
@@ -84,7 +82,7 @@ export function AddTransactionSheet({
               ₹{Math.abs(currentBalance).toLocaleString("en-IN")}
               {currentBalance > 0 && " owed"}
               {currentBalance < 0 && " credit"}
-              {currentBalance === 0 && "Settled"}
+              {currentBalance === 0 && " Settled"}
             </span>
           </div>
 

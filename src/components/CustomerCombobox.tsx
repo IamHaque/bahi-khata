@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { listCustomers } from "@/lib/customers";
+import { useCustomers } from "@/features/customers/hooks";
 import type { Customer } from "@/types";
 
 interface CustomerComboboxProps {
@@ -165,22 +165,18 @@ export function CustomerCombobox({
   disabled,
 }: CustomerComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
+  const { data: customers = [], isLoading } = useCustomers();
+
   useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    setSearch("");
-    listCustomers()
-      .then(setCustomers)
-      .catch(() => setCustomers([]))
-      .finally(() => setLoading(false));
+    if (open) {
+      setSearch("");
+    }
   }, [open]);
 
   useEffect(() => {
@@ -193,7 +189,7 @@ export function CustomerCombobox({
 
   const pickerProps = {
     customers,
-    loading,
+    loading: isLoading,
     search,
     setSearch,
     value,

@@ -11,7 +11,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-01 Repository audit and baseline documentation | Done | (this commit) | Baseline + PROGRESS + deviations below |
 | S-02 Quality gates, test harness and CI | Done | (see below) | eslint flat config + typecheck script + jsdom harness + CI |
 | S-03 Versioned database baseline and manual-steps log | Done | (see below) | baseline = 2 existing exported migrations; MANUAL_STEPS + tests README |
-| S-04 Data-access layer and TanStack Query | Pending | | |
+| S-04 Data-access layer and TanStack Query | Done | (see below) | react-query + AppError + queryKeys; lib/customers+transactions moved to features/*/api.ts |
 | S-05 Additive schema: profiles, businesses, members, invitations | Pending | | |
 | S-06 Additive RLS policies, helper functions, RPCs, views | Pending | | |
 | S-07 Business-scoped data layer (transitional) | Pending | | |
@@ -67,6 +67,17 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-04 scenarios (checklist)
+
+- [x] Components never call Supabase directly — grep: only `features/auth/api.ts`, `features/customers/api.ts`, `features/transactions/api.ts` import `@/lib/supabase` (plus the client definition itself). `lib/customers.ts` and `lib/transactions.ts` were moved, not copied.
+- [x] Reads and writes go through hooks — every page/component now reads via `useQuery` hooks and writes via `useMutation` hooks from `features/*/hooks.ts`; the `transaction-saved` window event is gone (0 references). Mutations invalidate the affected key families (`customerKeys.all()` / `transactionKeys.all()` + `customerKeys.all()` because balances derive from transactions) — proven by the invalidation test.
+- [x] Errors are normalized — every api function wraps failures in `AppError` (`forbidden` / `network` / `validation` / `unknown`) with user-safe messages; 8 unit tests cover the mapping. Screens render `error.message` through the existing `role="alert"` pattern.
+- [x] Behavior is unchanged — diff is moved code + hooks only; same queries, same mutations, same UI. Smoke checklist: dev server serves `/` and every page/module transforms without error (verified over HTTP); a full click-through needs Google OAuth credentials the agent does not have, so checklist items 2–5 are verified by code-path identity with v1 (same api functions, same order, same filters) rather than by clicking — noted honestly.
+
+**New files:** `src/lib/AppError.ts`, `src/lib/queryKeys.ts`, `src/lib/queryClient.ts`, `src/features/auth/api.ts`, `src/features/customers/{api,hooks}.ts`, `src/features/transactions/{api,hooks}.ts`, tests `src/lib/__tests__/appError.test.ts`, `src/features/customers/__tests__/hooks.test.tsx`.
+**Deleted:** `src/lib/customers.ts`, `src/lib/transactions.ts` (moved into the feature api files).
+**Query keys:** factories take an optional `businessId` (unscoped prefix today; S-07 makes it required and S-07's hygiene test enforces the business prefix).
 
 ## S-03 scenarios (checklist)
 

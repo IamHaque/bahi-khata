@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
-import { getAllTransactions } from "@/lib/transactions";
+import { useTransactions } from "@/features/transactions/hooks";
 import type { TransactionWithCustomer } from "@/types";
 
 type ViewMode = "detailed" | "summarized";
@@ -254,12 +254,6 @@ export function TransactionsPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const { sortBy, sortDir, toggleSort } = useSort("date", "desc");
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
-
-  const [transactions, setTransactions] = useState<TransactionWithCustomer[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(customerSearch, 200);
@@ -286,37 +280,12 @@ export function TransactionsPage() {
     }
   }, [datePreset, customStart, customEnd]);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const txsWithNames = await getAllTransactions({
-        dateRange,
-        typeFilter,
-      });
-
-      setTransactions(txsWithNames);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load transactions",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange, typeFilter]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handler = () => void fetchData();
-    window.addEventListener("transaction-saved", handler);
-    return () => window.removeEventListener("transaction-saved", handler);
-  }, [fetchData]);
+  const {
+    data: transactions = [],
+    isLoading,
+    error,
+    refetch,
+  } = useTransactions({ dateRange, typeFilter });
 
   const filtered = useMemo(() => {
     let result = transactions;
@@ -487,10 +456,10 @@ export function TransactionsPage() {
 
       {error && (
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-          {error}
+          {error.message}
           <button
             type="button"
-            onClick={() => void fetchData()}
+            onClick={() => refetch()}
             className="ml-3 underline hover:no-underline"
           >
             Retry
@@ -507,7 +476,7 @@ export function TransactionsPage() {
           sortDir={sortDir}
           onSortChange={toggleSort}
           onRowClick={(row) => navigate(`/transactions/${row.id}`)}
-          loading={loading}
+          loading={isLoading}
           emptyState={
             transactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -528,7 +497,7 @@ export function TransactionsPage() {
           columns={summaryColumns}
           rows={groupedWithIndex}
           getRowKey={(row) => String(row.index)}
-          loading={loading}
+          loading={isLoading}
           emptyState={
             transactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">

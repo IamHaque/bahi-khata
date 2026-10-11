@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,9 @@ import { CustomerFormDialog } from "@/components/CustomerFormDialog";
 import { DataTable, type Column } from "@/components/DataTable";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
-import { listCustomers, createCustomer } from "@/lib/customers";
-import { getAllCustomerBalances } from "@/lib/transactions";
-import type { Customer, CustomerWithBalance } from "@/types";
+import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
+import { useAllCustomerBalances } from "@/features/transactions/hooks";
+import type { CustomerWithBalance } from "@/types";
 
 type FilterStatus = "all" | "owes" | "credit" | "settled";
 
@@ -73,10 +73,14 @@ const columns: Column<CustomerWithBalance>[] = [
 
 export function CustomersPage() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [balances, setBalances] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: customers = [],
+    isLoading,
+    error,
+    refetch,
+  } = useCustomers();
+  const { data: balances = {} } = useAllCustomerBalances();
+  const createCustomer = useCreateCustomer();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -84,33 +88,6 @@ export function CustomersPage() {
   const { sortBy, sortDir, toggleSort } = useSort("name", "asc");
 
   const debouncedSearch = useDebouncedValue(search, 200);
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [customersData, balancesData] = await Promise.all([
-        listCustomers(),
-        getAllCustomerBalances(),
-      ]);
-      setCustomers(customersData);
-      setBalances(balancesData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load customers");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    const handler = () => void fetchCustomers();
-    window.addEventListener("transaction-saved", handler);
-    return () => window.removeEventListener("transaction-saved", handler);
-  }, [fetchCustomers]);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(
     () =>
@@ -161,15 +138,12 @@ export function CustomersPage() {
     email?: string;
     address?: string;
     notes?: string;
-  }) => {
-    const newCustomer = await createCustomer(data);
-    setCustomers((prev) => [...prev, newCustomer]);
-  };
+  }) => createCustomer.mutate(data);
 
   const hasCustomers = customers.length > 0;
 
   let emptyMessage: React.ReactNode = null;
-  if (!loading && !hasCustomers) {
+  if (!isLoading && !hasCustomers) {
     emptyMessage = (
       <>
         <p className="text-sm text-muted-foreground">
@@ -261,10 +235,10 @@ export function CustomersPage() {
 
       {error && (
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-          {error}
+          {error.message}
           <button
             type="button"
-            onClick={() => void fetchCustomers()}
+            onClick={() => refetch()}
             className="ml-3 underline hover:no-underline"
           >
             Retry
@@ -280,7 +254,7 @@ export function CustomersPage() {
         sortDir={sortDir}
         onSortChange={toggleSort}
         onRowClick={(row) => navigate(`/customers/${row.id}`)}
-        loading={loading}
+        loading={isLoading}
         loadingRowCount={5}
         emptyState={emptyMessage}
       />

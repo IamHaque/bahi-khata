@@ -1,39 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
-import { getTransactionById } from "@/lib/transactions";
+import { useTransaction } from "@/features/transactions/hooks";
 import type { TransactionWithCustomer } from "@/types";
 
 export function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [transaction, setTransaction] = useState<TransactionWithCustomer | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: transaction,
+    isLoading,
+    error,
+    refetch,
+  } = useTransaction(id ?? "");
   const [editTx, setEditTx] = useState<TransactionWithCustomer | null>(null);
 
-  const fetchTransaction = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const tx = await getTransactionById(id);
-      setTransaction(tx);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load transaction",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void fetchTransaction();
-  }, [fetchTransaction]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4" role="status" aria-label="Loading transaction">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
@@ -46,10 +29,10 @@ export function TransactionDetailPage() {
   if (error) {
     return (
       <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-        {error}
+        {error.message}
         <button
           type="button"
-          onClick={() => void fetchTransaction()}
+          onClick={() => refetch()}
           className="ml-3 underline hover:no-underline"
         >
           Retry
@@ -199,7 +182,6 @@ export function TransactionDetailPage() {
           open={!!editTx}
           onOpenChange={(open) => { if (!open) setEditTx(null); }}
           transaction={editTx}
-          onTransactionUpdated={() => { setEditTx(null); void fetchTransaction(); }}
         />
       )}
     </div>

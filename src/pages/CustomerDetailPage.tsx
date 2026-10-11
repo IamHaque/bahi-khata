@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
@@ -6,64 +6,40 @@ import { AddTransactionSheet } from "@/components/AddTransactionSheet";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { DataTable, type Column } from "@/components/DataTable";
 import { useSort } from "@/hooks/useSort";
-import { getCustomer, updateCustomer } from "@/lib/customers";
+import { useCustomer, useUpdateCustomer } from "@/features/customers/hooks";
 import {
-  listTransactionsByCustomer,
-  getCustomerBalance,
-} from "@/lib/transactions";
-import type { Customer, Transaction } from "@/types";
+  useCustomerBalance,
+  useCustomerTransactions,
+} from "@/features/transactions/hooks";
+import type { Transaction } from "@/types";
 
 type TransactionWithSort = Transaction & { occurredAtMs: number };
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [balance, setBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: customer,
+    isLoading,
+    error,
+    refetch: refetchCustomer,
+  } = useCustomer(id ?? "");
+  const { data: transactions = [] } = useCustomerTransactions(id ?? "");
+  const { data: balance = 0 } = useCustomerBalance(id ?? "");
+  const updateCustomer = useUpdateCustomer();
   const [editOpen, setEditOpen] = useState(false);
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const balanceRef = useRef<HTMLParagraphElement>(null);
   const { sortBy, sortDir, toggleSort } = useSort("occurredAtMs", "desc");
 
-  const fetchData = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const [cust, txs, bal] = await Promise.all([
-        getCustomer(id),
-        listTransactionsByCustomer(id),
-        getCustomerBalance(id),
-      ]);
-      setCustomer(cust);
-      setTransactions(txs);
-      setBalance(bal);
-
-      if (balanceRef.current) {
-        balanceRef.current.classList.remove("balance-flash");
-        void balanceRef.current.offsetWidth;
-        balanceRef.current.classList.add("balance-flash");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load customer");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (balanceRef.current) {
+      balanceRef.current.classList.remove("balance-flash");
+      void balanceRef.current.offsetWidth;
+      balanceRef.current.classList.add("balance-flash");
     }
-  }, [id]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handler = () => void fetchData();
-    window.addEventListener("transaction-saved", handler);
-    return () => window.removeEventListener("transaction-saved", handler);
-  }, [fetchData]);
+  }, [balance]);
 
   const handleEdit = async (data: {
     name: string;
@@ -71,11 +47,7 @@ export function CustomerDetailPage() {
     email?: string;
     address?: string;
     notes?: string;
-  }) => {
-    if (!id) return;
-    const updated = await updateCustomer(id, data);
-    setCustomer(updated);
-  };
+  }) => updateCustomer.mutate({ id: id ?? "", input: data });
 
   const txsWithSort: TransactionWithSort[] = transactions.map((tx) => ({
     ...tx,
@@ -176,7 +148,7 @@ export function CustomerDetailPage() {
     },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4" role="status" aria-label="Loading customer">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
@@ -189,10 +161,10 @@ export function CustomerDetailPage() {
   if (error) {
     return (
       <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-        {error}
+        {error.message}
         <button
           type="button"
-          onClick={() => void fetchData()}
+          onClick={() => refetchCustomer()}
           className="ml-3 underline hover:no-underline"
         >
           Retry
@@ -288,7 +260,7 @@ export function CustomerDetailPage() {
         sortDir={sortDir}
         onSortChange={toggleSort}
         onRowClick={(row) => navigate(`/transactions/${row.id}`)}
-        loading={loading}
+        loading={isLoading}
         emptyState={
           <p className="text-sm text-muted-foreground">
             No transactions yet. Add a charge or payment to get started.
@@ -310,7 +282,6 @@ export function CustomerDetailPage() {
           onOpenChange={setAddTxOpen}
           customerId={id}
           currentBalance={balance}
-          onTransactionAdded={() => void fetchData()}
         />
       )}
 
@@ -319,7 +290,6 @@ export function CustomerDetailPage() {
           open={!!editTx}
           onOpenChange={(open) => { if (!open) setEditTx(null); }}
           transaction={editTx}
-          onTransactionUpdated={() => { setEditTx(null); void fetchData(); }}
         />
       )}
     </div>

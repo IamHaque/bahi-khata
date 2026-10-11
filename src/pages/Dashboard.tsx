@@ -1,96 +1,59 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
-import { listCustomers } from "@/lib/customers";
-import { getAllCustomerBalances, getTodayActivity, getTodayTransactions } from "@/lib/transactions";
+import { useCustomers } from "@/features/customers/hooks";
+import {
+  useAllCustomerBalances,
+  useTodayActivity,
+  useTodayTransactions,
+} from "@/features/transactions/hooks";
 import type { CustomerWithBalance } from "@/types";
-
-interface TodayTx {
-  id: string;
-  type: "charge" | "payment";
-  amount: number;
-  occurred_at: string;
-  customer_id: string;
-  customer_name: string;
-}
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalReceivable, setTotalReceivable] = useState(0);
-  const [totalCredit, setTotalCredit] = useState(0);
-  const [topDebtors, setTopDebtors] = useState<CustomerWithBalance[]>([]);
-  const [openBalanceCount, setOpenBalanceCount] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
-  const [todayTransactions, setTodayTransactions] = useState<TodayTx[]>([]);
+  const { data: customers = [], isLoading, error, refetch } = useCustomers();
+  const { data: balances = {} } = useAllCustomerBalances();
+  const { data: todayActivity } = useTodayActivity();
+  const { data: todayTransactions = [] } = useTodayTransactions(5);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [customers, balances, todayActivity, todayTxs] = await Promise.all([
-        listCustomers(),
-        getAllCustomerBalances(),
-        getTodayActivity(),
-        getTodayTransactions(5),
-      ]);
-
-      const customersWithBalance: CustomerWithBalance[] = customers.map((c) => ({
+  const customersWithBalance: CustomerWithBalance[] = useMemo(
+    () =>
+      customers.map((c) => ({
         ...c,
         balance: balances[c.id] ?? 0,
-      }));
+      })),
+    [customers, balances],
+  );
 
-      let receivable = 0;
-      let credit = 0;
-      let openCount = 0;
+  let receivable = 0;
+  let credit = 0;
+  let openCount = 0;
 
-      for (const c of customersWithBalance) {
-        if (c.balance > 0) {
-          receivable += c.balance;
-          openCount++;
-        } else if (c.balance < 0) {
-          credit += Math.abs(c.balance);
-          openCount++;
-        }
-      }
+  for (const c of customersWithBalance) {
+    if (c.balance > 0) {
+      receivable += c.balance;
+      openCount++;
+    } else if (c.balance < 0) {
+      credit += Math.abs(c.balance);
+      openCount++;
+    }
+  }
 
-      setTotalReceivable(receivable);
-      setTotalCredit(credit);
-      setOpenBalanceCount(openCount);
-
-      const sorted = [...customersWithBalance]
+  const topDebtors = useMemo(
+    () =>
+      [...customersWithBalance]
         .filter((c) => c.balance > 0)
         .sort((a, b) => b.balance - a.balance)
-        .slice(0, 10);
-      setTopDebtors(sorted);
+        .slice(0, 10),
+    [customersWithBalance],
+  );
 
-      setTodayCount(todayActivity.count);
-      setTodayTransactions(todayTxs);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load dashboard",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const todayCount = todayActivity?.count ?? 0;
 
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handler = () => void fetchData();
-    window.addEventListener("transaction-saved", handler);
-    return () => window.removeEventListener("transaction-saved", handler);
-  }, [fetchData]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6" role="status" aria-label="Loading dashboard">
         <div className="grid gap-6 sm:grid-cols-3">
@@ -115,10 +78,10 @@ export function DashboardPage() {
   if (error) {
     return (
       <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-        {error}
+        {error.message}
         <button
           type="button"
-          onClick={() => void fetchData()}
+          onClick={() => void refetch()}
           className="ml-3 underline hover:no-underline"
         >
           Retry
@@ -150,9 +113,9 @@ export function DashboardPage() {
             <p
               className="text-4xl font-bold tabular-nums tracking-tight text-receivable"
               style={{ letterSpacing: "-0.02em" }}
-              aria-label={`Total amount owed to the business: ₹${totalReceivable.toLocaleString("en-IN")}`}
+              aria-label={`Total amount owed to the business: ₹${receivable.toLocaleString("en-IN")}`}
             >
-              ₹{totalReceivable.toLocaleString("en-IN")}
+              ₹{receivable.toLocaleString("en-IN")}
             </p>
             <p className="text-xs text-muted-foreground">
               Customers owe the business
@@ -163,9 +126,9 @@ export function DashboardPage() {
             <p
               className="text-4xl font-bold tabular-nums tracking-tight text-credit"
               style={{ letterSpacing: "-0.02em" }}
-              aria-label={`Total amount the business owes customers: ₹${totalCredit.toLocaleString("en-IN")}`}
+              aria-label={`Total amount the business owes customers: ₹${credit.toLocaleString("en-IN")}`}
             >
-              ₹{totalCredit.toLocaleString("en-IN")}
+              ₹{credit.toLocaleString("en-IN")}
             </p>
             <p className="text-xs text-muted-foreground">
               Business owes customers
@@ -175,18 +138,18 @@ export function DashboardPage() {
             <p className="text-sm text-muted-foreground">Net Position</p>
             <p
               className={`text-4xl font-bold tabular-nums tracking-tight ${
-                totalReceivable - totalCredit >= 0
+                receivable - credit >= 0
                   ? "text-receivable"
                   : "text-credit"
               }`}
               style={{ letterSpacing: "-0.02em" }}
-              aria-label={`Net position: ₹${Math.abs(totalReceivable - totalCredit).toLocaleString("en-IN")} ${totalReceivable - totalCredit >= 0 ? "receivable" : "payable"}`}
+              aria-label={`Net position: ₹${Math.abs(receivable - credit).toLocaleString("en-IN")} ${receivable - credit >= 0 ? "receivable" : "payable"}`}
             >
-              {totalReceivable - totalCredit >= 0 ? "+" : "-"}₹
-              {Math.abs(totalReceivable - totalCredit).toLocaleString("en-IN")}
+              {receivable - credit >= 0 ? "+" : "-"}₹
+              {Math.abs(receivable - credit).toLocaleString("en-IN")}
             </p>
             <p className="text-xs text-muted-foreground">
-              {totalReceivable - totalCredit >= 0
+              {receivable - credit >= 0
                 ? "Net amount owed to business"
                 : "Net amount owed to customers"}
             </p>
@@ -195,8 +158,8 @@ export function DashboardPage() {
       </div>
 
       <div className="text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{openBalanceCount}</span>{" "}
-        customer{openBalanceCount !== 1 ? "s" : ""} with outstanding balances
+        <span className="font-medium text-foreground">{openCount}</span>{" "}
+        customer{openCount !== 1 ? "s" : ""} with outstanding balances
       </div>
 
       <div>
