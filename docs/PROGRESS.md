@@ -12,7 +12,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-02 Quality gates, test harness and CI | Done | (see below) | eslint flat config + typecheck script + jsdom harness + CI |
 | S-03 Versioned database baseline and manual-steps log | Done | (see below) | baseline = 2 existing exported migrations; MANUAL_STEPS + tests README |
 | S-04 Data-access layer and TanStack Query | Done | (see below) | react-query + AppError + queryKeys; lib/customers+transactions moved to features/*/api.ts |
-| S-05 Additive schema: profiles, businesses, members, invitations | Pending | | |
+| S-05 Additive schema: profiles, businesses, members, invitations | Done | (see below) | migration 0001 written; not applied (no DB access) |
 | S-06 Additive RLS policies, helper functions, RPCs, views | Pending | | |
 | S-07 Business-scoped data layer (transitional) | Pending | | |
 | S-08 Theme, tokens, typography, dark mode | Pending | | |
@@ -67,6 +67,17 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-05 scenarios (checklist)
+
+- [x] Existing app is unaffected — all four new columns on `customers`/`transactions` are nullable; the app writes null `business_id`, which the match trigger explicitly allows; no v1 policy or query is touched
+- [x] One owned business per user — `create unique index businesses_one_per_owner on businesses (owner_id)`; a second insert violates it
+- [x] Owner membership is automatic — `businesses_add_owner` after-insert trigger inserts exactly one `business_members` row with role `owner` (guarded by `one_owner_row_per_business` partial unique index)
+- [x] Profiles are populated — `on_auth_user_created` after-insert trigger on `auth.users` fills `email`, `full_name`, `avatar_url` from `raw_user_meta_data` (Google identity), with `on conflict do update` for idempotency; migration ends with a one-time backfill `insert … select … on conflict do nothing` for pre-existing users
+- [x] Transactions cannot cross businesses — `assert_transaction_business_match` before-insert/update trigger (security definer, pinned search_path) rejects a mismatch with errcode 23503; null `business_id` passes during the expand phase
+- [x] Done when: docs/MANUAL_STEPS.md lists the exact order to apply 0001 with rollback notes — done (exact filename `0001_multi_business_schema.sql`, verification steps and rollback included)
+
+**Note (operating contract rule 7):** the SQL is written but was not executed against a real database (none is available to the agent). The rules above are enforced by the migration's own DDL/triggers; executable proof arrives with the S-06 SQL tests.
 
 ## S-04 scenarios (checklist)
 

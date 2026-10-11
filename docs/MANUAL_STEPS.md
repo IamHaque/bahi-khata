@@ -21,7 +21,7 @@ must be applied:
 | --- | --- | --- |
 | `20260913152312_remote_schema.sql` | v1 (already applied) | customers, transactions, enums, wide-open RLS |
 | `20260913170000_add_balance_rpc_functions.sql` | v1 (already applied) | balance RPC functions |
-| `0001_*.sql` | S-05 | additive multi-business schema |
+| `0001_multi_business_schema.sql` | S-05 | additive multi-business schema |
 | `0002_*.sql` | S-06 | membership-based RLS, RPCs, secure views |
 | `0003_*.sql` | S-20 | enforce tenancy (drops old policies, makes business_id mandatory) |
 | `0004_*.sql` | S-30 | permanent customer delete RPC |
@@ -45,20 +45,29 @@ production without a backup (see the backup step in each S-entry below).
 
 ---
 
-## S-05 — Additive multi-business schema (pending)
+## S-05 — Additive multi-business schema (file: `supabase/migrations/0001_multi_business_schema.sql`)
+
+**Status: written, not yet applied.** The branch works without it (the app
+does not use the new tables/columns yet), but every later story assumes it.
 
 1. **Backup first (production only):** Dashboard → Database → Backups, or
    `pg_dump "postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres" -f backup_$(date +%F).sql`
-2. Apply `supabase/migrations/0001_*.sql` in order.
+2. Apply `supabase/migrations/0001_multi_business_schema.sql` (SQL Editor
+   or `supabase db push`). It is idempotent — safe to re-run.
 3. **Verify:**
    - `\dt` shows `profiles`, `businesses`, `business_members`,
      `business_invitations` in addition to `customers`/`transactions`.
    - `\d customers` shows `business_id`, `created_by`, `deleted_at`,
-     `deleted_by` columns (all nullable).
+     `deleted_by` columns (all nullable); `\d transactions` shows
+     `business_id`, `updated_by`, `voided_at`, `voided_by`.
    - Inserting a second business for the same `owner_id` fails with a unique
      violation on `businesses_one_per_owner`.
    - Creating a business inserts exactly one `business_members` row with
      role `owner` (trigger).
+   - Inserting a transaction whose `business_id` differs from its
+     customer's `business_id` is rejected by the match trigger.
+   - The existing app still lists customers and adds transactions (both
+     write null `business_id`, which the trigger allows).
 4. **Rollback:** the migration is additive; dropping the new tables and
    columns restores v1 (script included as a comment at the end of the
    migration file).
