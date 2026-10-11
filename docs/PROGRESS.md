@@ -9,7 +9,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | Story | Status | Commit | Notes |
 | --- | --- | --- | --- |
 | S-01 Repository audit and baseline documentation | Done | (this commit) | Baseline + PROGRESS + deviations below |
-| S-02 Quality gates, test harness and CI | Pending | | |
+| S-02 Quality gates, test harness and CI | Done | (see below) | eslint flat config + typecheck script + jsdom harness + CI |
 | S-03 Versioned database baseline and manual-steps log | Pending | | |
 | S-04 Data-access layer and TanStack Query | Pending | | |
 | S-05 Additive schema: profiles, businesses, members, invitations | Pending | | |
@@ -51,6 +51,22 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-41 Responsive pass | Pending | | |
 | S-42 Security and RLS verification | Pending | | |
 | S-43 Documentation and release readiness | Pending | | |
+
+## S-02 scenarios (checklist)
+
+- [x] Local scripts exist: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test` each succeed on a clean checkout — all four green (lint: 0 errors, 5 pre-existing warnings)
+- [x] Components can be tested with app providers: test helper renders with router + query client; sample component test passes under vitest with jsdom; helper documented below
+- [x] CI runs on every push: `.github/workflows/ci.yml` runs lint, typecheck, build, test on push to any branch; any failing step fails the job
+- [x] Done-when proof: a deliberately failing test (`src/test/__deliberate-failure.test.tsx`) failed `npm test` with exit code 1, then was removed; suite back to 29/29 green
+
+**Dependency justification (rule 6):** `@testing-library/dom@10` was added because it is a required peer dependency of `@testing-library/react@16` (allowed list). No other new dependencies.
+
+**Test harness (documented helper):**
+- `src/test/app-render.tsx` — `renderApp(ui, { route, session })` wraps any UI in `ThemeProvider` + `AuthProvider` + `QueryClientProvider` (retry disabled) + `MemoryRouter`. It also mocks `@/lib/supabase` auth so provider trees work without a network. `session: null` default; pass a fake `Session` to test signed-in states.
+- `src/test/sample-component.test.tsx` — the proof test: renders `DataTable` through the helper (content, sort emission, empty slot).
+- `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
+- `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
+- Existing pure-logic tests keep working unchanged.
 
 ## Smoke checklist (operating contract rule 9)
 
