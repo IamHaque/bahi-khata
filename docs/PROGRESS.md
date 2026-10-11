@@ -1,0 +1,92 @@
+# BahiKhata v2 — Build Progress
+
+Branch: `feat/v2-multi-business` (from `master` @ `cc92edb`)
+Spec: `docs/PRD-v2.md` (stories S-01 … S-43, execution order per C-1)
+Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
+
+## Story board
+
+| Story | Status | Commit | Notes |
+| --- | --- | --- | --- |
+| S-01 Repository audit and baseline documentation | Done | (this commit) | Baseline + PROGRESS + deviations below |
+| S-02 Quality gates, test harness and CI | Pending | | |
+| S-03 Versioned database baseline and manual-steps log | Pending | | |
+| S-04 Data-access layer and TanStack Query | Pending | | |
+| S-05 Additive schema: profiles, businesses, members, invitations | Pending | | |
+| S-06 Additive RLS policies, helper functions, RPCs, views | Pending | | |
+| S-07 Business-scoped data layer (transitional) | Pending | | |
+| S-08 Theme, tokens, typography, dark mode | Pending | | |
+| S-09 Display primitives | Pending | | |
+| S-10 DataTable, SearchInput, FilterBar, Pagination | Pending | | |
+| S-11 Form kit, EntityDialog, ConfirmDialog | Pending | | |
+| S-12 App shell, navigation, path helpers | Pending | | |
+| S-13 UI gallery and UI consistency contract | Pending | | |
+| S-14 Business resolution provider | Pending | | |
+| S-15 Create-business page | Pending | | |
+| S-16 Post-login landing logic and route guards | Pending | | |
+| S-17 Route restructure to /b/:businessId | Pending | | |
+| S-18 Business settings (view and edit) | Pending | | |
+| S-19 Delete business | Pending | | |
+| S-20 Enforce tenancy (contract phase) | Pending | | |
+| S-21 Permission layer | Pending | | |
+| S-22 Members page | Pending | | |
+| S-23 Invite by email and manage invitations | Pending | | |
+| S-24 Respond to invitations | Pending | | |
+| S-25 Change role, remove member, leave business | Pending | | |
+| S-26 My businesses page and business switcher | Pending | | |
+| S-27 Lost-access handling | Pending | | |
+| S-28 Customers list v2 | Pending | | |
+| S-29 Customer form (add and edit) | Pending | | |
+| S-30 Archive, restore, permanently delete customers | Pending | | |
+| S-32 Add transaction sheet | Pending | | |
+| S-33 Edit transaction | Pending | | |
+| S-34 Void and restore transactions | Pending | | |
+| S-31 Customer detail v2 | Pending | | Executed after S-34 per C-1 |
+| S-35 Transactions page v2 | Pending | | |
+| S-36 Dashboard v2: KPIs, top balances, today | Pending | | |
+| S-37 Dashboard trends and recent activity | Pending | | |
+| S-38 CSV import, business scoped and role gated | Pending | | |
+| S-39 Exports and printable statements | Pending | | |
+| S-40 Accessibility and keyboard pass | Pending | | |
+| S-41 Responsive pass | Pending | | |
+| S-42 Security and RLS verification | Pending | | |
+| S-43 Documentation and release readiness | Pending | | |
+
+## Smoke checklist (operating contract rule 9)
+
+Re-run after every story that touches data or routing:
+
+- [ ] Sign in with Google → land on Dashboard
+- [ ] List customers → all customers visible with balances
+- [ ] Add customer → appears in list
+- [ ] Add transaction (charge) → balance increases, row appears on customer page
+- [ ] Dashboard totals match the sum of customer balances
+
+## Deviations (real code vs PRD assumptions)
+
+| # | PRD assumption | Reality | Adaptation |
+| --- | --- | --- | --- |
+| DEV-1 | File layout per PRD 4.4: `src/app/`, `src/features/*/{api,hooks,schemas,pages,components}`, `src/components/app/`, `src/components/layout/`, `src/test/` | Flat layout: `src/App.tsx`, `src/pages/`, `src/components/` (flat + `ui/`), `src/contexts/`, `src/hooks/`, `src/lib/`, `src/types/`, tests in `src/lib/__tests__/` | Per C-8, every touch zone maps to the closest existing path (mapping table below). New shared files (`format.ts`, `queryKeys.ts`, `permissions.ts`, `paths.ts`, `components/app/`, `components/layout/`) are created where the PRD wants them; feature code stays in existing files until its story rewrites it. No mass moves. |
+| DEV-2 | S-03 creates `supabase/migrations/0000_baseline.sql` | `supabase/migrations/` already contains two exported migrations (`20260913152312_remote_schema.sql`, `20260913170000_add_balance_rpc_functions.sql`) from the live project | The two existing files **are** the baseline (S-03 documents them, adds `supabase/tests/` + `MANUAL_STEPS.md`). New migrations continue at `0001` per C-5. No `0000` file is created. |
+| DEV-3 | next-themes with system/light/dark; Geist as the UI font (PRD 1.1, 4.5) | Custom `ThemeContext` (light/dark only, localStorage); Public Sans loaded, Geist installed but unused | S-08 aligns the token values with PRD 4.5 semantics on the existing CSS-variable architecture and adds a `system` option to `ThemeContext`. Public Sans stays the single loaded family (it is the wired one); the unused Geist package is removed. |
+| DEV-4 | Theme from a shadcn preset; primary indigo/blue, receivable green, credit red-orange (PRD 4.5) | Hand-picked paper-and-ink palette: brass primary, ledger-red receivable, ledger-blue credit | S-08 restokens `index.css` to the PRD 4.5 semantic hues (OKLCH) while keeping the variable architecture and light/dark structure. |
+| DEV-5 | `npm run lint` passes on a clean checkout (S-02 scenario) | `npm run lint` **fails on master**: ESLint 9 is installed, no `eslint.config.js` exists | S-02 adds a flat eslint config (and a `typecheck` script) so all four gates pass. Tracked as S-02 work, not a blocker. |
+| DEV-6 | `@tanstack/react-query` mentioned as if present (PRD 1.1 "Missing") | Not installed; fetching is hand-rolled `useEffect` + `useState` with a `transaction-saved` window event | S-04 introduces react-query (allowed dependency, 4.6) and moves all Supabase calls behind hooks. |
+| DEV-7 | Balance RPCs are scoped helpers (PRD 4.2 view/RPC design) | `get_customer_balance` / `get_all_customer_balances` are `security definer` with **no `search_path` pin and no RLS awareness** | S-06 replaces them with membership-scoped, `search_path`-pinned equivalents (`dashboard_summary` etc.) and pins the old ones during transition. Old policies stay until S-20. |
+| DEV-8 | `lib/format.ts`, `lib/queryKeys.ts`, `src/app/paths.ts` exist | None exist; money/dates are inline `toLocaleString`/`toLocaleDateString`, paths are hardcoded | Created in S-09 (`format.ts`), S-04 (`queryKeys.ts`), S-12 (`paths.ts`). |
+| DEV-9 | v1 has no `updated_by`/`voided_*` audit columns (PRD 4.1 additive list) | Confirmed absent; only `created_by` exists | Added in S-05 exactly as sketched. |
+
+### Touch-zone mapping (DEV-1)
+
+| PRD touch zone | Real path used |
+| --- | --- |
+| `src/app/router.tsx` | `src/App.tsx` |
+| `src/app/providers.tsx` | `src/contexts/` (new `BusinessProvider` added here in S-14) |
+| `src/app/paths.ts` | new file `src/lib/paths.ts` (re-exported as `paths.ts` alias not needed; import from `lib/paths`) |
+| `src/app/queryClient.ts` | new file `src/lib/queryClient.ts` |
+| `src/components/app/*` | new directory |
+| `src/components/layout/*` | new directory (`AppLayout.tsx` stays until S-12 rebuilds the shell) |
+| `src/features/*/api.ts`, `hooks.ts`, `schemas.ts` | today: `src/lib/{customers,transactions,csv-import}.ts` + `src/types/index.ts`; feature folders created as stories land |
+| `src/lib/format.ts`, `queryKeys.ts`, `permissions.ts` | new files |
+| `src/test/` | new directory for test helpers |
+| `.github/workflows/` | new directory |
