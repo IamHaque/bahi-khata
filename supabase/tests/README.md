@@ -70,4 +70,8 @@ psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/
 
 ## What exists so far
 
-- *(nothing yet — the first test file lands with S-06)*
+- `0002_rls_membership.sql` (S-06) — proves members-read/outsiders-don't,
+  viewer read-only, editor write/no-destroy, owner control, secure views,
+  invitation visibility and `respond_to_invitation`, including the
+  cross-business transaction rejection from the 0001 trigger. It drops the
+  v1 broad policies inside its transaction, exactly as described above.

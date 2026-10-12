@@ -22,7 +22,7 @@ must be applied:
 | `20260913152312_remote_schema.sql` | v1 (already applied) | customers, transactions, enums, wide-open RLS |
 | `20260913170000_add_balance_rpc_functions.sql` | v1 (already applied) | balance RPC functions |
 | `0001_multi_business_schema.sql` | S-05 | additive multi-business schema |
-| `0002_*.sql` | S-06 | membership-based RLS, RPCs, secure views |
+| `0002_membership_rls.sql` | S-06 | membership-based RLS, RPCs, secure views |
 | `0003_*.sql` | S-20 | enforce tenancy (drops old policies, makes business_id mandatory) |
 | `0004_*.sql` | S-30 | permanent customer delete RPC |
 | `0005_*.sql` | S-34 | void_reason column |
@@ -72,15 +72,22 @@ does not use the new tables/columns yet), but every later story assumes it.
    columns restores v1 (script included as a comment at the end of the
    migration file).
 
-## S-06 — Membership-based RLS, RPCs, secure views (pending)
+## S-06 — Membership-based RLS, RPCs, secure views (file: `supabase/migrations/0002_membership_rls.sql`)
+
+**Status: written, not yet applied.**
 
 1. Prerequisite: S-05 applied.
-2. Apply `supabase/migrations/0002_*.sql` in order.
-3. **Verify:** run the SQL tests in `supabase/tests/` (see
-   `supabase/tests/README.md`) — all must pass. Spot-check that the old
-   policies still exist (they are only dropped in S-20).
-4. **Rollback:** drop the new policies/functions; the old policies and the
-   S-05 schema remain, so the app keeps working.
+2. Apply `supabase/migrations/0002_membership_rls.sql` (idempotent).
+3. **Verify:**
+   - Run `supabase/tests/0002_rls_membership.sql` (see
+     `supabase/tests/README.md`) — it must complete without a
+     `TEST FAILED` exception.
+   - Spot-check that the old policies still exist (they are only dropped in
+     S-020): `\dp customers` still lists
+     `Authenticated users can manage customers`.
+4. **Rollback:** drop the new policies/functions/view (script in a comment
+   at the end of the migration file); the old policies and the S-05 schema
+   remain, so the app keeps working.
 
 ## S-20 — Enforce tenancy (pending — READ BEFORE RUNNING)
 

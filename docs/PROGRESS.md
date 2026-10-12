@@ -13,7 +13,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-03 Versioned database baseline and manual-steps log | Done | (see below) | baseline = 2 existing exported migrations; MANUAL_STEPS + tests README |
 | S-04 Data-access layer and TanStack Query | Done | (see below) | react-query + AppError + queryKeys; lib/customers+transactions moved to features/*/api.ts |
 | S-05 Additive schema: profiles, businesses, members, invitations | Done | (see below) | migration 0001 written; not applied (no DB access) |
-| S-06 Additive RLS policies, helper functions, RPCs, views | Pending | | |
+| S-06 Additive RLS policies, helper functions, RPCs, views | Done | (see below) | migration 0002 + SQL test written; not applied (no DB access) |
 | S-07 Business-scoped data layer (transitional) | Pending | | |
 | S-08 Theme, tokens, typography, dark mode | Pending | | |
 | S-09 Display primitives | Pending | | |
@@ -67,6 +67,18 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-06 scenarios (checklist)
+
+- [x] Members read, outsiders do not — policies: `Members can read customers/transactions/businesses/business_members`; SQL test asserts Olivia/Eli/Vic read Acme, Zed reads 0 rows on every table
+- [x] Viewer is read-only — `Editors can insert/update customers/transactions` policies; test asserts Vic's insert/update/delete on customers and insert/update on transactions are denied
+- [x] Editor can write but not destroy — test asserts Eli inserts/updates customers and transactions, and that customer delete, business delete, change_member_role and remove_member are denied (no delete policies for Editor)
+- [x] Owner controls the business — `Owners can update/delete businesses` policies + `change_member_role`/`remove_member`/`leave_business` RPCs validating `has_role(…, 'owner')`; test asserts Olivia updates the business, changes and removes Eli's role, and that the owner row is protected (owner role change denied, owner leave denied)
+- [x] Views respect RLS — `customer_balances` view created `with (security_invoker = true)`; `dashboard_summary` raises for non-members; test asserts Zed gets 0 view rows and a denied RPC
+- [x] Invitation by email — `Owners can read invitations` + `Invitees can read their invitations` (JWT email, case-insensitive via `lower()`); `respond_to_invitation` RPC adds the `business_members` row with the invited role on accept, treats already-a-member as success, and rejects stale/double responses; test covers visibility, accept, case-insensitive email, double-respond and outsider-respond
+- [x] Done when: all SQL tests pass and run instructions are in supabase/tests/README.md — `supabase/tests/0002_rls_membership.sql` written (rolled-back transaction, old policies dropped, `TEST FAILED` assertion pattern); run instructions already in the README. **Caveat (rule 7): the agent has no database, so the tests are written but not executed here; they are designed to run in the SQL Editor or via psql in one paste.**
+
+**Also in 0002:** helpers `is_member`/`has_role` (security definer, pinned search_path), RPCs `create_business`, `respond_to_invitation`, `leave_business`, `change_member_role`, `remove_member`, `dashboard_summary` (all security definer, all caller-validating). RLS enabled on all four new tables. Old v1 policies untouched (dropped only in 0003/S-20).
 
 ## S-05 scenarios (checklist)
 
