@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { useTransaction } from "@/features/transactions/hooks";
+import { formatDate, formatTime } from "@/lib/format";
 import type { TransactionWithCustomer } from "@/types";
 
 export function TransactionDetailPage() {
@@ -66,16 +67,8 @@ export function TransactionDetailPage() {
     );
   }
 
-  const txDate = new Date(transaction.occurred_at);
-  const formattedDate = txDate.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const formattedTime = txDate.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = formatDate(transaction.occurred_at);
+  const formattedTime = formatTime(transaction.occurred_at);
 
   const statusLabel =
     transaction.status === "voided"

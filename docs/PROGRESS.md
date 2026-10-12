@@ -16,7 +16,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-06 Additive RLS policies, helper functions, RPCs, views | Done | (see below) | migration 0002 + SQL test written; not applied (no DB access) |
 | S-07 Business-scoped data layer (transitional) | Done | (see below) | api fns take optional businessId; useDashboardSummary added |
 | S-08 Theme, tokens, typography, dark mode | Done | (see below) | OKLCH tokens, ThemeContext+system, Geist removed |
-| S-09 Display primitives | Pending | | |
+| S-09 Display primitives | Done | (see below) | lib/format.ts + 8 shared components + tests |
 | S-10 DataTable, SearchInput, FilterBar, Pagination | Pending | | |
 | S-11 Form kit, EntityDialog, ConfirmDialog | Pending | | |
 | S-12 App shell, navigation, path helpers | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-09 scenarios (checklist)
+
+- [x] Money is formatted in one way — `formatMoney(1234567.5)` → `₹12,34,567.50` (en-IN currency, two decimals); `Money` renders right-aligned with `tabular-nums` (tested)
+- [x] Balance meaning is never color-only — `BalanceBadge` shows 'Owes you' / 'You owe' / 'Settled' with token color AND text label AND amount (tested for 500 / -200 / 0); `getBalanceStatus` exported for reuse
+- [x] State components — `PageHeader`, `StatCard`, `Money`, `BalanceBadge`, `StatusBadge`, `EmptyState`, `ErrorState` (with retry), `Skeleton`/`SkeletonRows`, `Avatar` (deterministic initials color from a name hash) all created in `src/components/app/`; each covered by `src/components/app/__tests__/primitives.test.tsx` (26 tests)
+- [x] Dates — `lib/format.ts` is the only date module: `formatMoney`, `formatDate`, `formatTime`, `formatDayMonth`, `formatMonthYear`, `formatRelative`; `src/test/dateHygiene.test.ts` fails if any file in `pages/` or `components/` calls `toLocaleDateString`/`toLocaleTimeString` directly. Pages migrated (CustomerDetail, Transactions, TransactionDetail + summarized-view labels)
+
+**Note:** pages keep their existing inline `₹{…toLocaleString("en-IN")}` displays for now — S-09's touch zone is `components/app/` + `lib/format.ts`; the page rebuilds (E5–E7) will use `Money`/`BalanceBadge` everywhere.
 
 ## S-08 scenarios (checklist)
 

@@ -15,6 +15,7 @@ import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { useTransactions } from "@/features/transactions/hooks";
+import { formatDate, formatDayMonth, formatMonthYear } from "@/lib/format";
 import type { TransactionWithCustomer } from "@/types";
 
 type ViewMode = "detailed" | "summarized";
@@ -70,22 +71,15 @@ function groupTransactions(
 
     if (groupBy === "day") {
       key = date.toISOString().split("T")[0] ?? "";
-      label = date.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
+      label = formatDate(date);
     } else if (groupBy === "week") {
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay() + 1);
       key = weekStart.toISOString().split("T")[0] ?? "";
-      label = `Week of ${weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+      label = `Week of ${formatDayMonth(weekStart)}`;
     } else {
       key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      label = date.toLocaleDateString("en-IN", {
-        month: "long",
-        year: "numeric",
-      });
+      label = formatMonthYear(date);
     }
 
     if (!groups.has(key)) {
@@ -115,17 +109,17 @@ function groupTransactions(
 }
 
 const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }>[] = [
-  {
-    key: "date",
-    header: "Date",
-    sortable: true,
-    render: (row) => (
-      <span className="tabular-nums">
-        {new Date(row.occurred_at).toLocaleDateString("en-IN")}
-      </span>
-    ),
-    sortValue: (row) => row.occurredAtMs,
-  },
+    {
+      key: "date",
+      header: "Date",
+      sortable: true,
+      render: (row) => (
+        <span className="tabular-nums">
+          {formatDate(row.occurred_at)}
+        </span>
+      ),
+      sortValue: (row) => row.occurredAtMs,
+    },
   {
     key: "customer",
     header: "Customer",

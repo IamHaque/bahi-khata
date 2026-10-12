@@ -11,6 +11,7 @@ import {
   useCustomerBalance,
   useCustomerTransactions,
 } from "@/features/transactions/hooks";
+import { formatDate } from "@/lib/format";
 import type { Transaction } from "@/types";
 
 type TransactionWithSort = Transaction & { occurredAtMs: number };
@@ -73,7 +74,7 @@ export function CustomerDetailPage() {
       sortable: true,
       render: (row) => (
         <span className="tabular-nums">
-          {new Date(row.occurred_at).toLocaleDateString("en-IN")}
+          {formatDate(row.occurred_at)}
         </span>
       ),
       sortValue: (row) => row.occurredAtMs,
