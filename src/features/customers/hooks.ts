@@ -9,31 +9,31 @@ import {
 } from "./api";
 import type { Customer } from "@/types";
 
-export function useCustomers() {
+export function useCustomers(businessId?: string) {
   return useQuery({
-    queryKey: customerKeys.list(),
-    queryFn: listCustomers,
+    queryKey: customerKeys.list(businessId),
+    queryFn: () => listCustomers(businessId),
   });
 }
 
-export function useCustomer(id: string) {
+export function useCustomer(id: string, businessId?: string) {
   return useQuery({
-    queryKey: customerKeys.detail(id),
-    queryFn: () => getCustomer(id),
+    queryKey: customerKeys.detail(id, businessId),
+    queryFn: () => getCustomer(id, businessId),
   });
 }
 
-export function useCreateCustomer() {
+export function useCreateCustomer(businessId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CustomerInput) => createCustomer(input),
+    mutationFn: (input: CustomerInput) => createCustomer(input, businessId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all() });
+      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
     },
   });
 }
 
-export function useUpdateCustomer() {
+export function useUpdateCustomer(businessId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -42,9 +42,9 @@ export function useUpdateCustomer() {
     }: {
       id: string;
       input: Partial<CustomerInput>;
-    }) => updateCustomer(id, input),
+    }) => updateCustomer(id, input, businessId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all() });
+      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
     },
   });
 }

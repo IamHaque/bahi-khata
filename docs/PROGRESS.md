@@ -14,7 +14,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-04 Data-access layer and TanStack Query | Done | (see below) | react-query + AppError + queryKeys; lib/customers+transactions moved to features/*/api.ts |
 | S-05 Additive schema: profiles, businesses, members, invitations | Done | (see below) | migration 0001 written; not applied (no DB access) |
 | S-06 Additive RLS policies, helper functions, RPCs, views | Done | (see below) | migration 0002 + SQL test written; not applied (no DB access) |
-| S-07 Business-scoped data layer (transitional) | Pending | | |
+| S-07 Business-scoped data layer (transitional) | Done | (see below) | api fns take optional businessId; useDashboardSummary added |
 | S-08 Theme, tokens, typography, dark mode | Pending | | |
 | S-09 Display primitives | Pending | | |
 | S-10 DataTable, SearchInput, FilterBar, Pagination | Pending | | |
@@ -67,6 +67,16 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-07 scenarios (checklist)
+
+- [x] Scoped reads — every read api function takes optional `businessId` and adds `.eq("business_id", …)` when given; hooks pass it into the key factory, so scoped keys start with `['business', 'b1']` (proven by `src/lib/__tests__/queryKeys.test.ts` and the mocked-supabase tests)
+- [x] Scoped writes — `createCustomer`/`createTransaction`/`createTransactionsBatch` store `business_id` from the argument; `created_by` set from `auth.uid()` (customers now record `created_by` too — new column from S-05). Proven by mocked-supabase tests asserting the insert payload
+- [x] Transitional compatibility — `businessId` omitted → no extra `.eq()`, `business_id: null` on insert (the 0001 trigger allows null); every optional param carries a `// TODO(S-20): businessId becomes required` marker. Pages call hooks with no businessId, so behavior is unchanged
+- [x] Key hygiene — `queryKeys.test.ts` fails if any factory output called with a businessId lacks the `['business', id]` prefix; unscoped keys still tested for the transition
+- [x] Summaries are scoped — `getDashboardSummary(businessId)` calls `supabase.rpc('dashboard_summary', { p_business_id })`; `useDashboardSummary(businessId)` hook added with `transactionKeys.summary(businessId)`. The Dashboard page still uses the old unscoped RPCs (it has no businessId yet — S-14/S-36 will switch it)
+
+**Tests added:** `src/lib/__tests__/queryKeys.test.ts` (7 tests), `src/features/__tests__/businessScoping.test.ts` (7 tests).
 
 ## S-06 scenarios (checklist)
 

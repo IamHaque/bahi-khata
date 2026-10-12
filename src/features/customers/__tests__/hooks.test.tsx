@@ -60,7 +60,9 @@ describe("customer hooks", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "add" }));
 
-    expect(mocks.createCustomer).toHaveBeenCalledWith({ name: "New" });
+    await waitFor(() =>
+      expect(mocks.createCustomer).toHaveBeenCalledWith({ name: "New" }, undefined),
+    );
     await waitFor(() => expect(mocks.listCustomers).toHaveBeenCalledTimes(2));
   });
 });

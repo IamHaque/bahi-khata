@@ -6,6 +6,7 @@ import {
   getAllCustomerBalances,
   getAllTransactions,
   getCustomerBalance,
+  getDashboardSummary,
   getTodayActivity,
   getTodayTransactions,
   getTransactionById,
@@ -15,18 +16,18 @@ import {
 } from "./api";
 import type { Transaction, TransactionWithCustomer } from "@/types";
 
-function useTransactionInvalidation() {
+function useTransactionInvalidation(businessId?: string) {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: transactionKeys.all() });
-    queryClient.invalidateQueries({ queryKey: customerKeys.all() });
+    queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
+    queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
   };
 }
 
-export function useCustomerTransactions(customerId: string) {
+export function useCustomerTransactions(customerId: string, businessId?: string) {
   return useQuery({
-    queryKey: transactionKeys.byCustomer(customerId),
-    queryFn: () => listTransactionsByCustomer(customerId),
+    queryKey: transactionKeys.byCustomer(customerId, businessId),
+    queryFn: () => listTransactionsByCustomer(customerId, businessId),
   });
 }
 
@@ -61,6 +62,13 @@ export function useAllCustomerBalances() {
   });
 }
 
+export function useDashboardSummary(businessId: string) {
+  return useQuery({
+    queryKey: transactionKeys.summary(businessId),
+    queryFn: () => getDashboardSummary(businessId),
+  });
+}
+
 export function useTodayActivity() {
   return useQuery({
     queryKey: transactionKeys.today(),
@@ -75,24 +83,26 @@ export function useTodayTransactions(limit = 5) {
   });
 }
 
-export function useCreateTransaction() {
-  const invalidate = useTransactionInvalidation();
+export function useCreateTransaction(businessId?: string) {
+  const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
-    mutationFn: createTransaction,
+    mutationFn: (input: Parameters<typeof createTransaction>[0]) =>
+      createTransaction(input, businessId),
     onSuccess: invalidate,
   });
 }
 
-export function useCreateTransactionsBatch() {
-  const invalidate = useTransactionInvalidation();
+export function useCreateTransactionsBatch(businessId?: string) {
+  const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
-    mutationFn: createTransactionsBatch,
+    mutationFn: (transactions: Parameters<typeof createTransactionsBatch>[0]) =>
+      createTransactionsBatch(transactions, businessId),
     onSuccess: invalidate,
   });
 }
 
-export function useUpdateTransaction() {
-  const invalidate = useTransactionInvalidation();
+export function useUpdateTransaction(businessId?: string) {
+  const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: ({
       id,
@@ -100,13 +110,13 @@ export function useUpdateTransaction() {
     }: {
       id: string;
       input: Partial<Pick<Transaction, "type" | "amount" | "occurred_at" | "note">>;
-    }) => updateTransaction(id, input),
+    }) => updateTransaction(id, input, businessId),
     onSuccess: invalidate,
   });
 }
 
-export function useUpdateTransactionStatus() {
-  const invalidate = useTransactionInvalidation();
+export function useUpdateTransactionStatus(businessId?: string) {
+  const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: ({
       id,
@@ -114,7 +124,7 @@ export function useUpdateTransactionStatus() {
     }: {
       id: string;
       status: "active" | "edited" | "voided";
-    }) => updateTransactionStatus(id, status),
+    }) => updateTransactionStatus(id, status, businessId),
     onSuccess: invalidate,
   });
 }

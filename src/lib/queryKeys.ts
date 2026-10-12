@@ -45,4 +45,8 @@ export const transactionKeys = {
     "list",
     limit,
   ],
+  summary: (businessId: string) => [
+    ...transactionKeys.all(businessId),
+    "summary",
+  ],
 };
