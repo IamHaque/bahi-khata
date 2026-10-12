@@ -29,6 +29,8 @@
   --color-receivable: var(--receivable);
   --color-credit: var(--credit);
   --color-settled: var(--settled);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-accent-wash: var(--accent-wash);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -37,58 +39,72 @@
 }
 
 :root {
-  /* Paper-and-ink palette — Section 5.0 */
-  --background: #faf9f5;     /* --paper: cool off-white */
-  --foreground: #211e1b;     /* --ink: iron-gall black */
-  --card: #faf9f5;
-  --card-foreground: #211e1b;
-  --popover: #faf9f5;
-  --popover-foreground: #211e1b;
-  --primary: #8a6a2f;        /* --brass: single accent */
-  --primary-foreground: #faf9f5;
-  --secondary: #f0eee8;
-  --secondary-foreground: #211e1b;
-  --muted: #f0eee8;
-  --muted-foreground: #7a7468; /* --pencil: slightly darkened for contrast */
-  --accent: #f0eee8;
-  --accent-foreground: #211e1b;
-  --destructive: #9c3b2c;
-  --border: #c9c3b5;          /* darkened for deliberate structure */
-  --input: #c9c3b5;
-  --ring: #8a6a2f;
+  --background: oklch(0.99 0.002 250);
+  --foreground: oklch(0.20 0.015 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.20 0.015 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.015 250);
+  --primary: oklch(0.55 0.19 262);
+  --primary-foreground: oklch(0.98 0.005 262);
+  --secondary: oklch(0.96 0.005 250);
+  --secondary-foreground: oklch(0.20 0.015 250);
+  --muted: oklch(0.96 0.005 250);
+  --muted-foreground: oklch(0.45 0.015 250);
+  --accent: oklch(0.96 0.005 250);
+  --accent-foreground: oklch(0.20 0.015 250);
+  --destructive: oklch(0.55 0.20 25);
+  --border: oklch(0.62 0.01 250);
+  --input: oklch(0.62 0.01 250);
+  --ring: oklch(0.55 0.19 262);
   --radius: 0.625rem;
-  --accent-wash: oklch(0.55 0.06 70 / 0.07); /* brass at ~7% opacity */
+  --accent-wash: oklch(0.55 0.19 262 / 0.07);
 
-  /* Financial semantic tokens — ledger ink colors */
-  --receivable: #9c3b2c;     /* --ledger-red: traditional debit ink */
-  --credit: #28415c;         /* --ledger-blue: traditional credit ink */
-  --settled: #8a8378;        /* --pencil: graphite for settled */
+  --receivable: oklch(0.52 0.14 150);
+  --credit: oklch(0.58 0.17 25);
+  --settled: oklch(0.50 0.012 250);
+  --success: oklch(0.50 0.15 150);
+  --warning: oklch(0.48 0.15 75);
+
+  --chart-1: oklch(0.55 0.19 262);
+  --chart-2: oklch(0.52 0.14 150);
+  --chart-3: oklch(0.58 0.17 25);
+  --chart-4: oklch(0.60 0.14 75);
+  --chart-5: oklch(0.55 0.16 320);
 }
 
 .dark {
-  --background: #18181b; /* neutral near-black, not warm brown */
-  --foreground: #f4f4f5;
-  --card: #202023;
-  --card-foreground: #f4f4f5;
-  --popover: #202023;
-  --popover-foreground: #f4f4f5;
-  --primary: #d4af6a; /* brass, brightened slightly for the neutral background */
-  --primary-foreground: #18181b;
-  --secondary: #27272a;
-  --secondary-foreground: #f4f4f5;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #f4f4f5;
-  --destructive: #e5605a; /* now distinct from --receivable */
-  --border: #6b6b75; /* bright enough to actually read as a border, not just theoretically present */
-  --input: #6b6b75;
-  --ring: #d4af6a;
-  --accent-wash: oklch(0.55 0.06 70 / 0.1); /* unchanged — brass wash works at any neutral */
+  --background: oklch(0.16 0.01 250);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.19 0.012 250);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.19 0.012 250);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.70 0.16 262);
+  --primary-foreground: oklch(0.20 0.02 262);
+  --secondary: oklch(0.23 0.012 250);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.23 0.012 250);
+  --muted-foreground: oklch(0.65 0.015 250);
+  --accent: oklch(0.23 0.012 250);
+  --accent-foreground: oklch(0.97 0.005 250);
+  --destructive: oklch(0.68 0.18 25);
+  --border: oklch(0.52 0.015 250);
+  --input: oklch(0.52 0.015 250);
+  --ring: oklch(0.70 0.16 262);
+  --accent-wash: oklch(0.70 0.16 262 / 0.12);
 
-  --receivable: #e28a72;
-  --credit: #7fa8c9;
-  --settled: #a1a1aa;
+  --receivable: oklch(0.75 0.15 150);
+  --credit: oklch(0.72 0.16 25);
+  --settled: oklch(0.65 0.012 250);
+  --success: oklch(0.72 0.15 150);
+  --warning: oklch(0.75 0.14 75);
+
+  --chart-1: oklch(0.70 0.16 262);
+  --chart-2: oklch(0.75 0.15 150);
+  --chart-3: oklch(0.72 0.16 25);
+  --chart-4: oklch(0.75 0.14 75);
+  --chart-5: oklch(0.70 0.15 320);
 }
 
 @layer base {
@@ -107,7 +123,6 @@
     @apply border-border outline-ring/50;
   }
 
-  /* Numeral treatment: tabular figures, tighter tracking at large sizes */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
@@ -131,7 +146,7 @@
 
   @keyframes balance-flash {
     0% {
-      background-color: oklch(0.45 0.18 155 / 15%);
+      background-color: oklch(0.52 0.14 150 / 15%);
     }
     100% {
       background-color: transparent;

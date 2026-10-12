@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export function AppLayout() {
   const { signOut, user } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -27,7 +27,7 @@ export function AppLayout() {
     { path: "/transactions", label: "Transactions" },
   ];
 
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
 
   const handleNavClick = useCallback(
     (path: string) => {

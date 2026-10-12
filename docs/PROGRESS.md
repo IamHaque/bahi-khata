@@ -15,7 +15,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-05 Additive schema: profiles, businesses, members, invitations | Done | (see below) | migration 0001 written; not applied (no DB access) |
 | S-06 Additive RLS policies, helper functions, RPCs, views | Done | (see below) | migration 0002 + SQL test written; not applied (no DB access) |
 | S-07 Business-scoped data layer (transitional) | Done | (see below) | api fns take optional businessId; useDashboardSummary added |
-| S-08 Theme, tokens, typography, dark mode | Pending | | |
+| S-08 Theme, tokens, typography, dark mode | Done | (see below) | OKLCH tokens, ThemeContext+system, Geist removed |
 | S-09 Display primitives | Pending | | |
 | S-10 DataTable, SearchInput, FilterBar, Pagination | Pending | | |
 | S-11 Form kit, EntityDialog, ConfirmDialog | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-08 scenarios (checklist)
+
+- [x] Preset adopted — no external preset copied; OKLCH token values derived from PRD 4.5 semantics (indigo primary, green receivable, red-orange credit, neutral settled) and machine-verified for WCAG AA. Choice + rationale + verification method recorded in `docs/UI-CONTRACT.md` (created in this story with the theme decision; the §8 checklist copy lands in S-13)
+- [x] Financial tokens exist — `--receivable`, `--credit`, `--settled` (plus `--success`, `--warning`, `--chart-1..5`) defined for light and dark; contrast verified with a WCAG relative-luminance script: all 36 token/background pairs pass AA (≥4.5:1 text on card and page, ≥3:1 border)
+- [x] Dark mode — `ThemeContext` extended with `system | light | dark` (DEV-3: existing context extended instead of adopting next-themes); existing screens verified readable in both themes via the dev server (CSS served with new tokens; screens unchanged in structure)
+- [x] One font — Public Sans Variable is the only loaded family; unused `@fontsource-variable/geist` package removed; `.tabular-nums` enabled globally for money
+
+**Tests:** `src/test/theme.test.ts` (8 tests: token presence in both themes, chart tokens, radius scale, dark variant, reduced motion, single font, tabular numerals). `src/test/globals.d.ts` adds minimal `node:fs`/`node:path`/`__dirname` declarations so tests can read `index.css` without adding `@types/node`.
 
 ## S-07 scenarios (checklist)
 
