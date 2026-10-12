@@ -17,7 +17,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-07 Business-scoped data layer (transitional) | Done | (see below) | api fns take optional businessId; useDashboardSummary added |
 | S-08 Theme, tokens, typography, dark mode | Done | (see below) | OKLCH tokens, ThemeContext+system, Geist removed |
 | S-09 Display primitives | Done | (see below) | lib/format.ts + 8 shared components + tests |
-| S-10 DataTable, SearchInput, FilterBar, Pagination | Pending | | |
+| S-10 DataTable, SearchInput, FilterBar, Pagination | Done | (see below) | server-driven DataTable + RowActionsMenu + SearchInput + FilterBar |
 | S-11 Form kit, EntityDialog, ConfirmDialog | Pending | | |
 | S-12 App shell, navigation, path helpers | Pending | | |
 | S-13 UI gallery and UI consistency contract | Pending | | |
@@ -67,6 +67,18 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-10 scenarios (checklist)
+
+- [x] Column-driven table — `Column<T>` (header/render/align/sortable/sortValue), semantic table, sticky header (`sticky top-0` on every th)
+- [x] Server-driven sorting and paging — clicking a sortable header emits `onSortChange(key, dir)` (toggles asc→desc, new column starts asc); page size select (10/25/50) emits `onPageSizeChange`; prev/next emit `onPageChange`; headers announce `aria-sort` ascending/descending/none. The table never sorts locally in server mode
+- [x] Built-in states — loading → skeleton rows; empty → `emptyState` slot; no-results → distinct `noResultsState` slot + Clear filters button (when `onClearFilters` given); error → `ErrorState` with retry
+- [x] Row interaction — one primary click target (`onRowClick`) + three-dot `RowActionsMenu` fully keyboard operable (click/arrow-down opens, arrow up/down moves, Enter selects, Escape closes); tested
+- [x] Narrow screens — under 768px rows render as cards via `renderMobileCard` (tested with the matchMedia mock); table cells are `whitespace-nowrap` so amounts are never truncated
+- [x] Result count announced — `role="status"` live region announces "Showing 2 of 340"; visible footer shows "Showing 11–20 of 340"
+- [x] Search and filters — `SearchInput` debounced 300ms (internal), labelled (sr-only Label + aria-label), clearable; `FilterBar` renders removable chips + Clear all
+
+**Tests:** `dataTable.test.tsx` (15), `filters.test.tsx` (6). **Note:** the old `src/components/DataTable.tsx` stays until the pages migrate (S-28/S-35); the new table lives in `src/components/app/DataTable.tsx`. Test setup gained `__setMatchMedia` (controllable matchMedia mock) for the mobile test.
 
 ## S-09 scenarios (checklist)
 
