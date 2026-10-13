@@ -17,8 +17,8 @@ export interface NavItem {
 // Navigation is configuration: one array with a visible predicate, built
 // from the businessId in the URL (S-17) — the URL is the single source of
 // truth. Without a businessId (e.g. My businesses for a user who belongs
-// nowhere yet) there are no in-business links to show. Members and
-// Settings stay hidden until their stories ship (S-22, S-18).
+// nowhere yet) there are no in-business links to show. Members stays
+// hidden until S-22.
 export function buildNavItems(businessId: string | null): NavItem[] {
   const scoped = businessId !== null;
   return [
@@ -50,7 +50,7 @@ export function buildNavItems(businessId: string | null): NavItem[] {
       path: paths.settings(businessId ?? ""),
       label: "Settings",
       icon: Settings,
-      visible: false,
+      visible: scoped,
     },
   ];
 }

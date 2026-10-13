@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { toAppError } from "@/lib/AppError";
+import { AppError, toAppError } from "@/lib/AppError";
 
 export type BusinessRole = "owner" | "editor" | "viewer";
 
@@ -188,5 +188,58 @@ export async function createBusiness(input: BusinessInput): Promise<Business> {
     });
     if (error) throw error;
     return data as Business;
+  });
+}
+
+/**
+ * Loads one business's full details (S-18). Members can read their
+ * businesses; RLS filters the rest to null.
+ */
+export async function getBusiness(
+  businessId: string,
+): Promise<Business | null> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("id", businessId)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as Business | null) ?? null;
+  });
+}
+
+/**
+ * Updates a business's details (S-18). Only the owner passes RLS: for
+ * anyone else the update matches zero rows, which surfaces as a
+ * forbidden AppError — the same page whether the business is gone or
+ * the change was refused.
+ */
+export async function updateBusiness(
+  businessId: string,
+  input: BusinessInput,
+): Promise<Business> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("businesses")
+      .update({
+        name: input.name,
+        business_type: input.businessType ?? null,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        address: input.address ?? null,
+        notes: input.notes ?? null,
+      })
+      .eq("id", businessId)
+      .select("*");
+    if (error) throw error;
+    const row = ((data ?? []) as Business[])[0];
+    if (!row) {
+      throw new AppError(
+        "forbidden",
+        "You do not have permission to change this business, or it no longer exists.",
+      );
+    }
+    return row;
   });
 }

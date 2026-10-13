@@ -54,4 +54,5 @@ export const transactionKeys = {
 // User-level (not business-scoped): how the app discovers businesses.
 export const businessKeys = {
   memberships: () => ["memberships"] as const,
+  detail: (businessId: string) => ["businessDetail", businessId] as const,
 };

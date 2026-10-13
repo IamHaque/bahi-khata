@@ -25,7 +25,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-15 Create-business page | Done | (see below) | CreateBusinessPage + OnboardingLayout + create_business RPC api + schema |
 | S-16 Post-login landing logic and route guards | Done | (see below) | LandingResolver at `/`, minimal `/businesses`, ProtectedRoute `from` state, LoginPage deep-link return |
 | S-17 Route restructure to /b/:businessId | Done | (see below) | `/b/:businessId` route tree + BusinessGuard + legacy redirects, paths builders, useScopedBusinessId, nav per-URL |
-| S-18 Business settings (view and edit) | Pending | | |
+| S-18 Business settings (view and edit) | Done | (see below) | SettingsPage `/b/:id/settings`, getBusiness/updateBusiness, useBusiness/useUpdateBusiness, switcher shows URL business name, Settings nav visible |
 | S-19 Delete business | Pending | | |
 | S-20 Enforce tenancy (contract phase) | Pending | | |
 | S-21 Permission layer | Pending | | |
@@ -67,6 +67,16 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-18 scenarios (checklist)
+
+- [x] Owner edits — the owner opens `/b/:businessId/settings`, changes the name and saves: toast "Business updated"; the sidebar business name updates immediately (the mutation writes through the detail cache and invalidates memberships, which the sidebar switcher reads — the switcher now shows the URL business's name with a "BahiKhata" fallback pre-migrations) (tested: rename → toast, api args, sidebar switcher re-renders with the new name from the shared cache)
+- [x] Same validation as creation — the form reuses `createBusinessSchema` and the same `TextField` error rendering, so invalid names show the identical inline errors (tested: 1-char name → "Name must be at least 2 characters", no api call)
+- [x] Non-owners can look but not change — role comes from the URL business's membership (the minimal inline check until S-21 ships the shared role hook): Editor/Viewer see a read-only detail list, no fields, no Save button (tested with viewer)
+- [x] Database refuses unauthorized updates — `updateBusiness` maps the zero-rows result of the owner-only RLS policy to a forbidden AppError (same page whether the business is gone or the change was refused); the page shows a clear toast ("Could not update business" + description), the form keeps its values and the server state is unchanged (tested)
+- [x] Navigation — Settings is now visible in the sidebar for every member (`buildNavItems` visible: scoped), route `/b/:businessId/settings` registered under the guard, AppShell title "Settings" (tested in appShell suite: visible label + href)
+
+**S-18 notes:** touch-zone stretch — `BusinessSwitcher` now displays the business named by the URL (falls back to "BahiKhata" while memberships are unavailable, e.g. pre-migration), because the scenario requires the sidebar name to update immediately; the full switcher remains S-26. "Page titles update immediately" is interpreted as every surface that shows the business name (sidebar switcher + the settings page's own data via `setQueryData`), since no other page title embeds the business name. New data layer: `getBusiness`/`updateBusiness` API (RLS-filtered), `useBusiness`/`useUpdateBusiness` hooks, `businessKeys.detail`. The owner form syncs via RHF `values` (not `defaultValues`) so late-loading data never overwrites typing, and a failed save never clobbers the form.
 
 ## S-17 scenarios (checklist)
 
