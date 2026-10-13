@@ -24,16 +24,13 @@ async function guard<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function listCustomers(businessId?: string): Promise<Customer[]> {
+export async function listCustomers(businessId: string): Promise<Customer[]> {
   return guard(async () => {
-    let query = supabase.from("customers").select("*");
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.order("name", { ascending: true });
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("name", { ascending: true });
 
     if (error) throw error;
     return data as Customer[];
@@ -42,17 +39,15 @@ export async function listCustomers(businessId?: string): Promise<Customer[]> {
 
 export async function getCustomer(
   id: string,
-  businessId?: string,
+  businessId: string,
 ): Promise<Customer> {
   return guard(async () => {
-    let query = supabase.from("customers").select("*").eq("id", id);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.single();
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .single();
 
     if (error) throw error;
     return data as Customer;
@@ -61,7 +56,7 @@ export async function getCustomer(
 
 export async function createCustomer(
   input: CustomerInput,
-  businessId?: string,
+  businessId: string,
 ): Promise<Customer> {
   return guard(async () => {
     const { data: userResult } = await supabase.auth.getUser();
@@ -77,8 +72,7 @@ export async function createCustomer(
         alternate_contact_phone: input.alternate_contact_phone ?? null,
         tags: input.tags ?? null,
         notes: input.notes ?? null,
-        // TODO(S-20): businessId becomes required
-        business_id: businessId ?? null,
+        business_id: businessId,
         created_by: userResult.user?.id ?? null,
       })
       .select()
@@ -92,23 +86,19 @@ export async function createCustomer(
 export async function updateCustomer(
   id: string,
   input: Partial<CustomerInput>,
-  businessId?: string,
+  businessId: string,
 ): Promise<Customer> {
   return guard(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("customers")
       .update({
         ...input,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.select().single();
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .select()
+      .single();
 
     if (error) throw error;
     return data as Customer;

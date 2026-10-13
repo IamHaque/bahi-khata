@@ -114,20 +114,44 @@ a business you want to keep.
 
 ## S-20 — Enforce tenancy (pending — READ BEFORE RUNNING)
 
-**This is the only destructive migration (0003). Do not run it before the
-backfill below, and do not deploy the branch before it has been run once.**
+**This is the only destructive migration (`0003_enforce_tenancy.sql`). Do
+not run it before the backfill below, and DO NOT DEPLOY the
+`feat/v2-multi-business` branch before it has been applied — from S-20 on,
+the client code requires a businessId everywhere, so pre-v2 database
+policies and NULL-business rows must be gone first.**
 
-1. **Backup first** (as in S-05).
-2. **Backfill legacy data:** the product owner supplies the Google email of
-   the account that should own the existing customers/transactions. Run
-   `supabase/manual/backfill_legacy_data.sql` with that email. It creates a
-   business for the user if they own none and assigns every row with a null
-   `business_id` to it. It prints row counts and is safe to re-run.
+1. **Backup first** (as in S-05): Supabase Dashboard → Database →
+   Backups, or `pg_dump` of the project.
+2. **Backfill legacy data:** the product owner supplies the Google email
+   of the account that should own the existing customers/transactions
+   (the only step that needs it). Open
+   `supabase/manual/backfill_legacy_data.sql`, set that email in
+   section 1, then run the file as postgres in one go. It creates a
+   business for the user if they own none, assigns every NULL
+   `business_id` row to it (customers first — the 0001 match trigger
+   requires it), prints the counts and is safe to re-run.
    **Verify:** `select count(*) from customers where business_id is null;`
-   returns 0 (same for transactions).
-3. Apply `supabase/migrations/0003_*.sql`. It aborts with a pointer to the
-   backfill script if any null `business_id` remains.
+   returns 0 (same for transactions), and the notices report
+   `created=false` on a second run.
+3. Apply `supabase/migrations/0003_enforce_tenancy.sql` (`supabase db
+   push` or the dashboard). It aborts with a pointer to the backfill
+   script if any NULL `business_id` remains, then makes `business_id`
+   NOT NULL, drops the two v1 broad policies and drops the unscoped
+   balance RPCs.
 4. **Verify:** `\d customers` and `\d transactions` show `business_id` as
-   `NOT NULL`; the old `Authenticated users can manage …` policies are gone;
-   the S-06 SQL tests pass without the rollback workaround.
+   `NOT NULL`; `select policyname from pg_policies where tablename in
+   ('customers','transactions');` lists only the membership policies from
+   0002; `select proname from pg_proc where proname in
+   ('get_customer_balance','get_all_customer_balances');` returns 0 rows;
+   the S-06 SQL tests (`supabase/tests/0002_rls_membership.sql`) pass —
+   after 0003 their expand-phase workaround drops are `if exists`
+   no-ops.
 5. **Rollback:** not automatic — restore from the backup taken in step 1.
+6. **Fresh-database smoke (S-20):** on a clean project (no legacy data),
+   sign up, create a business, add a customer and add a charge — all four
+   must work with the new NOT NULL columns and membership-only policies.
+7. **Isolation proof (S-20):** with two accounts, each owning a business
+   with one customer: as user A, note the customer id. As user B,
+   `select * from customers where id = '<A''s customer id>';` returns 0
+   rows, and `update customers set name = 'x' where id = '<...>';` reports
+   `UPDATE 0`. Repeat in the other direction.

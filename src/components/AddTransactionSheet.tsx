@@ -27,7 +27,7 @@ export function AddTransactionSheet({
   currentBalance,
 }: AddTransactionSheetProps) {
   const form = useTransactionForm();
-  const businessId = useScopedBusinessId() ?? undefined;
+  const businessId = useScopedBusinessId() ?? "";
   const createTransaction = useCreateTransaction(businessId);
 
   useEffect(() => {

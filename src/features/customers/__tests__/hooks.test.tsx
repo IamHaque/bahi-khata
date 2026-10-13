@@ -22,8 +22,8 @@ vi.mock("../api", () => ({
 const ash = { id: "1", name: "Asha" } as Customer;
 
 function Probe() {
-  const { data, isLoading } = useCustomers();
-  const create = useCreateCustomer();
+  const { data, isLoading } = useCustomers("b1");
+  const create = useCreateCustomer("b1");
 
   if (isLoading) return <p>loading</p>;
 
@@ -61,7 +61,7 @@ describe("customer hooks", () => {
     await userEvent.click(screen.getByRole("button", { name: "add" }));
 
     await waitFor(() =>
-      expect(mocks.createCustomer).toHaveBeenCalledWith({ name: "New" }, undefined),
+      expect(mocks.createCustomer).toHaveBeenCalledWith({ name: "New" }, "b1"),
     );
     await waitFor(() => expect(mocks.listCustomers).toHaveBeenCalledTimes(2));
   });

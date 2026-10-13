@@ -9,21 +9,24 @@ import {
 } from "./api";
 import type { Customer } from "@/types";
 
-export function useCustomers(businessId?: string) {
+// S-20 contract: every query and mutation carries a businessId. Omitting
+// it is a TypeScript error, not a silent unscoped fallback.
+
+export function useCustomers(businessId: string) {
   return useQuery({
     queryKey: customerKeys.list(businessId),
     queryFn: () => listCustomers(businessId),
   });
 }
 
-export function useCustomer(id: string, businessId?: string) {
+export function useCustomer(id: string, businessId: string) {
   return useQuery({
     queryKey: customerKeys.detail(id, businessId),
     queryFn: () => getCustomer(id, businessId),
   });
 }
 
-export function useCreateCustomer(businessId?: string) {
+export function useCreateCustomer(businessId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CustomerInput) => createCustomer(input, businessId),
@@ -33,7 +36,7 @@ export function useCreateCustomer(businessId?: string) {
   });
 }
 
-export function useUpdateCustomer(businessId?: string) {
+export function useUpdateCustomer(businessId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({

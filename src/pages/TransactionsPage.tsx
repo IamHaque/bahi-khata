@@ -288,7 +288,7 @@ export function TransactionsPage() {
     isLoading,
     error,
     refetch,
-  } = useTransactions({ dateRange, typeFilter }, businessId);
+  } = useTransactions(businessId, { dateRange, typeFilter });
 
   const detailedColumns = buildDetailedColumns(businessId);
 

@@ -38,7 +38,7 @@ export function SettingsPage() {
     isLoading,
     error,
     refetch,
-  } = useBusiness(businessId || undefined);
+  } = useBusiness(businessId);
   const updateBusiness = useUpdateBusiness(businessId);
   const [moreOpen, setMoreOpen] = useState(false);
 

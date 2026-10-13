@@ -34,11 +34,12 @@ export function QuickAddTransactionSheet({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const businessId = useScopedBusinessId() ?? undefined;
+  const businessId = useScopedBusinessId() ?? "";
   const createCustomer = useCreateCustomer(businessId);
   const createTransaction = useCreateTransaction(businessId);
   const { data: currentBalance = 0 } = useCustomerBalance(
     selectedCustomer?.id ?? "",
+    businessId,
   );
 
   useEffect(() => {

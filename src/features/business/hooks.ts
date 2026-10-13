@@ -39,10 +39,10 @@ export function useCreateBusiness() {
 }
 
 /** One business's full details (S-18). */
-export function useBusiness(businessId?: string) {
+export function useBusiness(businessId: string) {
   return useQuery({
-    queryKey: businessKeys.detail(businessId ?? ""),
-    queryFn: () => getBusiness(businessId ?? ""),
+    queryKey: businessKeys.detail(businessId),
+    queryFn: () => getBusiness(businessId),
     enabled: Boolean(businessId),
   });
 }
@@ -60,10 +60,10 @@ export function useUpdateBusiness(businessId: string) {
 }
 
 /** The delete dialog's impact counts (S-19), fetched on demand. */
-export function useBusinessImpact(businessId?: string, enabled = true) {
+export function useBusinessImpact(businessId: string, enabled = true) {
   return useQuery({
-    queryKey: businessKeys.impact(businessId ?? ""),
-    queryFn: () => getBusinessImpact(businessId ?? ""),
+    queryKey: businessKeys.impact(businessId),
+    queryFn: () => getBusinessImpact(businessId),
     enabled: Boolean(businessId) && enabled,
   });
 }

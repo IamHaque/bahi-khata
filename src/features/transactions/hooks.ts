@@ -16,7 +16,10 @@ import {
 } from "./api";
 import type { Transaction, TransactionWithCustomer } from "@/types";
 
-function useTransactionInvalidation(businessId?: string) {
+// S-20 contract: every query and mutation carries a businessId. Omitting
+// it is a TypeScript error, not a silent unscoped fallback.
+
+function useTransactionInvalidation(businessId: string) {
   const queryClient = useQueryClient();
   return () => {
     queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
@@ -24,14 +27,14 @@ function useTransactionInvalidation(businessId?: string) {
   };
 }
 
-export function useCustomerTransactions(customerId: string, businessId?: string) {
+export function useCustomerTransactions(customerId: string, businessId: string) {
   return useQuery({
     queryKey: transactionKeys.byCustomer(customerId, businessId),
     queryFn: () => listTransactionsByCustomer(customerId, businessId),
   });
 }
 
-export function useTransaction(id: string, businessId?: string) {
+export function useTransaction(id: string, businessId: string) {
   return useQuery({
     queryKey: transactionKeys.detail(id, businessId),
     queryFn: () => getTransactionById(id, businessId),
@@ -39,32 +42,32 @@ export function useTransaction(id: string, businessId?: string) {
 }
 
 export function useTransactions(
+  businessId: string,
   options?: {
     dateRange?: { start: string; end: string } | null;
     typeFilter?: "all" | "charge" | "payment";
   },
-  businessId?: string,
 ) {
   return useQuery({
     queryKey: transactionKeys.list(businessId),
-    queryFn: () => getAllTransactions(options, businessId),
+    queryFn: () => getAllTransactions(businessId, options),
   });
 }
 
-// The balance RPCs take no business argument (DEV-8: unscoped v1 RPCs,
-// replaced in S-20); the businessId here scopes the cache entry only, so
-// two businesses never share cached balances.
-export function useCustomerBalance(customerId: string, businessId?: string) {
+// Balances come from the security-invoker `customer_balances` view (S-20),
+// so the caller's RLS applies — the same businessId scopes both the
+// cached entry and the read itself (DEV-8 resolved).
+export function useCustomerBalance(customerId: string, businessId: string) {
   return useQuery({
     queryKey: customerKeys.balance(customerId, businessId),
-    queryFn: () => getCustomerBalance(customerId),
+    queryFn: () => getCustomerBalance(customerId, businessId),
   });
 }
 
-export function useAllCustomerBalances(businessId?: string) {
+export function useAllCustomerBalances(businessId: string) {
   return useQuery({
     queryKey: customerKeys.balances(businessId),
-    queryFn: getAllCustomerBalances,
+    queryFn: () => getAllCustomerBalances(businessId),
   });
 }
 
@@ -75,21 +78,21 @@ export function useDashboardSummary(businessId: string) {
   });
 }
 
-export function useTodayActivity(businessId?: string) {
+export function useTodayActivity(businessId: string) {
   return useQuery({
     queryKey: transactionKeys.today(businessId),
     queryFn: () => getTodayActivity(businessId),
   });
 }
 
-export function useTodayTransactions(limit = 5, businessId?: string) {
+export function useTodayTransactions(businessId: string, limit = 5) {
   return useQuery({
     queryKey: transactionKeys.todayList(limit, businessId),
-    queryFn: () => getTodayTransactions(limit, businessId),
+    queryFn: () => getTodayTransactions(businessId, limit),
   });
 }
 
-export function useCreateTransaction(businessId?: string) {
+export function useCreateTransaction(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: (input: Parameters<typeof createTransaction>[0]) =>
@@ -98,7 +101,7 @@ export function useCreateTransaction(businessId?: string) {
   });
 }
 
-export function useCreateTransactionsBatch(businessId?: string) {
+export function useCreateTransactionsBatch(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: (transactions: Parameters<typeof createTransactionsBatch>[0]) =>
@@ -107,7 +110,7 @@ export function useCreateTransactionsBatch(businessId?: string) {
   });
 }
 
-export function useUpdateTransaction(businessId?: string) {
+export function useUpdateTransaction(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: ({
@@ -121,7 +124,7 @@ export function useUpdateTransaction(businessId?: string) {
   });
 }
 
-export function useUpdateTransactionStatus(businessId?: string) {
+export function useUpdateTransactionStatus(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
   return useMutation({
     mutationFn: ({

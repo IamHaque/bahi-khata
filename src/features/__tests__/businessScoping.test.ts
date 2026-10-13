@@ -6,6 +6,8 @@ import {
 } from "@/features/customers/api";
 import {
   createTransaction,
+  getAllCustomerBalances,
+  getCustomerBalance,
   getDashboardSummary,
 } from "@/features/transactions/api";
 
@@ -68,13 +70,25 @@ vi.mock("@/lib/supabase", () => ({
           calls.push({ method: "single", args: [] });
           return { data: state.resolveValue, error: null };
         },
+        maybeSingle: async () => {
+          calls.push({ method: "maybeSingle", args: [] });
+          return { data: state.resolveValue, error: null };
+        },
+        // Awaitable chain: `await from(...).select(...)` resolves like a
+        // PostgREST builder (used by the balance-view reads).
+        then: (
+          onFulfilled?: (value: { data: unknown; error: null }) => unknown,
+        ) =>
+          Promise.resolve({ data: state.resolveValue, error: null }).then(
+            onFulfilled,
+          ),
       };
       return chain;
     }),
   },
 }));
 
-describe("business scoping (transitional)", () => {
+describe("business scoping (required — S-20)", () => {
   beforeEach(() => {
     state.chains.length = 0;
     state.rpcCalls.length = 0;
@@ -87,13 +101,16 @@ describe("business scoping (transitional)", () => {
     expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
   });
 
-  it("leaves listCustomers unscoped when businessId is omitted", async () => {
+  it("always filters by business_id — omitting businessId is a TypeScript error", async () => {
+    // @ts-expect-error S-20: businessId is required; this directive fails
+    // typecheck if the parameter ever becomes optional again.
     await listCustomers();
     const calls = state.chains[0]!;
-    const businessEq = calls.some(
-      (c) => c.method === "eq" && c.args[0] === "business_id",
+    // No unscoped fallback exists: the filter is unconditional.
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", undefined] });
+    expect(calls.some((c) => c.method === "eq" && c.args[0] === "business_id")).toBe(
+      true,
     );
-    expect(businessEq).toBe(false);
   });
 
   it("scopes getCustomer by businessId", async () => {
@@ -116,10 +133,13 @@ describe("business scoping (transitional)", () => {
     });
   });
 
-  it("stores null business_id on createCustomer when omitted", async () => {
+  it("stores business_id verbatim — there is no null fallback (S-20)", async () => {
+    // @ts-expect-error S-20: businessId is required; this directive fails
+    // typecheck if the parameter ever becomes optional again.
     await createCustomer({ name: "Asha" });
     const insert = state.chains[0]!.find((c) => c.method === "insert")!;
-    expect(insert.args[0]).toMatchObject({ business_id: null });
+    expect(insert.args[0]).toMatchObject({ business_id: undefined });
+    expect(insert.args[0]).not.toHaveProperty("business_id", null);
   });
 
   it("stores business_id on createTransaction", async () => {
@@ -144,5 +164,32 @@ describe("business scoping (transitional)", () => {
     expect(state.rpcCalls).toEqual([
       { fn: "dashboard_summary", args: { p_business_id: "b1" } },
     ]);
+  });
+
+  it("reads getCustomerBalance from the scoped customer_balances view (S-20)", async () => {
+    state.resolveValue = { customer_id: "c1", business_id: "b1", balance: 250 };
+
+    const balance = await getCustomerBalance("c1", "b1");
+
+    expect(balance).toBe(250);
+    const calls = state.chains[0]!;
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+    expect(calls).toContainEqual({ method: "eq", args: ["customer_id", "c1"] });
+    // The unscoped v1 RPCs are gone for good (DEV-8 resolved).
+    expect(state.rpcCalls).toEqual([]);
+  });
+
+  it("reads getAllCustomerBalances from the same scoped view (S-20)", async () => {
+    state.resolveValue = [
+      { customer_id: "c1", business_id: "b1", balance: 100 },
+      { customer_id: "c2", business_id: "b1", balance: -40 },
+    ];
+
+    const balances = await getAllCustomerBalances("b1");
+
+    expect(balances).toEqual({ c1: 100, c2: -40 });
+    const calls = state.chains[0]!;
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+    expect(state.rpcCalls).toEqual([]);
   });
 });

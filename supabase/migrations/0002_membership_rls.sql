@@ -194,15 +194,21 @@ create policy "Editors can update transactions"
 --    applies to the underlying tables)
 -- ------------------------------------------------------------
 
+-- business_id is part of the view (S-20) so balance reads can be scoped
+-- like every other query; the join also requires matching businesses so
+-- a stray cross-business row can never leak into a balance.
 create or replace view public.customer_balances
 with (security_invoker = true) as
 select
   c.id as customer_id,
+  c.business_id,
   coalesce(sum(
     case when t.type = 'charge' then t.amount else -t.amount end
   ) filter (where t.status in ('active', 'edited')), 0) as balance
 from public.customers c
-left join public.transactions t on t.customer_id = c.id
+left join public.transactions t
+  on t.customer_id = c.id
+ and t.business_id = c.business_id
 where c.deleted_at is null
 group by c.id;
 

@@ -172,7 +172,7 @@ export function CustomerCombobox({
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const businessId = useScopedBusinessId() ?? undefined;
+  const businessId = useScopedBusinessId() ?? "";
   const { data: customers = [], isLoading } = useCustomers(businessId);
 
   useEffect(() => {

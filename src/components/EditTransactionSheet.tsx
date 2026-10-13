@@ -45,7 +45,7 @@ export function EditTransactionSheet({
     initialDate: transaction.occurred_at.split("T")[0] ?? "",
     initialNote: transaction.note ?? "",
   });
-  const businessId = useScopedBusinessId() ?? undefined;
+  const businessId = useScopedBusinessId() ?? "";
   const updateTransaction = useUpdateTransaction(businessId);
   const updateTransactionStatus = useUpdateTransactionStatus(businessId);
 

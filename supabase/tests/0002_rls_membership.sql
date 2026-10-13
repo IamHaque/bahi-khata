@@ -5,6 +5,8 @@
 -- Runs inside one rolled-back transaction. The v1 broad policies
 -- are dropped first so the NEW policies are evaluated alone
 -- (in the live database the old policies still OR in until S-20).
+-- The drops are idempotent (`if exists`) so the script also passes
+-- AFTER migration 0003, which removes the v1 policies for good.
 --
 -- Fixture: business 'Acme' owned by Olivia, Eli = Editor,
 -- Vic = Viewer, Zed = outsider. Business 'Beta' (also Olivia's)
@@ -18,10 +20,11 @@
 begin;
 
 -- ------------------------------------------------------------
--- 0. Drop the v1 broad policies (expand-phase workaround)
+-- 0. Drop the v1 broad policies (expand-phase workaround; a no-op
+--    with `if exists` once S-20's migration 0003 has removed them)
 -- ------------------------------------------------------------
-drop policy "Authenticated users can manage customers" on public.customers;
-drop policy "Authenticated users can manage transactions" on public.transactions;
+drop policy if exists "Authenticated users can manage customers" on public.customers;
+drop policy if exists "Authenticated users can manage transactions" on public.transactions;
 
 -- ------------------------------------------------------------
 -- 1. Test helpers (transaction-local)
@@ -447,7 +450,8 @@ rollback;
 
 -- ============================================================
 -- Note: transactions with NULL business_id are intentionally
--- not tested here. During the expand phase the v1 broad policy
--- (still present until S-20) allows them; the new policies are
--- strict, and after S-20 no NULL business_id rows can exist.
+-- not tested here. Before S-20's migration 0003 the v1 broad
+-- policy allows them while the new policies are strict; after
+-- 0003 no NULL business_id rows can exist (NOT NULL constraint),
+-- so there is nothing left to test.
 -- ============================================================

@@ -32,23 +32,16 @@ async function guard<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function listTransactionsByCustomer(
   customerId: string,
-  businessId?: string,
+  businessId: string,
 ): Promise<Transaction[]> {
   return guard(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("*")
       .eq("customer_id", customerId)
-      .eq("status", "active");
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.order("occurred_at", {
-      ascending: false,
-    });
+      .eq("business_id", businessId)
+      .eq("status", "active")
+      .order("occurred_at", { ascending: false });
 
     if (error) throw error;
     return data as Transaction[];
@@ -64,7 +57,7 @@ export async function createTransaction(
     note?: string;
     source?: "manual" | "import";
   },
-  businessId?: string,
+  businessId: string,
 ): Promise<Transaction> {
   return guard(async () => {
     const { data: userResult } = await supabase.auth.getUser();
@@ -80,8 +73,7 @@ export async function createTransaction(
         source: input.source ?? "manual",
         status: "active",
         created_by: userResult.user?.id ?? "",
-        // TODO(S-20): businessId becomes required
-        business_id: businessId ?? null,
+        business_id: businessId,
       })
       .select()
       .single();
@@ -100,7 +92,7 @@ export async function createTransactionsBatch(
     note?: string;
     source?: "manual" | "import";
   }>,
-  businessId?: string,
+  businessId: string,
 ): Promise<Transaction[]> {
   return guard(async () => {
     const { data: userResult } = await supabase.auth.getUser();
@@ -115,8 +107,7 @@ export async function createTransactionsBatch(
       source: t.source ?? "manual",
       status: "active" as const,
       created_by: userId,
-      // TODO(S-20): businessId becomes required
-      business_id: businessId ?? null,
+      business_id: businessId,
     }));
 
     const { data, error } = await supabase
@@ -132,20 +123,16 @@ export async function createTransactionsBatch(
 export async function updateTransactionStatus(
   id: string,
   status: "active" | "edited" | "voided",
-  businessId?: string,
+  businessId: string,
 ): Promise<Transaction> {
   return guard(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.select().single();
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .select()
+      .single();
 
     if (error) throw error;
     return data as Transaction;
@@ -155,52 +142,69 @@ export async function updateTransactionStatus(
 export async function updateTransaction(
   id: string,
   input: Partial<Pick<Transaction, "type" | "amount" | "occurred_at" | "note">>,
-  businessId?: string,
+  businessId: string,
 ): Promise<Transaction> {
   return guard(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .update({
         ...input,
         status: "edited",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.select().single();
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .select()
+      .single();
 
     if (error) throw error;
     return data as Transaction;
   });
 }
 
-export async function getCustomerBalance(customerId: string): Promise<number> {
+/**
+ * A customer's net balance (charge minus payment), scoped to the business
+ * (S-20). Reads the security-invoker `customer_balances` view, so the
+ * caller's RLS applies: a non-member sees no row and gets 0.
+ */
+export async function getCustomerBalance(
+  customerId: string,
+  businessId: string,
+): Promise<number> {
   return guard(async () => {
-    const { data, error } = await supabase.rpc("get_customer_balance", {
-      p_customer_id: customerId,
-    });
+    const { data, error } = await supabase
+      .from("customer_balances")
+      .select("balance")
+      .eq("customer_id", customerId)
+      .eq("business_id", businessId)
+      .maybeSingle();
 
     if (error) throw error;
-
-    return Number(data ?? 0);
+    return Number(data?.balance ?? 0);
   });
 }
 
-export async function getAllCustomerBalances(): Promise<
-  Record<string, number>
-> {
+/**
+ * Every customer's balance in one business (S-20), from the same scoped
+ * view. The old `get_all_customer_balances` RPC was unscoped (DEV-8): it
+ * returned balances across every business, which breaks tenancy.
+ */
+export async function getAllCustomerBalances(
+  businessId: string,
+): Promise<Record<string, number>> {
   return guard(async () => {
-    const { data, error } = await supabase.rpc("get_all_customer_balances");
+    const { data, error } = await supabase
+      .from("customer_balances")
+      .select("customer_id, balance")
+      .eq("business_id", businessId);
 
     if (error) throw error;
 
     const balances: Record<string, number> = {};
-    for (const row of data as Array<{ customer_id: string; balance: number }>) {
+    for (const row of (data ?? []) as Array<{
+      customer_id: string;
+      balance: number;
+    }>) {
       balances[row.customer_id] = row.balance;
     }
 
@@ -231,7 +235,7 @@ export async function getDashboardSummary(
   });
 }
 
-export async function getTodayActivity(businessId?: string): Promise<{
+export async function getTodayActivity(businessId: string): Promise<{
   count: number;
   net: number;
 }> {
@@ -241,19 +245,13 @@ export async function getTodayActivity(businessId?: string): Promise<{
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("type, amount")
+      .eq("business_id", businessId)
       .eq("status", "active")
       .gte("occurred_at", today.toISOString())
       .lt("occurred_at", tomorrow.toISOString());
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -269,22 +267,18 @@ export async function getTodayActivity(businessId?: string): Promise<{
 }
 
 export async function getAllTransactions(
+  businessId: string,
   options?: {
     dateRange?: { start: string; end: string } | null;
     typeFilter?: "all" | "charge" | "payment";
   },
-  businessId?: string,
 ): Promise<TransactionWithCustomer[]> {
   return guard(async () => {
     let query = supabase
       .from("transactions")
       .select("*, customers(name, phone)")
+      .eq("business_id", businessId)
       .in("status", ["active", "edited"]);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
 
     if (options?.dateRange) {
       query = query
@@ -301,7 +295,9 @@ export async function getAllTransactions(
     if (error) throw error;
 
     return (
-      data as Array<Transaction & { customers: { name: string; phone: string } | null }>
+      data as Array<
+        Transaction & { customers: { name: string; phone: string } | null }
+      >
     ).map((tx) => ({
       ...tx,
       customer_name: tx.customers?.name ?? "Unknown",
@@ -312,20 +308,15 @@ export async function getAllTransactions(
 
 export async function getTransactionById(
   id: string,
-  businessId?: string,
+  businessId: string,
 ): Promise<TransactionWithCustomer | null> {
   return guard(async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("*, customers(name, phone)")
-      .eq("id", id);
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query.single();
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .single();
 
     if (error) {
       if (error.code === "PGRST116") return null;
@@ -343,26 +334,23 @@ export async function getTransactionById(
   });
 }
 
-export async function getTodayTransactions(limit = 5, businessId?: string) {
+export async function getTodayTransactions(
+  businessId: string,
+  limit = 5,
+) {
   return guard(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    let query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("id, type, amount, occurred_at, customer_id, customers(name)")
+      .eq("business_id", businessId)
       .eq("status", "active")
       .gte("occurred_at", today.toISOString())
-      .lt("occurred_at", tomorrow.toISOString());
-
-    // TODO(S-20): businessId becomes required
-    if (businessId) {
-      query = query.eq("business_id", businessId);
-    }
-
-    const { data, error } = await query
+      .lt("occurred_at", tomorrow.toISOString())
       .order("occurred_at", { ascending: false })
       .limit(limit);
 

@@ -22,7 +22,7 @@ export function DashboardPage() {
     useCustomers(businessId);
   const { data: balances = {} } = useAllCustomerBalances(businessId);
   const { data: todayActivity } = useTodayActivity(businessId);
-  const { data: todayTransactions = [] } = useTodayTransactions(5, businessId);
+  const { data: todayTransactions = [] } = useTodayTransactions(businessId, 5);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(
