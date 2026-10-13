@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BusinessProvider } from "@/contexts/BusinessContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -22,51 +23,53 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <ErrorBoundary>
-              <Routes>
-                <Route
-                  path={routePatterns.login}
-                  element={<LoginPage />}
-                />
-                {/* Dev-only component gallery; not registered in production builds */}
-                {import.meta.env.DEV && (
+          <BusinessProvider>
+            <BrowserRouter>
+              <ErrorBoundary>
+                <Routes>
                   <Route
-                    path={routePatterns.uiGallery}
-                    element={<UiGallery />}
+                    path={routePatterns.login}
+                    element={<LoginPage />}
                   />
-                )}
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppShell />}>
+                  {/* Dev-only component gallery; not registered in production builds */}
+                  {import.meta.env.DEV && (
                     <Route
-                      path={routePatterns.dashboard}
-                      element={<DashboardPage />}
+                      path={routePatterns.uiGallery}
+                      element={<UiGallery />}
                     />
-                    <Route
-                      path={routePatterns.customers}
-                      element={<CustomersPage />}
-                    />
-                    <Route
-                      path={routePatterns.customerDetail}
-                      element={<CustomerDetailPage />}
-                    />
-                    <Route
-                      path={routePatterns.importCustomers}
-                      element={<ImportPage />}
-                    />
-                    <Route
-                      path={routePatterns.transactions}
-                      element={<TransactionsPage />}
-                    />
-                    <Route
-                      path={routePatterns.transactionDetail}
-                      element={<TransactionDetailPage />}
-                    />
+                  )}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppShell />}>
+                      <Route
+                        path={routePatterns.dashboard}
+                        element={<DashboardPage />}
+                      />
+                      <Route
+                        path={routePatterns.customers}
+                        element={<CustomersPage />}
+                      />
+                      <Route
+                        path={routePatterns.customerDetail}
+                        element={<CustomerDetailPage />}
+                      />
+                      <Route
+                        path={routePatterns.importCustomers}
+                        element={<ImportPage />}
+                      />
+                      <Route
+                        path={routePatterns.transactions}
+                        element={<TransactionsPage />}
+                      />
+                      <Route
+                        path={routePatterns.transactionDetail}
+                        element={<TransactionDetailPage />}
+                      />
+                    </Route>
                   </Route>
-                </Route>
-              </Routes>
-            </ErrorBoundary>
-          </BrowserRouter>
+                </Routes>
+              </ErrorBoundary>
+            </BrowserRouter>
+          </BusinessProvider>
           <Toaster position="bottom-right" richColors />
         </AuthProvider>
       </ThemeProvider>

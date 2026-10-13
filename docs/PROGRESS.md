@@ -21,7 +21,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-11 Form kit, EntityDialog, ConfirmDialog | Done | (see below) | rhf+zod form kit, EntityDialog (dialog/sheet), ConfirmDialog (typed), toast helper |
 | S-12 App shell, navigation, path helpers | Done | (see below) | AppShell + navConfig + paths.ts; AppLayout deleted; pathsHygiene test |
 | S-13 UI gallery and UI consistency contract | Done | (see below) | dev-only /__ui gallery + UI-CONTRACT checklist+glossary + rot test |
-| S-14 Business resolution provider | Pending | | |
+| S-14 Business resolution provider | Done | (see below) | BusinessContext + memberships api/hooks + boot skeleton; cache clear on sign-out |
 | S-15 Create-business page | Pending | | |
 | S-16 Post-login landing logic and route guards | Pending | | |
 | S-17 Route restructure to /b/:businessId | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-14 scenarios (checklist)
+
+- [x] Memberships are loaded once — `getMemberships()` (features/business/api.ts) loads owned + member businesses with role and owner name plus the user's pending invitations in one react-query entry (`businessKeys.memberships()`, RLS does the user filtering); `useActiveBusiness()` returns the business, the role, `isOwner` and a status of loading/ready/none/forbidden (tested: two consumers, one api call)
+- [x] No flash of wrong content — while a signed-in user's memberships load, `BusinessProvider` renders a full-screen `BusinessBootSkeleton` (sidebar rail + top bar + content placeholders, `role="status"`) and no page (and no data from a previous session) mounts first (tested)
+- [x] Transitional behavior (until S-17) — the active business is the user's **own** business or none (member-only users get none until the S-24 invitation flow); pages keep calling hooks without businessId, so data runs unscoped; non-membership failures (e.g. migrations not yet applied at first deploy) degrade to status none so the app behaves exactly like v1, permission failures map to forbidden (tested)
+- [x] Clean sign-out — `queryClient.clear()` runs whenever the session disappears, so nothing from the previous session survives (tested: seeded cache entry gone after the session flips to null)
+
+**S-14 notes:** the query fetches `business_members` (+ embedded `businesses`), owner `profiles`, and `business_invitations` for the JWT email (lowercased to match the stored `check (email = lower(...))`). The invitation `businessName` embed is null-tolerant (invitees cannot read the business row until they accept — RLS), filled from the member businesses when available. `useActiveBusiness()` is the PRD-shaped hook; `useBusinessContext()` additionally exposes `error` for diagnostics. Wiring data calls to pass the active `businessId` lands with S-17/S-20 route changes (touch zone keeps pages untouched). The two new lint warnings on BusinessContext are the same react-refresh/only-export-components pattern as the pre-existing AuthContext and ThemeContext files.
 
 ## S-13 scenarios (checklist)
 
