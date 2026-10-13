@@ -28,7 +28,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-18 Business settings (view and edit) | Done | (see below) | SettingsPage `/b/:id/settings`, getBusiness/updateBusiness, useBusiness/useUpdateBusiness, switcher shows URL business name, Settings nav visible |
 | S-19 Delete business | Done | (see below) | DangerZone in Settings, getBusinessImpact + deleteBusiness (cascade), typed confirmation, post-delete routing |
 | S-20 Enforce tenancy (contract phase) | Done | (see below) | businessId required across all apis/hooks, 0003 migration + backfill script, balances moved to scoped view, old policies/RPCs scheduled for drop, MANUAL_STEPS procedure |
-| S-21 Permission layer | Pending | | |
+| S-21 Permission layer | Done | (see below) | lib/permissions.ts matrix + can/assertCan, usePermissions hook, Can component (hide/disable), assertCan in every write mutation, UI-CONTRACT mapping, 2 new SQL denial tests |
 | S-22 Members page | Pending | | |
 | S-23 Invite by email and manage invitations | Pending | | |
 | S-24 Respond to invitations | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-21 scenarios (checklist)
+
+- [x] One matrix — `src/lib/permissions.ts` holds the PRD section 3 matrix as the single source for the UI (11 actions × owner/editor/viewer); `src/lib/__tests__/permissions.test.ts` asserts every action for Owner, Editor and Viewer (33 role/action assertions + coverage, `can`, `assertCan`)
+- [x] Components use it — `usePermissions()` (business-scoped role from the URL business's membership) and a `Can` component with hide (default) and disable modes; a Viewer sees write actions hidden, or disabled with the tooltip 'View-only access' (`src/components/app/__tests__/can.test.tsx`)
+- [x] Actions are blocked before the network — every write mutation (updateBusiness, deleteBusiness, create/updateCustomer, createTransaction/batch, updateTransaction/Status) calls `assertCan` inside `mutationFn`, so a known disallowed role fails with `forbidden` before any api call (tested: viewer's update rejects and `updateBusiness` is never called; the database would refuse the same write — see mapping)
+- [x] Matrix and database agree — `docs/UI-CONTRACT.md` lists every action name mapped to the SQL tests in `supabase/tests/0002_rls_membership.sql` that prove the database agrees; two missing denial tests were added (Eli cannot update the business details, Eli cannot insert an invitation) so `manageBusiness` and `manageMembers` have database proof
+
+**S-21 notes:** `assertCan` only blocks a **known** role — memberships not loaded (role null) falls through to the database, which is the source of truth; the UI hiding a control is experience, never security. `Can`'s disable mode wraps in a `<span title="View-only access" aria-disabled>` (no tooltip primitive exists; the native `title` serves as the tooltip — logged in UI-CONTRACT). SettingsPage's S-18 inline membership check was replaced by `usePermissions().isOwner` (same source, shared hook). Two SQL denial tests were added to the S-06 suite for the owner-only rules the matrix claimed but the suite didn't yet prove (business details update, invitation insert). No deviations.
 
 ## S-20 scenarios (checklist)
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerKeys, transactionKeys } from "@/lib/queryKeys";
+import { usePermissions } from "@/features/business/hooks";
 import {
   createTransaction,
   createTransactionsBatch,
@@ -94,24 +95,33 @@ export function useTodayTransactions(businessId: string, limit = 5) {
 
 export function useCreateTransaction(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: (input: Parameters<typeof createTransaction>[0]) =>
-      createTransaction(input, businessId),
+    mutationFn: (input: Parameters<typeof createTransaction>[0]) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageTransactions");
+      return createTransaction(input, businessId);
+    },
     onSuccess: invalidate,
   });
 }
 
 export function useCreateTransactionsBatch(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: (transactions: Parameters<typeof createTransactionsBatch>[0]) =>
-      createTransactionsBatch(transactions, businessId),
+    mutationFn: (transactions: Parameters<typeof createTransactionsBatch>[0]) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageTransactions");
+      return createTransactionsBatch(transactions, businessId);
+    },
     onSuccess: invalidate,
   });
 }
 
 export function useUpdateTransaction(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({
       id,
@@ -119,13 +129,18 @@ export function useUpdateTransaction(businessId: string) {
     }: {
       id: string;
       input: Partial<Pick<Transaction, "type" | "amount" | "occurred_at" | "note">>;
-    }) => updateTransaction(id, input, businessId),
+    }) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageTransactions");
+      return updateTransaction(id, input, businessId);
+    },
     onSuccess: invalidate,
   });
 }
 
 export function useUpdateTransactionStatus(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({
       id,
@@ -133,7 +148,11 @@ export function useUpdateTransactionStatus(businessId: string) {
     }: {
       id: string;
       status: "active" | "edited" | "voided";
-    }) => updateTransactionStatus(id, status, businessId),
+    }) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageTransactions");
+      return updateTransactionStatus(id, status, businessId);
+    },
     onSuccess: invalidate,
   });
 }

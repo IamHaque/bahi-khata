@@ -284,6 +284,16 @@ select pg_temp.expect_denied(
   $$select public.remove_member('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$$
 );
 
+select pg_temp.expect_denied(
+  'Eli cannot update the business details',
+  $$update public.businesses set name = 'Hijacked' where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
+);
+
+select pg_temp.expect_denied(
+  'Eli cannot insert an invitation',
+  $$insert into public.business_invitations (business_id, email, role, invited_by) values ('aaaaaaaa-0000-0000-0000-000000000001', 'forced@example.com', 'editor'::business_role, '22222222-2222-2222-2222-222222222222')$$
+);
+
 -- ------------------------------------------------------------
 -- 7. Owner controls the business
 -- ------------------------------------------------------------

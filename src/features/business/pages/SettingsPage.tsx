@@ -13,7 +13,7 @@ import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { DangerZone } from "@/features/business/components/DangerZone";
 import {
   useBusiness,
-  useMemberships,
+  usePermissions,
   useUpdateBusiness,
 } from "@/features/business/hooks";
 import type { Business } from "@/features/business/api";
@@ -27,12 +27,12 @@ import { useState } from "react";
 /**
  * Business settings (S-18): the owner edits the details here; every
  * other member sees the same details read-only. The role check comes
- * from the URL business's membership — the minimal inline check until
- * S-21 ships the shared role hook.
+ * from `usePermissions` (S-21), which reads the URL business's
+ * membership — the same source the rest of the UI now asks.
  */
 export function SettingsPage() {
   const businessId = useScopedBusinessId() ?? "";
-  const { data: memberships } = useMemberships();
+  const { isOwner } = usePermissions();
   const {
     data: business,
     isLoading,
@@ -41,9 +41,6 @@ export function SettingsPage() {
   } = useBusiness(businessId);
   const updateBusiness = useUpdateBusiness(businessId);
   const [moreOpen, setMoreOpen] = useState(false);
-
-  const membership = memberships?.businesses.find((b) => b.id === businessId);
-  const isOwner = membership?.role === "owner";
 
   const form = useForm<CreateBusinessForm>({
     resolver: zodResolver(createBusinessSchema),

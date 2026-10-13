@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerKeys } from "@/lib/queryKeys";
+import { usePermissions } from "@/features/business/hooks";
 import {
   createCustomer,
   getCustomer,
@@ -28,8 +29,13 @@ export function useCustomer(id: string, businessId: string) {
 
 export function useCreateCustomer(businessId: string) {
   const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: (input: CustomerInput) => createCustomer(input, businessId),
+    mutationFn: (input: CustomerInput) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageCustomers");
+      return createCustomer(input, businessId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
     },
@@ -38,6 +44,7 @@ export function useCreateCustomer(businessId: string) {
 
 export function useUpdateCustomer(businessId: string) {
   const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({
       id,
@@ -45,7 +52,11 @@ export function useUpdateCustomer(businessId: string) {
     }: {
       id: string;
       input: Partial<CustomerInput>;
-    }) => updateCustomer(id, input, businessId),
+    }) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageCustomers");
+      return updateCustomer(id, input, businessId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
     },

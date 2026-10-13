@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessKeys } from "@/lib/queryKeys";
 import {
+  assertCan,
+  can,
+  type PermissionAction,
+  type PermissionRole,
+} from "@/lib/permissions";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import {
   createBusiness,
   deleteBusiness,
   getBusiness,
@@ -47,10 +54,39 @@ export function useBusiness(businessId: string) {
   });
 }
 
+/**
+ * What the current URL business's member may do (S-21). The role comes
+ * from the membership list for the business in the URL — the shared
+ * version of the S-18 inline check. No business or no membership yet →
+ * role null (the database refuses anything the UI cannot know about).
+ */
+export function usePermissions() {
+  const businessId = useScopedBusinessId() ?? "";
+  const { data: memberships } = useMemberships();
+  const role: PermissionRole | null =
+    businessId === ""
+      ? null
+      : (memberships?.businesses.find((b) => b.id === businessId)?.role ??
+        null);
+
+  return {
+    businessId,
+    role,
+    can: (action: PermissionAction) => can(role, action),
+    assertCan: (action: PermissionAction) => assertCan(role, action),
+    isOwner: role === "owner",
+  };
+}
+
 export function useUpdateBusiness(businessId: string) {
   const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: (input: BusinessInput) => updateBusiness(businessId, input),
+    mutationFn: (input: BusinessInput) => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("manageBusiness");
+      return updateBusiness(businessId, input);
+    },
     onSuccess: (updated) => {
       // The page and the sidebar business name update immediately.
       queryClient.setQueryData(businessKeys.detail(businessId), updated);
@@ -70,8 +106,13 @@ export function useBusinessImpact(businessId: string, enabled = true) {
 
 export function useDeleteBusiness(businessId: string) {
   const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: () => deleteBusiness(businessId),
+    mutationFn: () => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("deleteBusiness");
+      return deleteBusiness(businessId);
+    },
     onSuccess: () => {
       // Everything scoped to this business is gone; the active business
       // re-resolves and stale per-business caches are dropped.
