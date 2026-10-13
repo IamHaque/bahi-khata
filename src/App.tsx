@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/queryClient";
 import { routePatterns } from "@/lib/paths";
+import { UiGallery } from "@/features/dev/UiGallery";
 import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/pages/CustomersPage";
@@ -28,6 +29,13 @@ export default function App() {
                   path={routePatterns.login}
                   element={<LoginPage />}
                 />
+                {/* Dev-only component gallery; not registered in production builds */}
+                {import.meta.env.DEV && (
+                  <Route
+                    path={routePatterns.uiGallery}
+                    element={<UiGallery />}
+                  />
+                )}
                 <Route element={<ProtectedRoute />}>
                   <Route element={<AppShell />}>
                     <Route

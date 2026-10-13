@@ -20,7 +20,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-10 DataTable, SearchInput, FilterBar, Pagination | Done | (see below) | server-driven DataTable + RowActionsMenu + SearchInput + FilterBar |
 | S-11 Form kit, EntityDialog, ConfirmDialog | Done | (see below) | rhf+zod form kit, EntityDialog (dialog/sheet), ConfirmDialog (typed), toast helper |
 | S-12 App shell, navigation, path helpers | Done | (see below) | AppShell + navConfig + paths.ts; AppLayout deleted; pathsHygiene test |
-| S-13 UI gallery and UI consistency contract | Pending | | |
+| S-13 UI gallery and UI consistency contract | Done | (see below) | dev-only /__ui gallery + UI-CONTRACT checklist+glossary + rot test |
 | S-14 Business resolution provider | Pending | | |
 | S-15 Create-business page | Pending | | |
 | S-16 Post-login landing logic and route guards | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-13 scenarios (checklist)
+
+- [x] Gallery — dev-only `/__ui` route renders every shared component in its states (buttons incl. disabled/loading, Money, BalanceBadge, StatusBadge, Avatar, StatCard incl. loading/error/zero, Skeleton/SkeletonRows, EmptyState, ErrorState, PageHeader, SearchInput, FilterBar, DataTable all five states, form fields incl. inline errors, EntityDialog/ConfirmDialog/typed ConfirmDialog, toast buttons) with a theme toggle to check both themes (tested in jsdom via the rot test; dev-server smoke test hit `/__ui`)
+- [x] Not in production — the route is registered in `App.tsx` behind `import.meta.env.DEV`; verified the built bundle contains no gallery strings (component tree-shaken out); the `"/__ui"` literal remains in `paths.ts` output but no `<Route>` references it
+- [x] Contract — `docs/UI-CONTRACT.md` now contains the full §8 checklist (error-message example restored) plus the copy glossary table and a gallery section
+- [x] Gallery cannot rot — `src/features/dev/__tests__/uiGallery.test.tsx` renders the gallery in light and dark themes and fails on any `console.error`/`console.warn` (tested)
+
+**S-13 note:** the rot test caught a real bug — `StatCard`'s value slot was a `<p>`, which is invalid HTML when the value is a `<div>` (e.g. a loading `Skeleton`); the slot is now a `<div>`. Form fields intentionally have no `disabled` prop yet (no story needs it; added when one does).
 
 ## S-12 scenarios (checklist)
 

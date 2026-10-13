@@ -35,8 +35,9 @@
 - **Destructive actions:** `ConfirmDialog` with a specific verb label.
   Irreversible actions use the typed-confirmation variant. Never a bare OK.
 - **Feedback:** every mutation shows a toast. Success is past tense
-  ('Customer archived'). Errors say what failed and what to do. Undo is
-  offered for archive and void.
+  ('Customer archived'). Errors say what failed and what to do ('Could
+  not archive customer. Try again.'). Undo is offered for archive and
+  void.
 - **Money and dates:** only `formatMoney`, `Money`, `formatDate` and
   `formatRelative`. Amounts are right-aligned, tabular, never truncated.
 - **Color:** semantic tokens only. Balance meaning always has a text
@@ -47,3 +48,25 @@
   announcements, 44-pixel touch targets, reduced motion respected.
 - **Paths and keys:** links from `paths.ts`, query keys from
   `queryKeys.ts` with the business prefix.
+
+## Copy glossary (copied from PRD §8 — owned by S-13)
+
+| Concept                     | Use                           | Never                               |
+| --------------------------- | ----------------------------- | ----------------------------------- |
+| Customer owes the business  | Owes you                      | Receivable, Debit, Due (in UI text) |
+| Business owes the customer  | You owe                       | Payable, Credit balance             |
+| Zero balance                | Settled                       | Zero, Paid up                       |
+| Hide a customer, reversible | Archive                       | Delete                              |
+| Remove a customer forever   | Delete permanently            | Remove                              |
+| Cancel a transaction        | Void                          | Delete                              |
+| Workspace                   | Business                      | Tenant, Workspace, Organization     |
+| Shared access               | Member, Editor, Viewer, Owner | Admin, User                         |
+
+## Component gallery (owned by S-13)
+
+- Dev-only route `/__ui` (`src/features/dev/UiGallery.tsx`), registered in
+  `App.tsx` behind `import.meta.env.DEV` — the route does not exist in
+  production builds.
+- Every shared component appears there in its states; `src/features/dev/
+  __tests__/uiGallery.test.tsx` renders the gallery in both themes and
+  fails on any console error or warning.

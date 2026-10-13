@@ -11,6 +11,7 @@ export const paths = {
   transactionDetail: (id: string) => `/transactions/${id}`,
   members: "/members",
   settings: "/settings",
+  uiGallery: "/__ui",
 } as const;
 
 // React Router route patterns (":id" placeholders) for <Route path=...>.
@@ -22,6 +23,7 @@ export const routePatterns = {
   importCustomers: paths.importCustomers,
   transactions: paths.transactions,
   transactionDetail: "/transactions/:id",
+  uiGallery: paths.uiGallery,
 } as const;
 
 export function transactionsPath(params?: { range?: string }): string {
