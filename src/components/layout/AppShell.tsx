@@ -24,6 +24,7 @@ export function AppShell() {
     if (pathname.startsWith(paths.customers(businessId))) return "Customers";
     if (pathname.startsWith(paths.transactions(businessId)))
       return "Transactions";
+    if (pathname === paths.members(businessId)) return "Members";
     if (pathname === paths.settings(businessId)) return "Settings";
     return "";
   }, [location.pathname, businessId]);

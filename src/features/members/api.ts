@@ -1,0 +1,125 @@
+import { supabase } from "@/lib/supabase";
+import { toAppError } from "@/lib/AppError";
+import type { BusinessRole } from "@/features/business/api";
+
+export type { BusinessRole };
+
+/** One member of a business, with their profile for display (S-22). */
+export interface BusinessMember {
+  userId: string;
+  role: BusinessRole;
+  fullName: string | null;
+  email: string;
+  avatarUrl: string | null;
+  joinedAt: string;
+}
+
+/** A pending invitation the owner may see and later manage (S-22/S-23). */
+export interface BusinessInvitation {
+  id: string;
+  email: string;
+  role: BusinessRole;
+  createdAt: string;
+}
+
+async function guard<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    throw toAppError(err);
+  }
+}
+
+/**
+ * Everyone who belongs to one business, with their profile (S-22).
+ * Any member may read the member list — row-level security filters
+ * businesses the caller does not belong to; the caller never passes a
+ * user id.
+ */
+export async function getMembers(
+  businessId: string,
+): Promise<BusinessMember[]> {
+  return guard(async () => {
+    const { data: rows, error } = await supabase
+      .from("business_members")
+      .select("user_id, role, joined_at")
+      .eq("business_id", businessId);
+    if (error) throw error;
+
+    interface MemberRow {
+      user_id: string;
+      role: BusinessRole;
+      joined_at: string;
+    }
+
+    const memberRows = (rows ?? []) as unknown as MemberRow[];
+    if (memberRows.length === 0) return [];
+
+    // profiles has no foreign key from business_members, so the profile
+    // lookup is a second round trip (RLS: co-members can read profiles).
+    const { data: profileRows, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, avatar_url")
+      .in(
+        "id",
+        memberRows.map((row) => row.user_id),
+      );
+    if (profileError) throw profileError;
+
+    interface ProfileRow {
+      id: string;
+      email: string;
+      full_name: string | null;
+      avatar_url: string | null;
+    }
+
+    const profileById = new Map(
+      ((profileRows ?? []) as unknown as ProfileRow[]).map((p) => [p.id, p]),
+    );
+
+    return memberRows.map((row) => {
+      const profile = profileById.get(row.user_id);
+      return {
+        userId: row.user_id,
+        role: row.role,
+        joinedAt: row.joined_at,
+        fullName: profile?.full_name ?? null,
+        email: profile?.email ?? "",
+        avatarUrl: profile?.avatar_url ?? null,
+      };
+    });
+  });
+}
+
+/**
+ * One business's pending invitations (S-22). Row-level security makes
+ * this owner-only (plus the invitee reading their own), so a non-owner
+ * simply gets an empty list — the UI hides the section too.
+ */
+export async function getBusinessInvitations(
+  businessId: string,
+): Promise<BusinessInvitation[]> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("business_invitations")
+      .select("id, email, role, created_at")
+      .eq("business_id", businessId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+
+    interface InvitationRow {
+      id: string;
+      email: string;
+      role: BusinessRole;
+      created_at: string;
+    }
+
+    return ((data ?? []) as unknown as InvitationRow[]).map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      createdAt: row.created_at,
+    }));
+  });
+}

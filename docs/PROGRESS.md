@@ -29,6 +29,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-19 Delete business | Done | (see below) | DangerZone in Settings, getBusinessImpact + deleteBusiness (cascade), typed confirmation, post-delete routing |
 | S-20 Enforce tenancy (contract phase) | Done | (see below) | businessId required across all apis/hooks, 0003 migration + backfill script, balances moved to scoped view, old policies/RPCs scheduled for drop, MANUAL_STEPS procedure |
 | S-21 Permission layer | Done | (see below) | lib/permissions.ts matrix + can/assertCan, usePermissions hook, Can component (hide/disable), assertCan in every write mutation, UI-CONTRACT mapping, 2 new SQL denial tests |
+| S-22 Members page | Done | (see below) | `src/features/members/` api+hooks+MembersPage, `/b/:id/members` route, Members nav visible, owner-first list with role badges, owner-only Invite + pending invitations section |
 | S-22 Members page | Pending | | |
 | S-23 Invite by email and manage invitations | Pending | | |
 | S-24 Respond to invitations | Pending | | |
@@ -67,6 +68,16 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-22 scenarios (checklist)
+
+- [x] Member list — any member opens Members (`/b/:id/members`, now in the sidebar nav) and sees a table with avatar (initials fallback), name, email, role badge and joined date; the Owner row is always first (page sorts owner-first, then joined date) — tested with an unsorted fixture
+- [x] Only the owner sees management controls — Editor and Viewer see the plain list: no Invite button, no pending-invitations section (tested for both roles); role comes from `usePermissions()` (S-21)
+- [x] Only-owner state — an Owner with nobody else joined sees `EmptyState` "Invite someone to share this business" with an Invite button (the owner always has a membership row, so "empty" means the list holds exactly the owner)
+- [x] Pending invitations — the Owner sees a "Pending invitations" section listing email, role badge and invited date (RLS is owner-only on `business_invitations`, so the section is doubly protected); hidden from non-owners — tested both ways
+- [x] Standard states — DataTable's shared loading skeleton, error message + "Try again" retry — tested
+
+**S-22 notes:** the Invite button is rendered but inert until S-23 wires it to the invite dialog (the PRD orders the dialog one story later; the button's presence is S-22's scenario). `getMembers` does two round trips (members then profiles) because `business_members.user_id` references `auth.users` with no FK to `profiles` — same pattern as `getMemberships`. `getBusinessInvitations` filters `status = 'pending'` and orders newest first; a non-owner gets an empty list from RLS even before the UI hides the section. New query keys `businessKeys.members/invitations` sit under the `["business", id]` prefix so S-19's delete-business prefix removal clears them too. Row actions (change role, remove member) are S-25.
 
 ## S-21 scenarios (checklist)
 

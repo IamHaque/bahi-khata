@@ -41,10 +41,8 @@ describe("app shell", () => {
     expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Customers").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Transactions").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Members").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
-
-    // Members stays hidden until S-22
-    expect(screen.queryByText("Members")).toBeNull();
 
     // Top bar controls
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy();
@@ -66,6 +64,7 @@ describe("app shell", () => {
       paths.business("biz1"),
       paths.customers("biz1"),
       paths.transactions("biz1"),
+      paths.members("biz1"),
       paths.settings("biz1"),
     ]);
   });
@@ -114,7 +113,7 @@ describe("app shell", () => {
 });
 
 describe("navigation configuration", () => {
-  it("is one array with Members hidden", () => {
+  it("is one array with every in-business link visible", () => {
     const navItems = buildNavItems("biz1");
     expect(navItems).toHaveLength(5);
     const visible = navItems.filter((item) => item.visible);
@@ -122,6 +121,7 @@ describe("navigation configuration", () => {
       "Dashboard",
       "Customers",
       "Transactions",
+      "Members",
       "Settings",
     ]);
   });

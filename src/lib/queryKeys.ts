@@ -56,4 +56,10 @@ export const businessKeys = {
   memberships: () => ["memberships"] as const,
   detail: (businessId: string) => ["businessDetail", businessId] as const,
   impact: (businessId: string) => ["businessImpact", businessId] as const,
+  // Under the ["business", id] prefix, so deleting the business (S-19)
+  // removes these caches with one prefix removal.
+  members: (businessId: string) =>
+    ["business", businessId, "members"] as const,
+  invitations: (businessId: string) =>
+    ["business", businessId, "invitations"] as const,
 };

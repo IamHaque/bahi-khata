@@ -13,6 +13,7 @@ import { UiGallery } from "@/features/dev/UiGallery";
 import { LandingResolver } from "@/features/business/pages/LandingResolver";
 import { BusinessesPage } from "@/features/business/pages/BusinessesPage";
 import { SettingsPage } from "@/features/business/pages/SettingsPage";
+import { MembersPage } from "@/features/members/pages/MembersPage";
 import { BusinessGuard } from "@/features/business/components/BusinessGuard";
 import { LegacyBusinessRedirect } from "@/features/business/components/LegacyBusinessRedirect";
 import { LoginPage } from "@/pages/Login";
@@ -137,6 +138,10 @@ export default function App() {
                         <Route
                           path={routePatterns.transactionDetail}
                           element={<TransactionDetailPage />}
+                        />
+                        <Route
+                          path={routePatterns.members}
+                          element={<MembersPage />}
                         />
                         <Route
                           path={routePatterns.settings}
