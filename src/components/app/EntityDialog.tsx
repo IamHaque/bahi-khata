@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import {
+  FormProvider,
+  useForm,
+  type FieldValues,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -52,9 +57,9 @@ export function EntityDialog({
   const [saving, setSaving] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
 
-  const form = useForm<Record<string, unknown>>({
-    resolver: zodResolver(schema),
-    defaultValues,
+  const form = useForm({
+    resolver: zodResolver(schema as z.ZodType<FieldValues, FieldValues>) as Resolver<FieldValues>,
+    defaultValues: defaultValues as FieldValues,
     mode: "onTouched",
   });
 
@@ -88,7 +93,7 @@ export function EntityDialog({
         onSubmit={form.handleSubmit(async (values) => {
           setSaving(true);
           try {
-            await onSubmit(values);
+            await onSubmit(values as Record<string, unknown>);
             onOpenChange(false);
           } catch (err) {
             const fieldErrors =
