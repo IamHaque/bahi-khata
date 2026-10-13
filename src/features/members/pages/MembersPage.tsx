@@ -1,15 +1,23 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
-import { DataTable, type Column } from "@/components/app/DataTable";
+import {
+  DataTable,
+  RowActionsMenu,
+  type Column,
+} from "@/components/app/DataTable";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Avatar } from "@/components/app/Avatar";
+import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
+import { toastSuccess } from "@/lib/toast";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
-import { useMembers, useBusinessInvitations } from "../hooks";
+import { useMembers, useBusinessInvitations, useRevokeInvitation } from "../hooks";
+import { InviteMemberDialog } from "../components/InviteMemberDialog";
 import type {
   BusinessInvitation,
   BusinessMember,
@@ -47,6 +55,9 @@ export function MembersPage() {
     refetch,
   } = useMembers(businessId);
   const { data: invitations } = useBusinessInvitations(businessId);
+  const revokeInvitation = useRevokeInvitation(businessId);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [revoking, setRevoking] = useState<BusinessInvitation | null>(null);
 
   // Owner first, then everyone else by joined date (stable, matches the
   // PRD's "Owner is listed first").
@@ -132,11 +143,21 @@ export function MembersPage() {
   // everyone else never sees the control at all. In the sole-owner state
   // the EmptyState carries the button, so the header stays bare.
   const inviteButton = isOwner && (
-    <Button type="button">
+    <Button type="button" onClick={() => setInviteOpen(true)}>
       <UserPlus />
       Invite
     </Button>
   );
+
+  const handleRevoke = async () => {
+    if (!revoking) return;
+    try {
+      await revokeInvitation.mutateAsync(revoking.id);
+      toastSuccess(`Invitation to ${revoking.email} revoked`);
+    } catch {
+      toast.error("Could not revoke the invitation. Try again.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -179,9 +200,40 @@ export function MembersPage() {
             columns={inviteColumns}
             rows={invitations ?? []}
             getRowKey={(row) => row.id}
+            renderRowActions={(row) => (
+              <RowActionsMenu
+                items={[
+                  {
+                    label: "Revoke",
+                    variant: "destructive",
+                    onSelect: () => setRevoking(row),
+                  },
+                ]}
+                triggerLabel={`Actions for ${row.email}`}
+              />
+            )}
           />
         </section>
       )}
+
+      <InviteMemberDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        businessId={businessId}
+        memberEmails={(members ?? []).map((m) => m.email.toLowerCase())}
+        pendingEmails={(invitations ?? []).map((i) => i.email.toLowerCase())}
+      />
+
+      <ConfirmDialog
+        open={revoking !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setRevoking(null);
+        }}
+        title={`Revoke the invitation to ${revoking?.email ?? ""}?`}
+        description="They will no longer be able to join with this invitation. You can invite them again later."
+        confirmLabel="Revoke"
+        onConfirm={() => void handleRevoke()}
+      />
     </div>
   );
 }

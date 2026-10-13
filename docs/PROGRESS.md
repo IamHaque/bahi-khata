@@ -30,6 +30,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-20 Enforce tenancy (contract phase) | Done | (see below) | businessId required across all apis/hooks, 0003 migration + backfill script, balances moved to scoped view, old policies/RPCs scheduled for drop, MANUAL_STEPS procedure |
 | S-21 Permission layer | Done | (see below) | lib/permissions.ts matrix + can/assertCan, usePermissions hook, Can component (hide/disable), assertCan in every write mutation, UI-CONTRACT mapping, 2 new SQL denial tests |
 | S-22 Members page | Done | (see below) | `src/features/members/` api+hooks+MembersPage, `/b/:id/members` route, Members nav visible, owner-first list with role badges, owner-only Invite + pending invitations section |
+| S-23 Invite by email and manage invitations | Done | (see below) | InviteMemberDialog (zod email, lowercased, role Editor/Viewer default Viewer), inline rejections (bad email/own email/member/pending) + DB unique-index backstop, Copy app link, revoke with confirmation, useCreate/RevokeInvitation guards |
 | S-22 Members page | Pending | | |
 | S-23 Invite by email and manage invitations | Pending | | |
 | S-24 Respond to invitations | Pending | | |
@@ -68,6 +69,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-23 scenarios (checklist)
+
+- [x] Send an invitation — the owner opens "Invite member", enters `Vic@Example.com`, chooses Viewer and presses Invite → `createInvitation` receives the **lowercased** `vic@example.com` with role viewer (schema trims + lowercases; DB check requires lowercase); the dialog explains "They will see the invitation after signing in with this Google account. No email is sent."; a **Copy app link** button copies `window.location.origin` (toast + "Copied" state) — tested
+- [x] Role choice — the role selector offers Editor and Viewer with one-line descriptions ("Editor — can record customers and transactions" / "Viewer — can only see the data"), defaulting to Viewer — tested
+- [x] Invalid invitations blocked inline — not-an-email → "Enter a valid email address" (zod, before any hook); my own email → "You are already the owner"; an existing member → "This person is already a member"; a pending invite → "An invitation is already pending" — all four tested with the api function **not** called; the database's `one_pending_invite_per_email` unique index is the race backstop, mapped (23505) to the same inline error — tested
+- [x] Revoke — Revoke on a pending invitation row → ConfirmDialog ("Revoke the invitation to X?") → confirmed → `revokeInvitation` marks it `revoked` (status update, not delete — audit trail stays) and the row leaves the pending list on refetch; toast confirms — tested
+
+**S-23 notes:** the "already member/invited" checks use the emails already loaded on the page (members + pending invitations) — no extra network round trip; the DB unique index still guarantees correctness under races. `useCreateInvitation`/`useRevokeInvitation` call `assertCan("manageMembers")` via `usePermissions()` so a known non-owner fails before the network (S-21 contract). A subtle bug caught by the gates during this story: `assertCan` was first wired as the bare import (`assertCan("manageMembers")`) which passed the action as the *role* and threw a TypeError inside the mutation — replaced with the hook-bound `usePermissions().assertCan` (the S-21 pattern used everywhere else); the fix is why `npm run typecheck` + tests run before every commit. Revoke updates `status='revoked'` guarded by `eq status='pending'` so revoking twice is a no-op error rather than a silent overwrite. No deviations.
 
 ## S-22 scenarios (checklist)
 

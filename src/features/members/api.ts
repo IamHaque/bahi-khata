@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { toAppError } from "@/lib/AppError";
+import { AppError, toAppError } from "@/lib/AppError";
 import type { BusinessRole } from "@/features/business/api";
 
 export type { BusinessRole };
@@ -121,5 +121,92 @@ export async function getBusinessInvitations(
       role: row.role,
       createdAt: row.created_at,
     }));
+  });
+}
+
+export interface InvitationInput {
+  email: string;
+  role: "editor" | "viewer";
+}
+
+/**
+ * Creates one pending invitation (S-23). Only the owner passes RLS.
+ * The email is stored lowercased (the schema check requires it and the
+ * invitee match is case-insensitive); the caller's own email, existing
+ * members and already-invited emails are refused inline before the
+ * network, and the database's unique pending index is the backstop —
+ * a race there surfaces as "An invitation is already pending".
+ */
+export async function createInvitation(
+  businessId: string,
+  input: InvitationInput,
+): Promise<BusinessInvitation> {
+  return guard(async () => {
+    const { data: userData, error: userError } =
+      await supabase.auth.getUser();
+    if (userError) throw userError;
+    const user = userData.user;
+    if (!user) {
+      throw new AppError("forbidden", "Sign in to invite someone.");
+    }
+
+    const { data, error } = await supabase
+      .from("business_invitations")
+      .insert({
+        business_id: businessId,
+        email: input.email.trim().toLowerCase(),
+        role: input.role,
+        invited_by: user.id,
+      })
+      .select("id, email, role, created_at")
+      .single();
+    if (error) {
+      // one_pending_invite_per_email — someone beat you to it.
+      if (error.code === "23505") {
+        throw new AppError(
+          "validation",
+          "An invitation is already pending for this email.",
+        );
+      }
+      throw error;
+    }
+
+    interface InvitationRow {
+      id: string;
+      email: string;
+      role: BusinessRole;
+      created_at: string;
+    }
+
+    const row = data as unknown as InvitationRow;
+    return {
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+/**
+ * Revokes one pending invitation (S-23): marked revoked (not deleted —
+ * the audit trail stays), which removes it from the pending list. Only
+ * the owner passes RLS; a zero-row update surfaces as forbidden.
+ */
+export async function revokeInvitation(invitationId: string): Promise<void> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("business_invitations")
+      .update({ status: "revoked" })
+      .eq("id", invitationId)
+      .eq("status", "pending")
+      .select("id");
+    if (error) throw error;
+    if ((data ?? []).length === 0) {
+      throw new AppError(
+        "forbidden",
+        "You do not have permission to revoke this invitation, or it no longer exists.",
+      );
+    }
   });
 }
