@@ -26,7 +26,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-16 Post-login landing logic and route guards | Done | (see below) | LandingResolver at `/`, minimal `/businesses`, ProtectedRoute `from` state, LoginPage deep-link return |
 | S-17 Route restructure to /b/:businessId | Done | (see below) | `/b/:businessId` route tree + BusinessGuard + legacy redirects, paths builders, useScopedBusinessId, nav per-URL |
 | S-18 Business settings (view and edit) | Done | (see below) | SettingsPage `/b/:id/settings`, getBusiness/updateBusiness, useBusiness/useUpdateBusiness, switcher shows URL business name, Settings nav visible |
-| S-19 Delete business | Pending | | |
+| S-19 Delete business | Done | (see below) | DangerZone in Settings, getBusinessImpact + deleteBusiness (cascade), typed confirmation, post-delete routing |
 | S-20 Enforce tenancy (contract phase) | Pending | | |
 | S-21 Permission layer | Pending | | |
 | S-22 Members page | Pending | | |
@@ -67,6 +67,17 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-19 scenarios (checklist)
+
+- [x] Danger zone is owner-only — `DangerZone` is rendered by SettingsPage only when the URL business's role is owner; Editor/Viewer never see the section or its button (tested: viewer)
+- [x] Impact is shown before confirming — the dialog counts customers, transactions, members and pending invitations with head-only count queries (`getBusinessImpact`, fetched when the dialog opens) and states "This action cannot be undone." (tested with the PRD's 58/340/3 figures plus 1 invitation)
+- [x] Typed confirmation — the Delete button stays disabled until the exact business name is typed; near-misses don't enable it (tested: "Rahim Trader" stays disabled, + "s" enables)
+- [x] Successful deletion — one `delete` statement on `businesses` removes the business plus every customer, transaction, member and invitation through the schema's `on delete cascade` foreign keys (verified in migration 0001: all four tables cascade); toast "Business deleted"; memberships are refetched and the user lands on `/businesses` if they still belong somewhere, otherwise `/onboarding/business` (tested: both destinations)
+- [x] I can start again — landing on `/onboarding/business` puts the user straight back into the tested S-15 create flow (covered by the onboarding-destination test + S-15 suite)
+- [x] Failure is safe — a failed delete (tested with a forbidden AppError) removes nothing, keeps the dialog open and shows the error; no toast, no navigation (tested)
+
+**S-19 notes:** zero rows from the owner-only RLS delete are mapped to a forbidden AppError in `deleteBusiness` (same treatment as `updateBusiness`). `useDeleteBusiness.onSuccess` drops every `["business", businessId]` cache entry (customers/transactions scopes) and invalidates memberships. Bug fixed mid-story: `useDeleteBusiness` initially referenced `queryClient` without calling `useQueryClient()`, so the `onSuccess` callback threw and rejected `mutateAsync` (the API had succeeded but the toast/navigation never ran) — caught by the tests. Human verification item for later (needs the real DB + a test business with members and invitations, per the story's "Done when"): confirm the cascade leaves no orphan rows — SQL for humans will be listed in docs/MANUAL_STEPS.md when migrations are applied.
 
 ## S-18 scenarios (checklist)
 

@@ -55,4 +55,5 @@ export const transactionKeys = {
 export const businessKeys = {
   memberships: () => ["memberships"] as const,
   detail: (businessId: string) => ["businessDetail", businessId] as const,
+  impact: (businessId: string) => ["businessImpact", businessId] as const,
 };

@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessKeys } from "@/lib/queryKeys";
 import {
   createBusiness,
+  deleteBusiness,
   getBusiness,
+  getBusinessImpact,
   getMemberships,
   updateBusiness,
   type BusinessInput,
@@ -52,6 +54,30 @@ export function useUpdateBusiness(businessId: string) {
     onSuccess: (updated) => {
       // The page and the sidebar business name update immediately.
       queryClient.setQueryData(businessKeys.detail(businessId), updated);
+      queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
+    },
+  });
+}
+
+/** The delete dialog's impact counts (S-19), fetched on demand. */
+export function useBusinessImpact(businessId?: string, enabled = true) {
+  return useQuery({
+    queryKey: businessKeys.impact(businessId ?? ""),
+    queryFn: () => getBusinessImpact(businessId ?? ""),
+    enabled: Boolean(businessId) && enabled,
+  });
+}
+
+export function useDeleteBusiness(businessId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteBusiness(businessId),
+    onSuccess: () => {
+      // Everything scoped to this business is gone; the active business
+      // re-resolves and stale per-business caches are dropped.
+      queryClient.removeQueries({
+        queryKey: ["business", businessId],
+      });
       queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
     },
   });

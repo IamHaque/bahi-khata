@@ -191,6 +191,69 @@ export async function createBusiness(input: BusinessInput): Promise<Business> {
   });
 }
 
+/** Everything that hangs off one business, for the delete dialog (S-19). */
+export interface BusinessImpact {
+  customerCount: number;
+  transactionCount: number;
+  memberCount: number;
+  invitationCount: number;
+}
+
+/**
+ * Counts what a deletion would take with it (S-19), so the confirmation
+ * can spell out the impact. Owner-only in practice — the counts come
+ * from the same tables the delete cascades over.
+ */
+export async function getBusinessImpact(
+  businessId: string,
+): Promise<BusinessImpact> {
+  return guard(async () => {
+    const countOf = async (
+      table: "customers" | "transactions" | "business_members" | "business_invitations",
+    ) => {
+      const { count, error } = await supabase
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId);
+      if (error) throw error;
+      return count ?? 0;
+    };
+
+    const [customerCount, transactionCount, memberCount, invitationCount] =
+      await Promise.all([
+        countOf("customers"),
+        countOf("transactions"),
+        countOf("business_members"),
+        countOf("business_invitations"),
+      ]);
+
+    return { customerCount, transactionCount, memberCount, invitationCount };
+  });
+}
+
+/**
+ * Deletes one business (S-19). The schema's `on delete cascade` foreign
+ * keys remove every customer, transaction, member and invitation in the
+ * same statement, so there are no orphans. Only the owner passes RLS;
+ * for anyone else the delete matches zero rows, surfaced as forbidden.
+ */
+export async function deleteBusiness(businessId: string): Promise<void> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("businesses")
+      .delete()
+      .eq("id", businessId)
+      .select("id");
+    if (error) throw error;
+    if ((data ?? []).length === 0) {
+      throw new AppError(
+        "forbidden",
+        "You do not have permission to delete this business, or it no longer exists.",
+      );
+    }
+  });
+}
+
 /**
  * Loads one business's full details (S-18). Members can read their
  * businesses; RLS filters the rest to null.

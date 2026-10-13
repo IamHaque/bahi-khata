@@ -10,6 +10,7 @@ import { TextField } from "@/components/app/fields/TextField";
 import { TextAreaField } from "@/components/app/fields/TextAreaField";
 import { SelectField } from "@/components/app/fields/SelectField";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { DangerZone } from "@/features/business/components/DangerZone";
 import {
   useBusiness,
   useMemberships,
@@ -195,6 +196,11 @@ export function SettingsPage() {
         </FormProvider>
       ) : (
         <ReadonlyDetails business={business} />
+      )}
+
+      {/* S-19: deletion is owner-only; non-owners never see this section */}
+      {isOwner && (
+        <DangerZone businessId={businessId} businessName={business.name} />
       )}
     </div>
   );

@@ -18,7 +18,9 @@ const businessApi = vi.hoisted(() => ({
   createBusiness: vi.fn(),
   getMemberships: vi.fn(),
   getBusiness: vi.fn(),
+  getBusinessImpact: vi.fn(),
   updateBusiness: vi.fn(),
+  deleteBusiness: vi.fn(),
 }));
 const toastState = vi.hoisted(() => ({
   success: vi.fn(),
@@ -29,7 +31,9 @@ vi.mock("@/features/business/api", () => ({
   createBusiness: businessApi.createBusiness,
   getMemberships: businessApi.getMemberships,
   getBusiness: businessApi.getBusiness,
+  getBusinessImpact: businessApi.getBusinessImpact,
   updateBusiness: businessApi.updateBusiness,
+  deleteBusiness: businessApi.deleteBusiness,
 }));
 
 vi.mock("@/lib/toast", () => ({
@@ -105,7 +109,9 @@ beforeEach(() => {
   businessApi.createBusiness.mockReset();
   businessApi.getMemberships.mockReset();
   businessApi.getBusiness.mockReset();
+  businessApi.getBusinessImpact.mockReset();
   businessApi.updateBusiness.mockReset();
+  businessApi.deleteBusiness.mockReset();
   businessApi.getMemberships.mockImplementation(async (): Promise<Memberships> => {
     const summary: BusinessSummary = {
       id: server.business.id,

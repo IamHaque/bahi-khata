@@ -89,6 +89,29 @@ does not use the new tables/columns yet), but every later story assumes it.
    at the end of the migration file); the old policies and the S-05 schema
    remain, so the app keeps working.
 
+## S-19 — Verify the delete cascade leaves no orphans (human check)
+
+**Status: code done; this DB check is pending the S-05/S-06 migrations.**
+The story's "Done when" requires deletion to be verified against a real
+business that has members and invitations. Run this after 0001/0002 are
+applied (and re-run any time the cascade is in doubt). Never run it against
+a business you want to keep.
+
+1. Prerequisite: S-05 and S-06 applied; you are signed in as the owner of a
+   test business (create one in the app if needed).
+2. Note the business id: `select id, name from businesses;`
+3. Delete it the way the app does (Settings → Danger zone) — or, to test the
+   database directly: `delete from businesses where id = '<id>';`
+4. **Verify — none of these may return rows:**
+   - `select count(*) from customers where business_id = '<id>';`
+   - `select count(*) from transactions where business_id = '<id>';`
+   - `select count(*) from business_members where business_id = '<id>';`
+   - `select count(*) from business_invitations where business_id = '<id>';`
+5. **Negative check:** as a non-owner (viewer/editor account), the same
+   delete must affect zero rows —
+   `delete from businesses where id = '<id of a business you do not own>';`
+   reports `DELETE 0` (RLS filters it).
+
 ## S-20 — Enforce tenancy (pending — READ BEFORE RUNNING)
 
 **This is the only destructive migration (0003). Do not run it before the
