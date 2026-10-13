@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { paths } from "@/lib/paths";
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -16,7 +17,20 @@ export function ProtectedRoute() {
   }
 
   if (!session) {
-    return <Navigate to={paths.login} replace />;
+    // Remember where the user was headed so login can return them
+    // there (S-16: deep link survives login).
+    return (
+      <Navigate
+        to={paths.login}
+        replace
+        state={{
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+          },
+        }}
+      />
+    );
   }
 
   return <Outlet />;

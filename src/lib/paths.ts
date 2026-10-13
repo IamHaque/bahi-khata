@@ -10,6 +10,7 @@ export const paths = {
   transactions: "/transactions",
   transactionDetail: (id: string) => `/transactions/${id}`,
   members: "/members",
+  businesses: "/businesses",
   settings: "/settings",
   onboardingBusiness: "/onboarding/business",
   uiGallery: "/__ui",
@@ -24,6 +25,7 @@ export const routePatterns = {
   importCustomers: paths.importCustomers,
   transactions: paths.transactions,
   transactionDetail: "/transactions/:id",
+  businesses: paths.businesses,
   onboardingBusiness: paths.onboardingBusiness,
   uiGallery: paths.uiGallery,
 } as const;

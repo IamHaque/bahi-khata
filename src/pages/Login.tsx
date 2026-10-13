@@ -1,14 +1,31 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveBusiness } from "@/contexts/BusinessContext";
 import { paths } from "@/lib/paths";
 import { useState } from "react";
 
+interface FromState {
+  from?: { pathname?: string; search?: string };
+}
+
 export function LoginPage() {
   const { signInWithGoogle, session } = useAuth();
+  const { status } = useActiveBusiness();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
+    // Deep link survives login (S-16): return to the protected URL that
+    // sent the user to /login, when they may access it; otherwise "/"
+    // hands them to the landing resolver.
+    const from = (location.state as FromState | null)?.from;
+    const fromPath = from?.pathname
+      ? `${from.pathname}${from.search ?? ""}`
+      : null;
+    if (fromPath && status === "ready") {
+      return <Navigate to={fromPath} replace />;
+    }
     return <Navigate to={paths.dashboard} replace />;
   }
 

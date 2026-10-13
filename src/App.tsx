@@ -10,8 +10,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/queryClient";
 import { routePatterns } from "@/lib/paths";
 import { UiGallery } from "@/features/dev/UiGallery";
+import { LandingResolver } from "@/features/business/pages/LandingResolver";
+import { BusinessesPage } from "@/features/business/pages/BusinessesPage";
 import { LoginPage } from "@/pages/Login";
-import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
@@ -48,7 +49,11 @@ export default function App() {
                     <Route element={<AppShell />}>
                       <Route
                         path={routePatterns.dashboard}
-                        element={<DashboardPage />}
+                        element={<LandingResolver />}
+                      />
+                      <Route
+                        path={routePatterns.businesses}
+                        element={<BusinessesPage />}
                       />
                       <Route
                         path={routePatterns.customers}

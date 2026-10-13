@@ -23,7 +23,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-13 UI gallery and UI consistency contract | Done | (see below) | dev-only /__ui gallery + UI-CONTRACT checklist+glossary + rot test |
 | S-14 Business resolution provider | Done | (see below) | BusinessContext + memberships api/hooks + boot skeleton; cache clear on sign-out |
 | S-15 Create-business page | Done | (see below) | CreateBusinessPage + OnboardingLayout + create_business RPC api + schema |
-| S-16 Post-login landing logic and route guards | Pending | | |
+| S-16 Post-login landing logic and route guards | Done | (see below) | LandingResolver at `/`, minimal `/businesses`, ProtectedRoute `from` state, LoginPage deep-link return |
 | S-17 Route restructure to /b/:businessId | Pending | | |
 | S-18 Business settings (view and edit) | Pending | | |
 | S-19 Delete business | Pending | | |
@@ -67,6 +67,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-16 scenarios (checklist)
+
+- [x] Resolve from `/` (Scenario Outline, all five rows) — owner → their business dashboard (renders in place at `/`, since the dashboard URL doesn't change until S-17: no redirect loop), member elsewhere → `/businesses`, pending invitation only → `/businesses`, no business → `/onboarding/business`, deleted business and belong nowhere → `/onboarding/business` (tested: all five data shapes)
+- [x] Deep link survives login — `ProtectedRoute` now carries `state={{ from: { pathname, search } }}` on its redirect to `/login`; after sign-in `LoginPage` returns to that URL when the user may access it (transitional rule: status `ready`), otherwise `/` hands them to the landing resolver (tested: honored / not-accessible fallback / no deep link)
+- [x] No flicker — while the decision is being made only `BusinessBootSkeleton` shows; no intermediate page renders (tested: skeleton + no dashboard + location unchanged)
+- [x] Signed-out users are sent to `/login` on any protected route, with the attempted URL remembered (tested: pathname+search round-trip)
+
+**S-16 notes:** constraint C-2 satisfied — S-16 also creates the minimal My businesses page at `/businesses` (PageHeader + DataTable + StatusBadge role labels + EmptyState with a Create business shortcut). **DEV-10:** the row "Open" button renders only for the user's **owned** business; a shared business has no per-business URL before S-17, so an Open there would bounce straight back through the resolver (redirect loop) — shared-business Open lands with S-17 scoped URLs / S-26 switcher. Deep-link access is a URL-level check only from S-17 (businessId validation); pre-S-17 every protected URL is reachable by any signed-in user, so `status === "ready"` is the transitional gate. Test-harness note: LoginPage must be mounted inside `<Routes>` in tests (as in the app) or its redirect re-fires after navigation and stomps the deep link.
 
 ## S-15 scenarios (checklist)
 
@@ -226,6 +235,7 @@ Re-run after every story that touches data or routing:
 | DEV-7 | Balance RPCs are scoped helpers (PRD 4.2 view/RPC design) | `get_customer_balance` / `get_all_customer_balances` are `security definer` with **no `search_path` pin and no RLS awareness** | S-06 replaces them with membership-scoped, `search_path`-pinned equivalents (`dashboard_summary` etc.) and pins the old ones during transition. Old policies stay until S-20. |
 | DEV-8 | `lib/format.ts`, `lib/queryKeys.ts`, `src/app/paths.ts` exist | None exist; money/dates are inline `toLocaleString`/`toLocaleDateString`, paths are hardcoded | Created in S-09 (`format.ts`), S-04 (`queryKeys.ts`), S-12 (`paths.ts`). |
 | DEV-9 | v1 has no `updated_by`/`voided_*` audit columns (PRD 4.1 additive list) | Confirmed absent; only `created_by` exists | Added in S-05 exactly as sketched. |
+| DEV-10 | S-16/C-2 minimal My businesses page must include an "Open" button per membership | No per-business URL exists before S-17, so Open on a shared business would redirect through the resolver and bounce back (loop) | Open renders for the owned business from S-16 (works: lands on the dashboard); shared-business Open arrives with S-17 scoped URLs / S-26 switcher. |
 
 ### Touch-zone mapping (DEV-1)
 
