@@ -24,7 +24,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-14 Business resolution provider | Done | (see below) | BusinessContext + memberships api/hooks + boot skeleton; cache clear on sign-out |
 | S-15 Create-business page | Done | (see below) | CreateBusinessPage + OnboardingLayout + create_business RPC api + schema |
 | S-16 Post-login landing logic and route guards | Done | (see below) | LandingResolver at `/`, minimal `/businesses`, ProtectedRoute `from` state, LoginPage deep-link return |
-| S-17 Route restructure to /b/:businessId | Pending | | |
+| S-17 Route restructure to /b/:businessId | Done | (see below) | `/b/:businessId` route tree + BusinessGuard + legacy redirects, paths builders, useScopedBusinessId, nav per-URL |
 | S-18 Business settings (view and edit) | Pending | | |
 | S-19 Delete business | Pending | | |
 | S-20 Enforce tenancy (contract phase) | Pending | | |
@@ -67,6 +67,16 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-17 scenarios (checklist)
+
+- [x] All pages are business scoped — dashboard, customers, customer detail, import and transactions are served under `/b/:businessId` (new route tree in App.tsx: `BusinessGuard` layout → `AppShell` → scoped child routes), and every data call receives the businessId from the URL (all six pages + the shared components CustomerCombobox / AddTransactionSheet / EditTransactionSheet / QuickAddTransactionSheet call `useScopedBusinessId()` and pass it to their hooks; the transactions API gained the missing optional `businessId` filters — getTransactionById, getTodayActivity, getAllTransactions, getTodayTransactions — following the S-07 `if (businessId) .eq(...)` pattern; tested: two tabs with different URLs make differently-scoped data calls)
+- [x] Legacy URLs keep working — `/customers`, `/customers/:id`, `/transactions` redirect to the same page under the active business via `LegacyBusinessRedirect` (active = own business; no business → My businesses; tested: plain, with-id, and no-business rows)
+- [x] Unknown or forbidden business — `BusinessGuard` checks the URL businessId against the (RLS-filtered) membership list; unknown and forbidden are the same page: "Business not found or you do not have access" + a "Go to My businesses" link; blocked children never mount so no data from that business is requested (tested: denial copy, link href, child not rendered, `listCustomers` not called)
+- [x] URLs are the single source of truth — each tab's URL drives its own scoped calls (tested: tab A → `listCustomers("tab-a")`, tab B → `listCustomers("tab-b")`); landing resolver now redirects an owner to `/b/:businessId` instead of rendering the dashboard at `/`
+- [x] Links are generated — `paths.ts` builders take a businessId (`paths.business/customers/customerDetail/importCustomers/transactions/transactionDetail/members/settings`), the old string constants are removed, `routePatterns` carries both the scoped patterns and the `legacy*` redirect patterns; navConfig became `buildNavItems(businessId)` fed by `useParams` in the Sidebar (tested: nav hrefs exactly `/b/biz1/...`)
+
+**S-17 notes:** `useScopedBusinessId()` returns `string | null` — `null` only outside `/b/:businessId` (tests rendering pages bare); falsy scope behaves identically to `undefined` (unscoped transitional keys/filters, v1 grace until S-20). Deviation DEV-10 is **resolved**: every membership row on My businesses now has a working Open (business URLs exist). Honest caveat: v1 rows have `business_id = NULL`, so after the backfill in S-20 scoped queries will show legacy data — until that manual step runs, scoped lists appear empty for pre-v2 rows (logged as a manual-step ordering note, not a code defect). Detail route params renamed `:id` → `:customerId` / `:transactionId` for clarity (URLs unchanged). Balance RPCs remain unscoped server-side (DEV-8) — their query *keys* are business-scoped so tabs never share cached balances.
 
 ## S-16 scenarios (checklist)
 
@@ -235,7 +245,7 @@ Re-run after every story that touches data or routing:
 | DEV-7 | Balance RPCs are scoped helpers (PRD 4.2 view/RPC design) | `get_customer_balance` / `get_all_customer_balances` are `security definer` with **no `search_path` pin and no RLS awareness** | S-06 replaces them with membership-scoped, `search_path`-pinned equivalents (`dashboard_summary` etc.) and pins the old ones during transition. Old policies stay until S-20. |
 | DEV-8 | `lib/format.ts`, `lib/queryKeys.ts`, `src/app/paths.ts` exist | None exist; money/dates are inline `toLocaleString`/`toLocaleDateString`, paths are hardcoded | Created in S-09 (`format.ts`), S-04 (`queryKeys.ts`), S-12 (`paths.ts`). |
 | DEV-9 | v1 has no `updated_by`/`voided_*` audit columns (PRD 4.1 additive list) | Confirmed absent; only `created_by` exists | Added in S-05 exactly as sketched. |
-| DEV-10 | S-16/C-2 minimal My businesses page must include an "Open" button per membership | No per-business URL exists before S-17, so Open on a shared business would redirect through the resolver and bounce back (loop) | Open renders for the owned business from S-16 (works: lands on the dashboard); shared-business Open arrives with S-17 scoped URLs / S-26 switcher. |
+| DEV-10 | S-16/C-2 minimal My businesses page must include an "Open" button per membership | No per-business URL exists before S-17, so Open on a shared business would redirect through the resolver and bounce back (loop) | Open renders for the owned business from S-16; **resolved by S-17** — business URLs exist, every membership's Open navigates to `/b/:id`, the guard enforces membership. |
 
 ### Touch-zone mapping (DEV-1)
 

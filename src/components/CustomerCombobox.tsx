@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useCustomers } from "@/features/customers/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import type { Customer } from "@/types";
 
 interface CustomerComboboxProps {
@@ -171,7 +172,8 @@ export function CustomerCombobox({
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const { data: customers = [], isLoading } = useCustomers();
+  const businessId = useScopedBusinessId() ?? undefined;
+  const { data: customers = [], isLoading } = useCustomers(businessId);
 
   useEffect(() => {
     if (open) {

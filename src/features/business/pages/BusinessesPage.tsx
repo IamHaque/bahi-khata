@@ -43,18 +43,17 @@ export function BusinessesPage() {
       key: "open",
       header: "",
       align: "right",
-      // Only the owned business can be opened — until business URLs
-      // exist (S-17) a shared business has nowhere to open (DEV-10).
-      render: (row) =>
-        row.isOwner ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(paths.dashboard)}
-          >
-            Open
-          </Button>
-        ) : null,
+      // Business URLs exist now (S-17): any membership can be opened;
+      // the guard + RLS enforce what you may see inside.
+      render: (row) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(paths.business(row.id))}
+        >
+          Open
+        </Button>
+      ),
     },
   ];
 

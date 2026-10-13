@@ -26,7 +26,7 @@ export function LoginPage() {
     if (fromPath && status === "ready") {
       return <Navigate to={fromPath} replace />;
     }
-    return <Navigate to={paths.dashboard} replace />;
+    return <Navigate to={paths.root} replace />;
   }
 
   const handleGoogleSignIn = async () => {

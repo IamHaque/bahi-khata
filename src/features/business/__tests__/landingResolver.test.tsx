@@ -17,13 +17,14 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoginPage } from "@/pages/Login";
 import { LandingResolver } from "@/features/business/pages/LandingResolver";
 import { BusinessesPage } from "@/features/business/pages/BusinessesPage";
-import type { Memberships } from "@/features/business/api";
+import type { BusinessSummary, Memberships } from "@/features/business/api";
 
 const membershipState = vi.hoisted(() => ({
   impl: null as null | (() => Promise<Memberships>),
 }));
 const activeBusinessState = vi.hoisted(() => ({
   status: "none" as "loading" | "ready" | "none" | "forbidden",
+  business: null as BusinessSummary | null,
 }));
 
 vi.mock("@/features/business/api", () => ({
@@ -38,22 +39,18 @@ vi.mock("@/contexts/BusinessContext", () => ({
   BusinessProvider: ({ children }: { children: React.ReactNode }) =>
     children,
   useActiveBusiness: () => ({
-    business: null,
-    role: null,
+    business: activeBusinessState.business,
+    role: activeBusinessState.business?.role ?? null,
     isOwner: activeBusinessState.status === "ready",
     status: activeBusinessState.status,
   }),
   useBusinessContext: () => ({
     status: activeBusinessState.status,
-    business: null,
-    role: null,
+    business: activeBusinessState.business,
+    role: activeBusinessState.business?.role ?? null,
     isOwner: false,
     error: null,
   }),
-}));
-
-vi.mock("@/pages/Dashboard", () => ({
-  DashboardPage: () => <div data-testid="dashboard" />,
 }));
 
 const session = {
@@ -119,11 +116,13 @@ function LocationProbe() {
 beforeEach(() => {
   membershipState.impl = null;
   activeBusinessState.status = "none";
+  activeBusinessState.business = null;
 });
 
 describe("S-16 landing resolver", () => {
-  it("sends an owner to their dashboard (stays at /)", async () => {
+  it("sends an owner to their business URL", async () => {
     activeBusinessState.status = "ready";
+    activeBusinessState.business = ownerMemberships.businesses[0]!;
     membershipState.impl = async () => ownerMemberships;
 
     renderApp(
@@ -134,8 +133,9 @@ describe("S-16 landing resolver", () => {
       { session },
     );
 
-    expect(await screen.findByTestId("dashboard")).toBeTruthy();
-    expect(screen.getByTestId("location").textContent).toBe("/");
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe("/b/b1"),
+    );
   });
 
   it("sends a member elsewhere to /businesses", async () => {
@@ -206,13 +206,13 @@ describe("S-16 landing resolver", () => {
     expect(
       screen.getByRole("status", { name: "Loading your businesses" }),
     ).toBeTruthy();
-    expect(screen.queryByTestId("dashboard")).toBeNull();
+    // No destination has been chosen yet
     expect(screen.getByTestId("location").textContent).toBe("/");
   });
 });
 
 describe("S-16 minimal My businesses page", () => {
-  it("lists memberships with name and role, Open only for the owned business", async () => {
+  it("lists memberships with name, role and Open for each business", async () => {
     membershipState.impl = async () => ownerMemberships;
 
     renderApp(
@@ -228,11 +228,12 @@ describe("S-16 minimal My businesses page", () => {
     expect(screen.getByText("Owner")).toBeTruthy();
     expect(screen.getByText("Viewer")).toBeTruthy();
 
+    // S-17: every membership opens its own business URL
     const openButtons = screen.getAllByRole("button", { name: "Open" });
-    expect(openButtons).toHaveLength(1);
-    await userEvent.click(openButtons[0]!);
+    expect(openButtons).toHaveLength(2);
+    await userEvent.click(openButtons[1]!);
     await waitFor(() =>
-      expect(screen.getByTestId("location").textContent).toBe("/"),
+      expect(screen.getByTestId("location").textContent).toBe("/b/b2"),
     );
   });
 

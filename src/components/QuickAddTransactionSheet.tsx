@@ -14,6 +14,7 @@ import { CustomerFormDialog } from "@/components/CustomerFormDialog";
 import { TransactionFormFields } from "@/components/TransactionFormFields";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
 import { useCreateCustomer } from "@/features/customers/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import {
   useCreateTransaction,
   useCustomerBalance,
@@ -33,8 +34,9 @@ export function QuickAddTransactionSheet({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const createCustomer = useCreateCustomer();
-  const createTransaction = useCreateTransaction();
+  const businessId = useScopedBusinessId() ?? undefined;
+  const createCustomer = useCreateCustomer(businessId);
+  const createTransaction = useCreateTransaction(businessId);
   const { data: currentBalance = 0 } = useCustomerBalance(
     selectedCustomer?.id ?? "",
   );

@@ -17,6 +17,7 @@ import { useSort } from "@/hooks/useSort";
 import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
 import { paths } from "@/lib/paths";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import type { CustomerWithBalance } from "@/types";
 
 type FilterStatus = "all" | "owes" | "credit" | "settled";
@@ -74,14 +75,17 @@ const columns: Column<CustomerWithBalance>[] = [
 
 export function CustomersPage() {
   const navigate = useNavigate();
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
   const {
     data: customers = [],
     isLoading,
     error,
     refetch,
-  } = useCustomers();
-  const { data: balances = {} } = useAllCustomerBalances();
-  const createCustomer = useCreateCustomer();
+  } = useCustomers(businessId);
+  const { data: balances = {} } = useAllCustomerBalances(businessId);
+  const createCustomer = useCreateCustomer(businessId);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -178,7 +182,7 @@ export function CustomersPage() {
           Customers
         </h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate(paths.importCustomers)}>
+          <Button variant="outline" onClick={() => navigate(paths.importCustomers(businessId))}>
             Import CSV
           </Button>
           <Button onClick={() => setDialogOpen(true)}>Add Customer</Button>
@@ -254,7 +258,7 @@ export function CustomersPage() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={toggleSort}
-        onRowClick={(row) => navigate(paths.customerDetail(row.id))}
+        onRowClick={(row) => navigate(paths.customerDetail(businessId, row.id))}
         loading={isLoading}
         loadingRowCount={5}
         emptyState={emptyMessage}

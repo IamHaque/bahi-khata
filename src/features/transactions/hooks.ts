@@ -31,33 +31,39 @@ export function useCustomerTransactions(customerId: string, businessId?: string)
   });
 }
 
-export function useTransaction(id: string) {
+export function useTransaction(id: string, businessId?: string) {
   return useQuery({
-    queryKey: transactionKeys.detail(id),
-    queryFn: () => getTransactionById(id),
+    queryKey: transactionKeys.detail(id, businessId),
+    queryFn: () => getTransactionById(id, businessId),
   });
 }
 
-export function useTransactions(options?: {
-  dateRange?: { start: string; end: string } | null;
-  typeFilter?: "all" | "charge" | "payment";
-}) {
+export function useTransactions(
+  options?: {
+    dateRange?: { start: string; end: string } | null;
+    typeFilter?: "all" | "charge" | "payment";
+  },
+  businessId?: string,
+) {
   return useQuery({
-    queryKey: transactionKeys.list(),
-    queryFn: () => getAllTransactions(options),
+    queryKey: transactionKeys.list(businessId),
+    queryFn: () => getAllTransactions(options, businessId),
   });
 }
 
-export function useCustomerBalance(customerId: string) {
+// The balance RPCs take no business argument (DEV-8: unscoped v1 RPCs,
+// replaced in S-20); the businessId here scopes the cache entry only, so
+// two businesses never share cached balances.
+export function useCustomerBalance(customerId: string, businessId?: string) {
   return useQuery({
-    queryKey: customerKeys.balance(customerId),
+    queryKey: customerKeys.balance(customerId, businessId),
     queryFn: () => getCustomerBalance(customerId),
   });
 }
 
-export function useAllCustomerBalances() {
+export function useAllCustomerBalances(businessId?: string) {
   return useQuery({
-    queryKey: customerKeys.balances(),
+    queryKey: customerKeys.balances(businessId),
     queryFn: getAllCustomerBalances,
   });
 }
@@ -69,17 +75,17 @@ export function useDashboardSummary(businessId: string) {
   });
 }
 
-export function useTodayActivity() {
+export function useTodayActivity(businessId?: string) {
   return useQuery({
-    queryKey: transactionKeys.today(),
-    queryFn: getTodayActivity,
+    queryKey: transactionKeys.today(businessId),
+    queryFn: () => getTodayActivity(businessId),
   });
 }
 
-export function useTodayTransactions(limit = 5) {
+export function useTodayTransactions(limit = 5, businessId?: string) {
   return useQuery({
-    queryKey: transactionKeys.todayList(limit),
-    queryFn: () => getTodayTransactions(limit),
+    queryKey: transactionKeys.todayList(limit, businessId),
+    queryFn: () => getTodayTransactions(limit, businessId),
   });
 }
 

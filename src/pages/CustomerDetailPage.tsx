@@ -11,6 +11,7 @@ import {
   useCustomerBalance,
   useCustomerTransactions,
 } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import type { Transaction } from "@/types";
@@ -18,17 +19,23 @@ import type { Transaction } from "@/types";
 type TransactionWithSort = Transaction & { occurredAtMs: number };
 
 export function CustomerDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
   const {
     data: customer,
     isLoading,
     error,
     refetch: refetchCustomer,
-  } = useCustomer(id ?? "");
-  const { data: transactions = [] } = useCustomerTransactions(id ?? "");
-  const { data: balance = 0 } = useCustomerBalance(id ?? "");
-  const updateCustomer = useUpdateCustomer();
+  } = useCustomer(customerId ?? "", businessId);
+  const { data: transactions = [] } = useCustomerTransactions(
+    customerId ?? "",
+    businessId,
+  );
+  const { data: balance = 0 } = useCustomerBalance(customerId ?? "", businessId);
+  const updateCustomer = useUpdateCustomer(businessId);
   const [editOpen, setEditOpen] = useState(false);
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -49,7 +56,7 @@ export function CustomerDetailPage() {
     email?: string;
     address?: string;
     notes?: string;
-  }) => updateCustomer.mutate({ id: id ?? "", input: data });
+  }) => updateCustomer.mutate({ id: customerId ?? "", input: data });
 
   const txsWithSort: TransactionWithSort[] = transactions.map((tx) => ({
     ...tx,
@@ -192,7 +199,7 @@ export function CustomerDetailPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate(paths.customers)}
+            onClick={() => navigate(paths.customers(businessId))}
             className="mb-2 text-sm text-muted-foreground hover:text-foreground"
           >
             &larr; Customers
@@ -261,7 +268,9 @@ export function CustomerDetailPage() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={toggleSort}
-        onRowClick={(row) => navigate(paths.transactionDetail(row.id))}
+        onRowClick={(row) =>
+          navigate(paths.transactionDetail(businessId, row.id))
+        }
         loading={isLoading}
         emptyState={
           <p className="text-sm text-muted-foreground">
@@ -278,11 +287,11 @@ export function CustomerDetailPage() {
         mode="edit"
       />
 
-      {id && (
+      {customerId && (
         <AddTransactionSheet
           open={addTxOpen}
           onOpenChange={setAddTxOpen}
-          customerId={id}
+          customerId={customerId}
           currentBalance={balance}
         />
       )}

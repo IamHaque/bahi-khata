@@ -24,6 +24,7 @@ import {
   useUpdateTransaction,
   useUpdateTransactionStatus,
 } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import type { Transaction } from "@/types";
 
 interface EditTransactionSheetProps {
@@ -44,8 +45,9 @@ export function EditTransactionSheet({
     initialDate: transaction.occurred_at.split("T")[0] ?? "",
     initialNote: transaction.note ?? "",
   });
-  const updateTransaction = useUpdateTransaction();
-  const updateTransactionStatus = useUpdateTransactionStatus();
+  const businessId = useScopedBusinessId() ?? undefined;
+  const updateTransaction = useUpdateTransaction(businessId);
+  const updateTransactionStatus = useUpdateTransactionStatus(businessId);
 
   useEffect(() => {
     if (open) {

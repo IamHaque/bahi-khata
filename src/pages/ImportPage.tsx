@@ -10,6 +10,7 @@ import {
 } from "@/lib/csv-import";
 import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
 import { useCreateTransactionsBatch } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { paths } from "@/lib/paths";
 import type { CustomerInput } from "@/features/customers/api";
 
@@ -23,6 +24,9 @@ interface ImportResult {
 
 export function ImportPage() {
   const navigate = useNavigate();
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<ImportStep>("upload");
   const [validRows, setValidRows] = useState<CsvRow[]>([]);
@@ -33,9 +37,9 @@ export function ImportPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const { data: existingCustomers = [] } = useCustomers();
-  const createCustomer = useCreateCustomer();
-  const importTransactions = useCreateTransactionsBatch();
+  const { data: existingCustomers = [] } = useCustomers(businessId);
+  const createCustomer = useCreateCustomer(businessId);
+  const importTransactions = useCreateTransactionsBatch(businessId);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -161,7 +165,7 @@ export function ImportPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(paths.customers)}
+          onClick={() => navigate(paths.customers(businessId))}
           className="mb-2 text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Customers
@@ -414,7 +418,7 @@ export function ImportPage() {
             <Button variant="outline" onClick={handleReset}>
               Import More
             </Button>
-            <Button onClick={() => navigate(paths.customers)}>
+            <Button onClick={() => navigate(paths.customers(businessId))}>
               View Customers
             </Button>
           </div>

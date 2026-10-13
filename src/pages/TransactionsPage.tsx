@@ -15,6 +15,7 @@ import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { useTransactions } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate, formatDayMonth, formatMonthYear } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import type { TransactionWithCustomer } from "@/types";
@@ -109,7 +110,10 @@ function groupTransactions(
   );
 }
 
-const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }>[] = [
+function buildDetailedColumns(
+  businessId: string,
+): Column<TransactionWithCustomer & { occurredAtMs: number }>[] {
+  return [
     {
       key: "date",
       header: "Date",
@@ -126,7 +130,7 @@ const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }
     header: "Customer",
     render: (row) => (
       <Link
-        to={paths.customerDetail(row.customer_id)}
+        to={paths.customerDetail(businessId, row.customer_id)}
         className="font-medium text-foreground hover:underline"
       >
         {row.customer_name}
@@ -184,6 +188,7 @@ const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }
     ),
   },
 ];
+}
 
 const summaryColumns: Column<PeriodSummary & { index: number }>[] = [
   {
@@ -235,6 +240,9 @@ const summaryColumns: Column<PeriodSummary & { index: number }>[] = [
 export function TransactionsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
   const initialPreset = searchParams.get("range") === "today"
     ? "today"
     : searchParams.get("range") === "this-week"
@@ -280,7 +288,9 @@ export function TransactionsPage() {
     isLoading,
     error,
     refetch,
-  } = useTransactions({ dateRange, typeFilter });
+  } = useTransactions({ dateRange, typeFilter }, businessId);
+
+  const detailedColumns = buildDetailedColumns(businessId);
 
   const filtered = useMemo(() => {
     let result = transactions;
@@ -470,7 +480,9 @@ export function TransactionsPage() {
           sortBy={sortBy}
           sortDir={sortDir}
           onSortChange={toggleSort}
-          onRowClick={(row) => navigate(paths.transactionDetail(row.id))}
+          onRowClick={(row) =>
+            navigate(paths.transactionDetail(businessId, row.id))
+          }
           loading={isLoading}
           emptyState={
             transactions.length === 0 ? (

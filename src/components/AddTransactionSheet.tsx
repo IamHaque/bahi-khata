@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { TransactionFormFields } from "@/components/TransactionFormFields";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
 import { useCreateTransaction } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 
 interface AddTransactionSheetProps {
   open: boolean;
@@ -26,7 +27,8 @@ export function AddTransactionSheet({
   currentBalance,
 }: AddTransactionSheetProps) {
   const form = useTransactionForm();
-  const createTransaction = useCreateTransaction();
+  const businessId = useScopedBusinessId() ?? undefined;
+  const createTransaction = useCreateTransaction(businessId);
 
   useEffect(() => {
     if (open) form.reset();

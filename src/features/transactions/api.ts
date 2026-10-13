@@ -231,7 +231,7 @@ export async function getDashboardSummary(
   });
 }
 
-export async function getTodayActivity(): Promise<{
+export async function getTodayActivity(businessId?: string): Promise<{
   count: number;
   net: number;
 }> {
@@ -241,12 +241,19 @@ export async function getTodayActivity(): Promise<{
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("transactions")
       .select("type, amount")
       .eq("status", "active")
       .gte("occurred_at", today.toISOString())
       .lt("occurred_at", tomorrow.toISOString());
+
+    // TODO(S-20): businessId becomes required
+    if (businessId) {
+      query = query.eq("business_id", businessId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -261,15 +268,23 @@ export async function getTodayActivity(): Promise<{
   });
 }
 
-export async function getAllTransactions(options?: {
-  dateRange?: { start: string; end: string } | null;
-  typeFilter?: "all" | "charge" | "payment";
-}): Promise<TransactionWithCustomer[]> {
+export async function getAllTransactions(
+  options?: {
+    dateRange?: { start: string; end: string } | null;
+    typeFilter?: "all" | "charge" | "payment";
+  },
+  businessId?: string,
+): Promise<TransactionWithCustomer[]> {
   return guard(async () => {
     let query = supabase
       .from("transactions")
       .select("*, customers(name, phone)")
       .in("status", ["active", "edited"]);
+
+    // TODO(S-20): businessId becomes required
+    if (businessId) {
+      query = query.eq("business_id", businessId);
+    }
 
     if (options?.dateRange) {
       query = query
@@ -297,13 +312,20 @@ export async function getAllTransactions(options?: {
 
 export async function getTransactionById(
   id: string,
+  businessId?: string,
 ): Promise<TransactionWithCustomer | null> {
   return guard(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("transactions")
       .select("*, customers(name, phone)")
-      .eq("id", id)
-      .single();
+      .eq("id", id);
+
+    // TODO(S-20): businessId becomes required
+    if (businessId) {
+      query = query.eq("business_id", businessId);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === "PGRST116") return null;
@@ -321,19 +343,26 @@ export async function getTransactionById(
   });
 }
 
-export async function getTodayTransactions(limit = 5) {
+export async function getTodayTransactions(limit = 5, businessId?: string) {
   return guard(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("transactions")
       .select("id, type, amount, occurred_at, customer_id, customers(name)")
       .eq("status", "active")
       .gte("occurred_at", today.toISOString())
-      .lt("occurred_at", tomorrow.toISOString())
+      .lt("occurred_at", tomorrow.toISOString());
+
+    // TODO(S-20): businessId becomes required
+    if (businessId) {
+      query = query.eq("business_id", businessId);
+    }
+
+    const { data, error } = await query
       .order("occurred_at", { ascending: false })
       .limit(limit);
 

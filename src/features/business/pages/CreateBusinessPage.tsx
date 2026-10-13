@@ -20,7 +20,7 @@ import {
 } from "@/features/business/schemas";
 
 export function CreateBusinessPage() {
-  const { status } = useActiveBusiness();
+  const { status, business } = useActiveBusiness();
   const navigate = useNavigate();
   const createBusiness = useCreateBusiness();
   const [saveError, setSaveError] = useState<AppError | null>(null);
@@ -38,7 +38,7 @@ export function CreateBusinessPage() {
     },
   });
 
-  const alreadyOwned = status === "ready";
+  const alreadyOwned = status === "ready" && business !== null;
 
   useEffect(() => {
     if (alreadyOwned) {
@@ -46,14 +46,14 @@ export function CreateBusinessPage() {
     }
   }, [alreadyOwned]);
 
-  if (alreadyOwned) {
-    return <Navigate to={paths.dashboard} replace />;
+  if (alreadyOwned && business) {
+    return <Navigate to={paths.business(business.id)} replace />;
   }
 
   const onSubmit = async (values: CreateBusinessForm) => {
     setSaveError(null);
     try {
-      await createBusiness.mutateAsync({
+      const created = await createBusiness.mutateAsync({
         name: values.name.trim(),
         businessType: values.businessType || undefined,
         phone: values.phone || undefined,
@@ -62,7 +62,7 @@ export function CreateBusinessPage() {
         notes: values.notes || undefined,
       });
       toastSuccess("Business created");
-      navigate(paths.dashboard);
+      navigate(paths.business(created.id));
     } catch (err) {
       // The form keeps every value; the banner offers a retry.
       setSaveError(toAppError(err));

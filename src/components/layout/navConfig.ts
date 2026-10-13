@@ -14,37 +14,43 @@ export interface NavItem {
   visible: boolean;
 }
 
-// Navigation is configuration: one array with a visible predicate.
-// Members and Settings stay hidden until their stories ship (S-22, S-18).
-export const navItems: NavItem[] = [
-  {
-    path: paths.dashboard,
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    visible: true,
-  },
-  {
-    path: paths.customers,
-    label: "Customers",
-    icon: Users,
-    visible: true,
-  },
-  {
-    path: paths.transactions,
-    label: "Transactions",
-    icon: ArrowLeftRight,
-    visible: true,
-  },
-  {
-    path: paths.members,
-    label: "Members",
-    icon: UserCog,
-    visible: false,
-  },
-  {
-    path: paths.settings,
-    label: "Settings",
-    icon: Settings,
-    visible: false,
-  },
-];
+// Navigation is configuration: one array with a visible predicate, built
+// from the businessId in the URL (S-17) — the URL is the single source of
+// truth. Without a businessId (e.g. My businesses for a user who belongs
+// nowhere yet) there are no in-business links to show. Members and
+// Settings stay hidden until their stories ship (S-22, S-18).
+export function buildNavItems(businessId: string | null): NavItem[] {
+  const scoped = businessId !== null;
+  return [
+    {
+      path: paths.business(businessId ?? ""),
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      visible: scoped,
+    },
+    {
+      path: paths.customers(businessId ?? ""),
+      label: "Customers",
+      icon: Users,
+      visible: scoped,
+    },
+    {
+      path: paths.transactions(businessId ?? ""),
+      label: "Transactions",
+      icon: ArrowLeftRight,
+      visible: scoped,
+    },
+    {
+      path: paths.members(businessId ?? ""),
+      label: "Members",
+      icon: UserCog,
+      visible: false,
+    },
+    {
+      path: paths.settings(businessId ?? ""),
+      label: "Settings",
+      icon: Settings,
+      visible: false,
+    },
+  ];
+}

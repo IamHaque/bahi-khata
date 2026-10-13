@@ -3,19 +3,23 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { useTransaction } from "@/features/transactions/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate, formatTime } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import type { TransactionWithCustomer } from "@/types";
 
 export function TransactionDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { transactionId } = useParams<{ transactionId: string }>();
   const navigate = useNavigate();
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
   const {
     data: transaction,
     isLoading,
     error,
     refetch,
-  } = useTransaction(id ?? "");
+  } = useTransaction(transactionId ?? "", businessId);
   const [editTx, setEditTx] = useState<TransactionWithCustomer | null>(null);
 
   if (isLoading) {
@@ -48,7 +52,7 @@ export function TransactionDetailPage() {
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => navigate(paths.transactions)}
+          onClick={() => navigate(paths.transactions(businessId))}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Transactions
@@ -58,7 +62,7 @@ export function TransactionDetailPage() {
             Transaction not found. It may have been deleted.
           </p>
           <Link
-            to={paths.transactions}
+            to={paths.transactions(businessId)}
             className="mt-2 inline-block text-sm text-primary hover:underline"
           >
             Back to Transactions
@@ -91,7 +95,7 @@ export function TransactionDetailPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate(paths.transactions)}
+            onClick={() => navigate(paths.transactions(businessId))}
             className="mb-2 text-sm text-muted-foreground hover:text-foreground"
           >
             &larr; Transactions
@@ -115,7 +119,7 @@ export function TransactionDetailPage() {
         <div>
           <p className="text-xs text-muted-foreground/70">Customer</p>
           <Link
-            to={paths.customerDetail(transaction.customer_id)}
+            to={paths.customerDetail(businessId, transaction.customer_id)}
             className="text-sm font-medium text-foreground hover:underline"
           >
             {transaction.customer_name}

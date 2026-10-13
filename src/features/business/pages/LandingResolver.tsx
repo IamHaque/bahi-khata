@@ -3,16 +3,15 @@ import { paths } from "@/lib/paths";
 import { useActiveBusiness } from "@/contexts/BusinessContext";
 import { useMemberships } from "@/features/business/hooks";
 import { BusinessBootSkeleton } from "@/features/business/components/BusinessBootSkeleton";
-import { DashboardPage } from "@/pages/Dashboard";
 
 /**
  * Decides where the signed-in user belongs when they open "/" (S-16):
- * their own business dashboard, My businesses, or onboarding. Until
- * business URLs exist (S-17), the dashboard stays at "/" itself, so
- * "ready" renders it in place instead of redirecting.
+ * their own business, My businesses, or onboarding. From S-17 the
+ * destination is always a business URL — /b/:businessId — which is the
+ * single source of truth for which business a page shows.
  */
 export function LandingResolver() {
-  const { status } = useActiveBusiness();
+  const { status, business } = useActiveBusiness();
   const { data: memberships, isPending } = useMemberships();
 
   // No flicker: while the decision is being made, only the skeleton
@@ -21,8 +20,8 @@ export function LandingResolver() {
     return <BusinessBootSkeleton />;
   }
 
-  if (status === "ready") {
-    return <DashboardPage />;
+  if (status === "ready" && business) {
+    return <Navigate to={paths.business(business.id)} replace />;
   }
 
   const memberElsewhere = (memberships?.businesses.length ?? 0) > 0;

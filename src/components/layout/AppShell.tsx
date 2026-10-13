@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { MobileDrawer, Sidebar } from "./Sidebar";
@@ -7,6 +7,7 @@ import { Topbar } from "./Topbar";
 
 export function AppShell() {
   const location = useLocation();
+  const { businessId } = useParams();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -17,11 +18,14 @@ export function AppShell() {
 
   const title = useMemo(() => {
     const pathname = location.pathname;
-    if (pathname === paths.dashboard) return "Dashboard";
-    if (pathname.startsWith(paths.customers)) return "Customers";
-    if (pathname.startsWith(paths.transactions)) return "Transactions";
+    if (pathname === paths.businesses) return "My businesses";
+    if (!businessId) return "";
+    if (pathname === paths.business(businessId)) return "Dashboard";
+    if (pathname.startsWith(paths.customers(businessId))) return "Customers";
+    if (pathname.startsWith(paths.transactions(businessId)))
+      return "Transactions";
     return "";
-  }, [location.pathname]);
+  }, [location.pathname, businessId]);
 
   return (
     <div className="flex min-h-screen bg-background">

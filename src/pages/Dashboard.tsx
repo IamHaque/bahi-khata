@@ -5,6 +5,7 @@ import { paths, transactionsPath } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
 import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useCustomers } from "@/features/customers/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import {
   useAllCustomerBalances,
   useTodayActivity,
@@ -14,10 +15,14 @@ import type { CustomerWithBalance } from "@/types";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { data: customers = [], isLoading, error, refetch } = useCustomers();
-  const { data: balances = {} } = useAllCustomerBalances();
-  const { data: todayActivity } = useTodayActivity();
-  const { data: todayTransactions = [] } = useTodayTransactions(5);
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
+  const { data: customers = [], isLoading, error, refetch } =
+    useCustomers(businessId);
+  const { data: balances = {} } = useAllCustomerBalances(businessId);
+  const { data: todayActivity } = useTodayActivity(businessId);
+  const { data: todayTransactions = [] } = useTodayTransactions(5, businessId);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(
@@ -169,7 +174,7 @@ export function DashboardPage() {
             Top Outstanding Balances
           </h3>
           <Link
-            to={paths.customers}
+            to={paths.customers(businessId)}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
             View all
@@ -185,7 +190,7 @@ export function DashboardPage() {
             {topDebtors.map((customer) => (
               <Link
                 key={customer.id}
-                to={paths.customerDetail(customer.id)}
+                to={paths.customerDetail(businessId, customer.id)}
                 role="listitem"
                 className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted"
               >
@@ -208,7 +213,7 @@ export function DashboardPage() {
           </h3>
           {todayCount > 0 && (
             <Link
-              to={transactionsPath({ range: "today" })}
+              to={transactionsPath(businessId, { range: "today" })}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               View all
@@ -224,7 +229,7 @@ export function DashboardPage() {
             {todayTransactions.map((tx) => (
               <Link
                 key={tx.id}
-                to={paths.customerDetail(tx.customer_id)}
+                to={paths.customerDetail(businessId, tx.customer_id)}
                 className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted last:border-0"
               >
                 <div className="min-w-0">

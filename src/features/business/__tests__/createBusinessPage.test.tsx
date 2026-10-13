@@ -12,6 +12,7 @@ const businessApi = vi.hoisted(() => ({
 }));
 const activeBusinessState = vi.hoisted(() => ({
   status: "none" as "loading" | "ready" | "none" | "forbidden",
+  business: null as { id: string; name: string } | null,
 }));
 const toastState = vi.hoisted(() => ({
   success: vi.fn(),
@@ -27,14 +28,14 @@ vi.mock("@/contexts/BusinessContext", () => ({
   BusinessProvider: ({ children }: { children: React.ReactNode }) =>
     children,
   useActiveBusiness: () => ({
-    business: null,
+    business: activeBusinessState.business,
     role: null,
     isOwner: activeBusinessState.status === "ready",
     status: activeBusinessState.status,
   }),
   useBusinessContext: () => ({
     status: activeBusinessState.status,
-    business: null,
+    business: activeBusinessState.business,
     role: null,
     isOwner: false,
     error: null,
@@ -64,6 +65,7 @@ function renderPage() {
 beforeEach(() => {
   businessApi.createBusiness.mockReset();
   activeBusinessState.status = "none";
+  activeBusinessState.business = null;
   toastState.success.mockClear();
   toastState.error.mockClear();
 });
@@ -93,8 +95,9 @@ describe("S-15 create business page", () => {
       expect.anything(),
     );
     expect(toastState.success).toHaveBeenCalledWith("Business created");
+    // Lands on the new business's own URL (S-17)
     await waitFor(() =>
-      expect(screen.getByTestId("location").textContent).toBe("/"),
+      expect(screen.getByTestId("location").textContent).toBe("/b/b1"),
     );
   });
 
@@ -153,10 +156,11 @@ describe("S-15 create business page", () => {
 
   it("redirects a user who already owns a business, with a notice", async () => {
     activeBusinessState.status = "ready";
+    activeBusinessState.business = { id: "b1", name: "Bahi Khata" };
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByTestId("location").textContent).toBe("/"),
+      expect(screen.getByTestId("location").textContent).toBe("/b/b1"),
     );
     expect(toastState.success).toHaveBeenCalledWith(
       "You already own a business",

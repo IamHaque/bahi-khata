@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -6,7 +6,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { BusinessSwitcher } from "./BusinessSwitcher";
-import { navItems } from "./navConfig";
+import { buildNavItems } from "./navConfig";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -14,6 +14,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
+  // Business links come from the businessId in the URL (S-17).
+  const { businessId } = useParams();
+  const navItems = buildNavItems(businessId ?? null);
+
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
       <BusinessSwitcher collapsed={collapsed} />
