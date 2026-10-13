@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { paths, transactionsPath } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
 import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useCustomers } from "@/features/customers/hooks";
@@ -168,7 +169,7 @@ export function DashboardPage() {
             Top Outstanding Balances
           </h3>
           <Link
-            to="/customers"
+            to={paths.customers}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
             View all
@@ -184,7 +185,7 @@ export function DashboardPage() {
             {topDebtors.map((customer) => (
               <Link
                 key={customer.id}
-                to={`/customers/${customer.id}`}
+                to={paths.customerDetail(customer.id)}
                 role="listitem"
                 className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted"
               >
@@ -207,7 +208,7 @@ export function DashboardPage() {
           </h3>
           {todayCount > 0 && (
             <Link
-              to="/transactions?range=today"
+              to={transactionsPath({ range: "today" })}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               View all
@@ -223,7 +224,7 @@ export function DashboardPage() {
             {todayTransactions.map((tx) => (
               <Link
                 key={tx.id}
-                to={`/customers/${tx.customer_id}`}
+                to={paths.customerDetail(tx.customer_id)}
                 className="flex items-center justify-between border-b border-border px-3 py-2 transition-colors hover:bg-muted last:border-0"
               >
                 <div className="min-w-0">

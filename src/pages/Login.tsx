@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { paths } from "@/lib/paths";
 import { useState } from "react";
 
 export function LoginPage() {
@@ -8,7 +9,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={paths.dashboard} replace />;
   }
 
   const handleGoogleSignIn = async () => {

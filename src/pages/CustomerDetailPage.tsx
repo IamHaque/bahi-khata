@@ -12,6 +12,7 @@ import {
   useCustomerTransactions,
 } from "@/features/transactions/hooks";
 import { formatDate } from "@/lib/format";
+import { paths } from "@/lib/paths";
 import type { Transaction } from "@/types";
 
 type TransactionWithSort = Transaction & { occurredAtMs: number };
@@ -191,7 +192,7 @@ export function CustomerDetailPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/customers")}
+            onClick={() => navigate(paths.customers)}
             className="mb-2 text-sm text-muted-foreground hover:text-foreground"
           >
             &larr; Customers
@@ -260,7 +261,7 @@ export function CustomerDetailPage() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={toggleSort}
-        onRowClick={(row) => navigate(`/transactions/${row.id}`)}
+        onRowClick={(row) => navigate(paths.transactionDetail(row.id))}
         loading={isLoading}
         emptyState={
           <p className="text-sm text-muted-foreground">

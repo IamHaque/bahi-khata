@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { paths } from "@/lib/paths";
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
@@ -15,7 +16,7 @@ export function ProtectedRoute() {
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={paths.login} replace />;
   }
 
   return <Outlet />;

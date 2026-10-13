@@ -15,6 +15,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
+import { paths } from "@/lib/paths";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import type { CustomerWithBalance } from "@/types";
 
@@ -177,7 +178,7 @@ export function CustomersPage() {
           Customers
         </h2>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/customers/import")}>
+          <Button variant="outline" onClick={() => navigate(paths.importCustomers)}>
             Import CSV
           </Button>
           <Button onClick={() => setDialogOpen(true)}>Add Customer</Button>
@@ -253,7 +254,7 @@ export function CustomersPage() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={toggleSort}
-        onRowClick={(row) => navigate(`/customers/${row.id}`)}
+        onRowClick={(row) => navigate(paths.customerDetail(row.id))}
         loading={isLoading}
         loadingRowCount={5}
         emptyState={emptyMessage}

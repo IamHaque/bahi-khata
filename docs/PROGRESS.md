@@ -18,8 +18,8 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-08 Theme, tokens, typography, dark mode | Done | (see below) | OKLCH tokens, ThemeContext+system, Geist removed |
 | S-09 Display primitives | Done | (see below) | lib/format.ts + 8 shared components + tests |
 | S-10 DataTable, SearchInput, FilterBar, Pagination | Done | (see below) | server-driven DataTable + RowActionsMenu + SearchInput + FilterBar |
-| S-11 Form kit, EntityDialog, ConfirmDialog | Pending | | |
-| S-12 App shell, navigation, path helpers | Pending | | |
+| S-11 Form kit, EntityDialog, ConfirmDialog | Done | (see below) | rhf+zod form kit, EntityDialog (dialog/sheet), ConfirmDialog (typed), toast helper |
+| S-12 App shell, navigation, path helpers | Done | (see below) | AppShell + navConfig + paths.ts; AppLayout deleted; pathsHygiene test |
 | S-13 UI gallery and UI consistency contract | Pending | | |
 | S-14 Business resolution provider | Pending | | |
 | S-15 Create-business page | Pending | | |
@@ -67,6 +67,28 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-12 scenarios (checklist)
+
+- [x] Layout — `AppShell` renders desktop sidebar + sticky top bar + content; sidebar collapses to a 16px icon rail on toggle, and on mobile a hamburger opens the sidebar in a Sheet drawer (tested)
+- [x] Navigation is configuration — one array in `src/components/layout/navConfig.ts` with a `visible` predicate; Members (S-22) and Settings (S-18) entries exist but are hidden (tested)
+- [x] Paths are centralized — `src/lib/paths.ts` (`paths` builders + `routePatterns` for `<Route path>` + `transactionsPath` query helper); every link, navigate() and redirect now imports it; enforced by new `src/test/pathsHygiene.test.ts` which scans pages/, components/ and App.tsx for literal path strings (tested)
+- [x] Top bar — page title derived from the current route, ⌘K search trigger (wired in S-28), theme toggle, Popover user menu with email + Sign out (tested)
+- [x] Business slot — `BusinessSwitcher` at the sidebar top shows the app name until S-26 (tested)
+- [x] No URL change — `routePatterns` asserted equal to the v1 literals `/login`, `/`, `/customers`, `/customers/:id`, `/customers/import`, `/transactions`, `/transactions/:id` (tested); full sign-in click-through is a manual check (no DB access)
+
+**S-12 notes:** old `AppLayout.tsx` deleted (top-bar layout replaced by the shell). The mobile drawer's nav is the same `Sidebar` component; while the modal drawer is open, Base UI marks the desktop sidebar `aria-hidden`, so a11y queries see exactly one nav. Dev-server smoke test: `/` and deep links redirect to `/login` when signed out.
+
+## S-11 scenarios (checklist)
+
+- [x] Typed fields — TextField, TextAreaField, MoneyField, DateField, TagsField, SelectField, SegmentedField all built on react-hook-form + zod with persistent labels and inline errors (tested)
+- [x] Create and edit share a container — EntityDialog renders as a centered dialog on desktop and a bottom sheet on mobile (useMediaQuery); Base UI dialog traps focus, closes on Escape and returns focus
+- [x] No lost input — on save failure the dialog stays open with values intact; errors map to fields (`fieldErrors`) or to a form-level message (tested)
+- [x] Unsaved changes guard — closing a dirty form shows a "Discard changes?" ConfirmDialog; discarding closes, cancelling keeps it open (tested). Note: required reading `formState.isDirty` during render — RHF only re-renders on formState properties the component accessed
+- [x] Confirmations — ConfirmDialog takes a specific verb label ('Archive customer'); typed variant keeps the button disabled until the exact text is entered (tested)
+- [x] Feedback — `lib/toast.ts` standardizes success (past tense, optional Undo action) and error ('Could not X. Try again.') toasts via sonner (tested with a sonner mock)
+
+**S-11 fix commit:** `2b35456` — zod v4.6's `ZodTypeAny` has `unknown` input which `zodResolver`/RHF reject; EntityDialog now types the schema as `z.ZodTypeAny` and casts at the resolver boundary (`zodResolver(schema as z.ZodType<FieldValues, FieldValues>) as Resolver<FieldValues>`). The first S-11 commit (`f4d01a7`) briefly left the build red; the fix commit restores it (history preserved, no rewrite).
 
 ## S-10 scenarios (checklist)
 
@@ -184,7 +206,7 @@ Re-run after every story that touches data or routing:
 | `src/app/paths.ts` | new file `src/lib/paths.ts` (re-exported as `paths.ts` alias not needed; import from `lib/paths`) |
 | `src/app/queryClient.ts` | new file `src/lib/queryClient.ts` |
 | `src/components/app/*` | new directory |
-| `src/components/layout/*` | new directory (`AppLayout.tsx` stays until S-12 rebuilds the shell) |
+| `src/components/layout/*` | new directory (`AppLayout.tsx` deleted in S-12 when the shell was rebuilt) |
 | `src/features/*/api.ts`, `hooks.ts`, `schemas.ts` | today: `src/lib/{customers,transactions,csv-import}.ts` + `src/types/index.ts`; feature folders created as stories land |
 | `src/lib/format.ts`, `queryKeys.ts`, `permissions.ts` | new files |
 | `src/test/` | new directory for test helpers |

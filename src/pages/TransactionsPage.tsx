@@ -16,6 +16,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { useTransactions } from "@/features/transactions/hooks";
 import { formatDate, formatDayMonth, formatMonthYear } from "@/lib/format";
+import { paths } from "@/lib/paths";
 import type { TransactionWithCustomer } from "@/types";
 
 type ViewMode = "detailed" | "summarized";
@@ -125,7 +126,7 @@ const detailedColumns: Column<TransactionWithCustomer & { occurredAtMs: number }
     header: "Customer",
     render: (row) => (
       <Link
-        to={`/customers/${row.customer_id}`}
+        to={paths.customerDetail(row.customer_id)}
         className="font-medium text-foreground hover:underline"
       >
         {row.customer_name}
@@ -469,7 +470,7 @@ export function TransactionsPage() {
           sortBy={sortBy}
           sortDir={sortDir}
           onSortChange={toggleSort}
-          onRowClick={(row) => navigate(`/transactions/${row.id}`)}
+          onRowClick={(row) => navigate(paths.transactionDetail(row.id))}
           loading={isLoading}
           emptyState={
             transactions.length === 0 ? (

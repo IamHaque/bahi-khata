@@ -10,6 +10,7 @@ import {
 } from "@/lib/csv-import";
 import { useCustomers, useCreateCustomer } from "@/features/customers/hooks";
 import { useCreateTransactionsBatch } from "@/features/transactions/hooks";
+import { paths } from "@/lib/paths";
 import type { CustomerInput } from "@/features/customers/api";
 
 type ImportStep = "upload" | "preview" | "importing" | "success" | "error";
@@ -160,7 +161,7 @@ export function ImportPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate("/customers")}
+          onClick={() => navigate(paths.customers)}
           className="mb-2 text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Customers
@@ -413,7 +414,7 @@ export function ImportPage() {
             <Button variant="outline" onClick={handleReset}>
               Import More
             </Button>
-            <Button onClick={() => navigate("/customers")}>
+            <Button onClick={() => navigate(paths.customers)}>
               View Customers
             </Button>
           </div>

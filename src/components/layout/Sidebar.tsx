@@ -1,0 +1,69 @@
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { BusinessSwitcher } from "./BusinessSwitcher";
+import { navItems } from "./navConfig";
+
+interface SidebarProps {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
+  return (
+    <div className="flex h-full flex-col border-r border-border bg-card">
+      <BusinessSwitcher collapsed={collapsed} />
+
+      <nav
+        className="flex-1 space-y-1 px-2 py-2"
+        aria-label="Main navigation"
+      >
+        {navItems
+          .filter((item) => item.visible)
+          .map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                  collapsed && "justify-center px-0",
+                  isActive
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-accent-wash hover:text-foreground",
+                )
+              }
+              title={collapsed ? item.label : undefined}
+            >
+              <item.icon className="size-4 shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </NavLink>
+          ))}
+      </nav>
+    </div>
+  );
+}
+
+interface MobileDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="w-64 p-0">
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+        <Sidebar
+          collapsed={false}
+          onNavigate={() => onOpenChange(false)}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
