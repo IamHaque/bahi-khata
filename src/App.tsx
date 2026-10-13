@@ -17,6 +17,7 @@ import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
+import { CreateBusinessPage } from "@/features/business/pages/CreateBusinessPage";
 
 export default function App() {
   return (
@@ -39,6 +40,11 @@ export default function App() {
                     />
                   )}
                   <Route element={<ProtectedRoute />}>
+                    {/* Onboarding sits outside the shell — no sidebar while setting up */}
+                    <Route
+                      path={routePatterns.onboardingBusiness}
+                      element={<CreateBusinessPage />}
+                    />
                     <Route element={<AppShell />}>
                       <Route
                         path={routePatterns.dashboard}

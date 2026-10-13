@@ -22,7 +22,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-12 App shell, navigation, path helpers | Done | (see below) | AppShell + navConfig + paths.ts; AppLayout deleted; pathsHygiene test |
 | S-13 UI gallery and UI consistency contract | Done | (see below) | dev-only /__ui gallery + UI-CONTRACT checklist+glossary + rot test |
 | S-14 Business resolution provider | Done | (see below) | BusinessContext + memberships api/hooks + boot skeleton; cache clear on sign-out |
-| S-15 Create-business page | Pending | | |
+| S-15 Create-business page | Done | (see below) | CreateBusinessPage + OnboardingLayout + create_business RPC api + schema |
 | S-16 Post-login landing logic and route guards | Pending | | |
 | S-17 Route restructure to /b/:businessId | Pending | | |
 | S-18 Business settings (view and edit) | Pending | | |
@@ -67,6 +67,18 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-15 scenarios (checklist)
+
+- [x] Create with the minimum — name only submits via the `create_business` RPC (`createBusiness` in features/business/api.ts; business + Owner membership in one step, owner row added by the 0001 trigger), toast "Business created", lands on the business dashboard (`/` until S-17; memberships invalidated so the provider re-resolves the new business immediately) (tested, keyboard-only)
+- [x] Optional details — business type (Retail/Wholesale/Services/Manufacturing/Other), phone, email, address and notes sit under a collapsible "More details" section; empty never blocks saving (tested: submit with only a name sends `undefined` for every optional)
+- [x] Name validation — zod schema trims and enforces 2–80 characters with inline errors under Name; nothing is saved (tested)
+- [x] Failure keeps input — mutation failure shows a `role="alert"` banner with the AppError message and a "Try again" button that resubmits; every field keeps its value (tested)
+- [x] Only one owned business — when `useActiveBusiness()` status is already ready, the page redirects to the dashboard with the toast notice "You already own a business"; the RPC + unique index are the database backstop (tested)
+- [x] Double submit is safe — the submit button disables (with spinner) while the mutation is pending and react-hook-form ignores re-entry; a second click creates nothing (tested: one api call)
+- [x] Keyboard only (Done-when) — autofocus on Name, type, Enter submits via implicit form submission (tested exactly that way)
+
+**S-15 notes:** OnboardingLayout is a minimal centered card (app name + form), outside the AppShell so no sidebar shows during setup. The route `/onboarding/business` sits under ProtectedRoute but outside the shell. Full Google-OAuth click-through remains manual (no DB/credentials); the RPC exists in migration 0002 (pending application — see MANUAL_STEPS).
 
 ## S-14 scenarios (checklist)
 

@@ -3,6 +3,27 @@ import { toAppError } from "@/lib/AppError";
 
 export type BusinessRole = "owner" | "editor" | "viewer";
 
+export interface Business {
+  id: string;
+  owner_id: string;
+  name: string;
+  business_type: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface BusinessInput {
+  name: string;
+  businessType?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
 export interface BusinessSummary {
   id: string;
   name: string;
@@ -147,5 +168,25 @@ export async function getMemberships(): Promise<Memberships> {
     }));
 
     return { businesses: summaries, invitations };
+  });
+}
+
+/**
+ * Creates the user's business and their Owner membership in one step via
+ * the `create_business` RPC (S-15). The database rejects a second owned
+ * business with a permission error.
+ */
+export async function createBusiness(input: BusinessInput): Promise<Business> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("create_business", {
+      p_name: input.name,
+      p_business_type: input.businessType ?? null,
+      p_phone: input.phone ?? null,
+      p_email: input.email ?? null,
+      p_address: input.address ?? null,
+      p_notes: input.notes ?? null,
+    });
+    if (error) throw error;
+    return data as Business;
   });
 }
