@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { customerKeys, transactionKeys } from "@/lib/queryKeys";
+import {
+  customerKeys,
+  dashboardKeys,
+  importKeys,
+  transactionKeys,
+} from "@/lib/queryKeys";
 
 describe("query key hygiene", () => {
   it("every scoped factory output starts with the business prefix", () => {
-    const scoped: Array<[string, unknown[]]> = [
+    const scoped: Array<[string, readonly unknown[]]> = [
       ["customerKeys.list(b1)", customerKeys.list("b1")],
       ["customerKeys.detail(c1, b1)", customerKeys.detail("c1", "b1")],
       ["customerKeys.balance(c1, b1)", customerKeys.balance("c1", "b1")],
@@ -13,6 +18,9 @@ describe("query key hygiene", () => {
       ["transactionKeys.pagedList(b1)", transactionKeys.pagedList("b1")],
       ["transactionKeys.rollup(b1)", transactionKeys.rollup("b1")],
       ["transactionKeys.summary(b1)", transactionKeys.summary("b1")],
+      ["dashboardKeys.daily(b1, 7)", dashboardKeys.daily("b1", 7)],
+      ["dashboardKeys.feed(b1)", dashboardKeys.feed("b1")],
+      ["importKeys.customers(b1)", importKeys.customers("b1")],
     ];
 
     for (const [label, key] of scoped) {

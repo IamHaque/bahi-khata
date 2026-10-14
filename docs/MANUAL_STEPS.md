@@ -668,3 +668,59 @@ Prerequisites: migrations 0001-0006b applied.
      error card, and **Try again** re-reads only that section.
 4. As Editor and Viewer: both sections readable, nothing to write
    (the sections have no actions).
+
+## S-38 — Business-scoped CSV import (migration 0008)
+
+**Status: code done; migration 0008 and SQL test 0008 must be applied
+here** (written, never executed by the build agent). Until 0008 is in,
+the four-step flow works up to the Import click and then fails there
+with "function import_history does not exist" — the page says nothing
+was imported and offers **Try again** (nothing is written, by design);
+preview, template and limits are unaffected (they never touch the RPC).
+Prerequisites: migrations 0001-0006b applied.
+
+1. Apply `supabase/migrations/0008_import_history.sql` (SQL Editor or
+   `supabase db push`). It adds the security-INVOKER
+   `import_history(p_business_id, p_customers, p_transactions)` RPC:
+   creates the new customers, **re-matches every transaction by name +
+   phone inside this business** (existing ∪ just-created), refuses a
+   match on an archived customer with "Customer is archived. Restore
+   them first.", tags every row `source = 'import'` with its historical
+   date, and runs as ONE transaction — any error rolls the whole
+   import back. Grants: `authenticated` only; tenancy is the caller's
+   RLS on the inserts.
+2. Run `supabase/tests/0008_import_history.sql` — it must finish with
+   no exception (any "TEST FAILED" is a regression). It proves: the
+   happy path creates customers + transactions with counts and
+   historical dates; phone distinguishes same-name customers; another
+   business's same-named customer never matches; archived match raises
+   the pinned reason **and** rolls back the new customer created in the
+   same call; an outsider's import persists nothing; anon cannot
+   execute.
+3. UI pass as Owner (business with existing customers, one archived):
+   - Sidebar: an **Import** link sits between Customers and
+     Transactions. Import → four steps (Upload · Review · Import ·
+     Done). **Download template** produces a CSV whose headers are
+     `customer_name,customer_phone,type,amount,date,note`.
+   - Upload a mixed file (a few valid rows, one row with a bad type,
+     one with no name, one row matching the archived customer): the
+     review shows the per-customer summary (transactions count,
+     resulting balance = current balance + the file's effect,
+     New/Existing), the error table with row numbers and reasons
+     (including "Customer is archived. Restore them first."), and the
+     only forward button is **Import N valid transactions**. The
+     over-limit rejections: a file over 5 MB or 10,001 rows is refused
+     before any preview.
+   - Import → Done: counts come from the database ("Imported N
+     transactions / Created M new customers"); with skipped rows the
+     headline reads **Partial import complete**. The new customers and
+     transactions appear on the Customers and Transactions pages with
+     their historical dates (a void test on one imported row is
+     sensible).
+   - Failure drill: pull the network mid-import → "… nothing was
+     imported; the whole file was rolled back" + **Try again**; verify
+     the new customers from that attempt are NOT in the Customers
+     page.
+4. As Editor: the same Import link, page and flow. As Viewer: the
+   Import link is absent from the sidebar, and opening the URL shows
+   only "Import needs Editor or Owner access" — no upload UI anywhere.

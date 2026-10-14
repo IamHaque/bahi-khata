@@ -116,7 +116,9 @@ describe("app shell", () => {
 describe("navigation configuration", () => {
   it("is one array with every in-business link visible", () => {
     const navItems = buildNavItems("biz1");
-    expect(navItems).toHaveLength(5);
+    // S-38: Import joins the config (6 entries), but the bare call
+    // keeps it hidden — exactly five links, as before S-38.
+    expect(navItems).toHaveLength(6);
     const visible = navItems.filter((item) => item.visible);
     expect(visible.map((item) => item.label)).toEqual([
       "Dashboard",
@@ -130,6 +132,23 @@ describe("navigation configuration", () => {
   it("shows no in-business links without a businessId", () => {
     const navItems = buildNavItems(null);
     expect(navItems.filter((item) => item.visible)).toHaveLength(0);
+  });
+
+  it("adds the Import link only for roles that may import (S-38)", () => {
+    const owner = buildNavItems("biz1", { canImport: true });
+    expect(owner).toHaveLength(6);
+    const importItem = owner.find((item) => item.label === "Import");
+    expect(importItem?.path).toBe("/b/biz1/customers/import");
+    expect(importItem?.visible).toBe(true);
+
+    // Viewer (or memberships not loaded): the item exists in the config
+    // but stays hidden — five links, exactly as before S-38.
+    const viewer = buildNavItems("biz1", { canImport: false });
+    expect(viewer).toHaveLength(6);
+    expect(viewer.filter((item) => item.visible)).toHaveLength(5);
+    expect(
+      viewer.find((item) => item.label === "Import")?.visible,
+    ).toBe(false);
   });
 });
 

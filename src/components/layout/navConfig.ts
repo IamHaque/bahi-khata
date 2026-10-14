@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  FileUp,
   LayoutDashboard,
   Settings,
   UserCog,
@@ -17,8 +18,14 @@ export interface NavItem {
 // Navigation is configuration: one array with a visible predicate, built
 // from the businessId in the URL (S-17) — the URL is the single source of
 // truth. Without a businessId (e.g. My businesses for a user who belongs
-// nowhere yet) there are no in-business links to show.
-export function buildNavItems(businessId: string | null): NavItem[] {
+// nowhere yet) there are no in-business links to show. S-38 adds the
+// first ROLE-gated item: Import is hidden unless the caller may import
+// (Owner/Editor) — `options.canImport` defaults to false so the bare
+// call keeps the everyone-see's-five contract.
+export function buildNavItems(
+  businessId: string | null,
+  options?: { canImport?: boolean },
+): NavItem[] {
   const scoped = businessId !== null;
   return [
     {
@@ -32,6 +39,12 @@ export function buildNavItems(businessId: string | null): NavItem[] {
       label: "Customers",
       icon: Users,
       visible: scoped,
+    },
+    {
+      path: paths.importCustomers(businessId ?? ""),
+      label: "Import",
+      icon: FileUp,
+      visible: scoped && (options?.canImport ?? false),
     },
     {
       path: paths.transactions(businessId ?? ""),

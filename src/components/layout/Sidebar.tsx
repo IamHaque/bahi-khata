@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { buildNavItems } from "./navConfig";
+import { usePermissions } from "@/features/business/hooks";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -16,7 +17,11 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
   // Business links come from the businessId in the URL (S-17).
   const { businessId } = useParams();
-  const navItems = buildNavItems(businessId ?? null);
+  // S-38: the Import link is role-gated — hidden for viewers entirely.
+  const { can } = usePermissions();
+  const navItems = buildNavItems(businessId ?? null, {
+    canImport: can("importTransactions"),
+  });
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">

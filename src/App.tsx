@@ -20,7 +20,7 @@ import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
-import { ImportPage } from "@/pages/ImportPage";
+import { ImportPage } from "@/features/import-export/pages/ImportPage";
 import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
 import { CreateBusinessPage } from "@/features/business/pages/CreateBusinessPage";

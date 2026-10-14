@@ -20,6 +20,10 @@ import {
   getActivityFeed,
   getDailyActivity,
 } from "@/features/dashboard/api";
+import {
+  getImportCustomers,
+  importHistory,
+} from "@/features/import-export/api";
 
 interface Call {
   method: string;
@@ -540,5 +544,52 @@ describe("business scoping (required — S-20)", () => {
     const calls = state.chains[0]!;
     expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
     expect(state.rpcCalls).toEqual([]);
+  });
+
+  it("reads getImportCustomers from the scoped customers table (S-38)", async () => {
+    state.resolveValue = [];
+
+    await getImportCustomers("b1");
+
+    const calls = state.chains[0]!;
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+    // Deleted rows are gone for good; archived rows stay IN the read so
+    // the preview can report their matches as errors.
+    expect(calls).toContainEqual({ method: "is", args: ["deleted_at", null] });
+    expect(state.rpcCalls).toEqual([]);
+  });
+
+  it("commits the import through the scoped import_history RPC (S-38)", async () => {
+    state.rpcValue = { customers_created: 1, transactions_created: 2 };
+
+    const plan = {
+      customers: [{ name: "Newcomer", phone: "018" }],
+      transactions: [
+        {
+          customer_name: "Newcomer",
+          customer_phone: "018",
+          type: "charge" as const,
+          amount: 500,
+          occurred_at: "2024-01-15T00:00:00.000Z",
+          note: "",
+        },
+      ],
+    };
+
+    const result = await importHistory("b1", plan);
+
+    expect(state.rpcCalls).toEqual([
+      {
+        fn: "import_history",
+        args: {
+          p_business_id: "b1",
+          p_customers: plan.customers,
+          p_transactions: plan.transactions,
+        },
+      },
+    ]);
+    // BIGINT columns come back numeric — the Done step counts, not
+    // strings.
+    expect(result).toEqual({ customers_created: 1, transactions_created: 2 });
   });
 });

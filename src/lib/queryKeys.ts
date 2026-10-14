@@ -80,3 +80,10 @@ export const dashboardKeys = {
   feed: (businessId: string) =>
     [...scope(businessId), "dashboard", "feed"] as const,
 };
+
+// S-38: the CSV import page's read — the customers the preview matches
+// against (archived included, so an archived match can be an error row).
+export const importKeys = {
+  customers: (businessId: string) =>
+    [...scope(businessId), "import", "customers"] as const,
+};
