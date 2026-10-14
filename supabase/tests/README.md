@@ -87,3 +87,9 @@ psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/
   transactions stay put, a member can leave themselves, and the history
   contract (creator name resolves while the profile row is readable, degrades
   to NULL → "Former member" once it is not, transaction never moves).
+- `0003b_business_exists.sql` (S-27) — proves `business_exists()`, the
+  lost-access probe: owner, member and outsider all learn whether a business
+  row exists; a missing id is `false` rather than an error; the two cases the
+  S-27 guard distinguishes behave as the client needs (removal keeps the row
+  → true, deletion removes it → false); and the function is not executable by
+  `anon`.

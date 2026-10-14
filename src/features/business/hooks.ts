@@ -24,13 +24,21 @@ interface UseMembershipsOptions {
 /**
  * The single memberships query (S-14). Every consumer shares one cache
  * entry, so a session loads its businesses exactly once.
+ *
+ * S-27: memberships refetch on window focus (they are the truth about
+ * access) and after any forbidden error (wired globally in
+ * lib/queryClient). `refetchOnMount: false` keeps route changes from
+ * refetching an already-observed list; every consumer reads the same
+ * entry.
  */
 export function useMemberships(options?: UseMembershipsOptions) {
   return useQuery({
     queryKey: businessKeys.memberships(),
     queryFn: getMemberships,
     enabled: options?.enabled ?? true,
-    staleTime: 5 * 60_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: false,
   });
 }
 

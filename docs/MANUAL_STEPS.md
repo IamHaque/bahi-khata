@@ -212,3 +212,35 @@ The only human steps are the SQL regression test and a two-account UI pass.
    business** button — confirm it and you land on `/businesses`; as the
    owner, the button is replaced by the note "Owners cannot leave. Delete
    the business instead."
+
+---
+
+## S-27 — Lost-access handling (file: `supabase/migrations/0003b_business_exists.sql`)
+
+**Status: written, not yet applied.** When a member is removed or a
+business is deleted while someone is viewing it, both look identical on
+the client — the business simply vanishes from the RLS-filtered
+membership list — yet the S-27 scenarios require two different
+messages. `business_exists(uuid)` is a tiny security-definer probe that
+answers one bit (does the row exist) so the client can tell them apart.
+It exposes nothing else: business ids are random UUIDs, and only the
+existence boolean crosses the boundary. Without it the app still works
+— the client falls back to the "You no longer have access" message.
+
+1. Backup (same habit as S-05/S-06).
+2. Apply `supabase/migrations/0003b_business_exists.sql` (`supabase db
+   push` or paste into the SQL editor).
+3. **Verify:** `select proname from pg_proc where proname =
+   'business_exists';` returns 1 row; run
+   `supabase/tests/0003b_business_exists.sql` — it passes (owner, member
+   and outsider all see an existing business, a missing id is false
+   rather than an error, removal keeps it true while deletion flips it
+   to false, and `anon` cannot execute it).
+4. **UI check (two accounts):** as a member viewing `/b/<id>/…`, have
+   the owner remove you, then switch to another tab and back (the
+   memberships refetch on focus) — you see "You no longer have access to
+   <name>" and land on `/businesses`. Repeat with the business deleted
+   instead of the membership: "This business no longer exists" and the
+   landing resolver. As an owner-demotion check: as an editor with the
+   settings form open, have the owner make you a Viewer and press Save —
+   the save fails with a forbidden toast and the page turns read-only.

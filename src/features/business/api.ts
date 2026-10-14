@@ -273,6 +273,24 @@ export async function getBusiness(
 }
 
 /**
+ * The S-27 lost-access probe: does the business row still exist?
+ * Removed (row exists, my membership does not) and deleted (no row)
+ * look identical through RLS, and the scenarios require different
+ * messages — this security-definer RPC (migration 0003b) answers the
+ * one bit the client cannot see. A failure (e.g. the migration is not
+ * applied) throws; the guard falls back to the access-lost message.
+ */
+export async function businessExists(businessId: string): Promise<boolean> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("business_exists", {
+      p_business_id: businessId,
+    });
+    if (error) throw error;
+    return Boolean(data);
+  });
+}
+
+/**
  * Updates a business's details (S-18). Only the owner passes RLS: for
  * anyone else the update matches zero rows, which surfaces as a
  * forbidden AppError — the same page whether the business is gone or
