@@ -56,8 +56,6 @@ vi.mock("@/features/transactions/api", () => ({
   transactionRollup: vi.fn(async () => []),
   getCustomerBalance: vi.fn(async () => 0),
   getDashboardSummary: vi.fn(),
-  getTodayActivity: vi.fn(async () => ({ count: 0, net: 0 })),
-  getTodayTransactions: vi.fn(async () => []),
   getTransactionById: vi.fn(),
   getCustomerLedger: vi.fn(async () => []),
   updateTransaction: vi.fn(),

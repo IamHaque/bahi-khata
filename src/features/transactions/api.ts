@@ -380,37 +380,6 @@ export async function getDashboardSummary(
   });
 }
 
-export async function getTodayActivity(businessId: string): Promise<{
-  count: number;
-  net: number;
-}> {
-  return guard(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("type, amount")
-      .eq("business_id", businessId)
-      .eq("status", "active")
-      .gte("occurred_at", today.toISOString())
-      .lt("occurred_at", tomorrow.toISOString());
-
-    if (error) throw error;
-
-    const txs = data as Array<{ type: TransactionType; amount: number }>;
-    const net = txs.reduce((sum, transaction) => {
-      return transaction.type === "charge"
-        ? sum + transaction.amount
-        : sum - transaction.amount;
-    }, 0);
-
-    return { count: txs.length, net };
-  });
-}
-
 /**
  * S-35 — one row of the transactions page's detailed view: the stored
  * entry, the linked customer (name + phone — the linked column and
@@ -666,43 +635,5 @@ export async function getTransactionById(
       customer_name: tx.customers?.name ?? "Unknown",
       customer_phone: tx.customers?.phone ?? "",
     };
-  });
-}
-
-export async function getTodayTransactions(
-  businessId: string,
-  limit = 5,
-) {
-  return guard(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id, type, amount, occurred_at, customer_id, customers(name)")
-      .eq("business_id", businessId)
-      .eq("status", "active")
-      .gte("occurred_at", today.toISOString())
-      .lt("occurred_at", tomorrow.toISOString())
-      .order("occurred_at", { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    return (
-      data as unknown as Array<{
-        id: string;
-        type: TransactionType;
-        amount: number;
-        occurred_at: string;
-        customer_id: string;
-        customers: { name: string } | null;
-      }>
-    ).map((tx) => ({
-      ...tx,
-      customer_name: tx.customers?.name ?? "Unknown",
-    }));
   });
 }

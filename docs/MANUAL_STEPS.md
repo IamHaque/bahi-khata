@@ -578,3 +578,44 @@ exist"). Prerequisites: migrations 0001-0006 applied.
    (Customers > row menu > Archive) → their rows leave this page
    (search their name: no results), while their detail page still
    shows the history; **Restore** brings the rows back here.
+
+## S-36 — Dashboard v2 (no new migration)
+
+**No migration** — every figure reads the existing
+`dashboard_summary(business_id)` RPC (added 0002, archived exclusion
+0004). Prerequisites: migrations 0001-0004 applied (0005/0006/0006b
+only affect other pages). The whole pass below is a UI check.
+
+1. As Owner, open the dashboard of a business with data (several
+   customers, some owing, some owed, one voided entry, one archived
+   customer, entries recorded today):
+   - Four KPI cards: **Total owes you** (the largest card, in the
+     receivable colour), **Total you owe**, **Open accounts** and
+     **Today's activity** (count + net). Compare each against the
+     customers page / transactions page filtered to today — they must
+     agree; a voided entry and the archived customer's balance appear
+     in **none** of them.
+   - **Top outstanding balances**: the 8 highest-owing customers with
+     avatar, name and balance, biggest first; each row opens that
+     customer's detail page. When nothing is owed the card reads
+     "All settled — no outstanding balances."
+   - **Today card → click it**: lands on Transactions with the
+     "Range: Today" chip; the totals footer shows the **same** count
+     and net the dashboard card showed. *Caveat (DEV-14): this holds
+     except for entries recorded between local midnight and ~06:00
+     (the dashboard's today is cut at DB-UTC midnight, the page's at
+     the browser's midnight) — verify the click-through outside that
+     window, or accept a possible off-by-the-early-hours difference.*
+   - Quick actions **Add customer** (opens the dialog in place) and
+     **Add Transaction** (opens the shared sheet) in the header.
+   - States: reload → skeleton, stop the network → error card with
+     **Try again** re-reading.
+2. First run: open the dashboard of a brand-new business (no
+   customers) → a **Getting started** card lists Add your first
+   customer, Record your first transaction and Invite a teammate;
+   each numbered step's action works (the first opens the customer
+   dialog, the second the sheet, the third the Members page).
+3. As Editor: same KPIs and list; quick actions and first-run steps
+   1-2 present, **no** Invite step. As Viewer: every figure and the
+   guidance readable, **no** Add customer / Add Transaction buttons
+   anywhere.

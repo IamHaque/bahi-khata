@@ -10,8 +10,8 @@ describe("query key hygiene", () => {
       ["transactionKeys.list(b1)", transactionKeys.list("b1")],
       ["transactionKeys.detail(t1, b1)", transactionKeys.detail("t1", "b1")],
       ["transactionKeys.byCustomer(c1, b1)", transactionKeys.byCustomer("c1", "b1")],
-      ["transactionKeys.today(b1)", transactionKeys.today("b1")],
-      ["transactionKeys.todayList(10, b1)", transactionKeys.todayList(10, "b1")],
+      ["transactionKeys.pagedList(b1)", transactionKeys.pagedList("b1")],
+      ["transactionKeys.rollup(b1)", transactionKeys.rollup("b1")],
       ["transactionKeys.summary(b1)", transactionKeys.summary("b1")],
     ];
 

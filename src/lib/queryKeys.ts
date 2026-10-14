@@ -51,15 +51,6 @@ export const transactionKeys = {
     ...transactionKeys.all(businessId),
     "rollup",
   ],
-  today: (businessId?: string) => [
-    ...transactionKeys.all(businessId),
-    "today",
-  ],
-  todayList: (limit: number, businessId?: string) => [
-    ...transactionKeys.today(businessId),
-    "list",
-    limit,
-  ],
   summary: (businessId: string) => [
     ...transactionKeys.all(businessId),
     "summary",

@@ -8,8 +8,6 @@ import {
   getCustomerBalance,
   getCustomerLedger,
   getDashboardSummary,
-  getTodayActivity,
-  getTodayTransactions,
   getTransactionById,
   queryTransactions,
   restoreTransaction,
@@ -98,20 +96,6 @@ export function useDashboardSummary(businessId: string) {
   return useQuery({
     queryKey: transactionKeys.summary(businessId),
     queryFn: () => getDashboardSummary(businessId),
-  });
-}
-
-export function useTodayActivity(businessId: string) {
-  return useQuery({
-    queryKey: transactionKeys.today(businessId),
-    queryFn: () => getTodayActivity(businessId),
-  });
-}
-
-export function useTodayTransactions(businessId: string, limit = 5) {
-  return useQuery({
-    queryKey: transactionKeys.todayList(limit, businessId),
-    queryFn: () => getTodayTransactions(businessId, limit),
   });
 }
 
