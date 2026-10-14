@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { paths } from "@/lib/paths";
 import { toastSuccess } from "@/lib/toast";
+import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import { useCreateCustomer, useCustomerList, useUpdateCustomer } from "../hooks";
 import {
   customerFormValues,
@@ -25,6 +26,11 @@ interface CustomerFormDialogProps {
   mode: "add" | "edit";
   /** The row being edited; null/undefined for Add. */
   customer?: Customer | null;
+  /**
+   * S-32: prefill the Name field for the inline "Add <query> as a new
+   * customer" entry inside the transaction sheet's picker.
+   */
+  defaultName?: string;
 }
 
 /**
@@ -43,6 +49,7 @@ export function CustomerFormDialog({
   businessId,
   mode,
   customer,
+  defaultName,
 }: CustomerFormDialogProps) {
   const navigate = useNavigate();
   const createCustomer = useCreateCustomer(businessId);
@@ -73,11 +80,12 @@ export function CustomerFormDialog({
       toastSuccess("Customer updated");
     } else {
       const created = await createCustomer.mutateAsync(input);
-      // The action lands on the new customer's ledger today; S-32's
-      // transaction sheet will re-point it (see BACKLOG B-04).
+      // S-32 closed B-04: the action opens the transaction sheet with
+      // this brand-new customer preselected — it adds the first entry.
       toastSuccess("Customer added", {
         label: "Add transaction",
-        onClick: () => navigate(paths.customerDetail(businessId, created.id)),
+        onClick: () =>
+          openTransactionSheet({ id: created.id, name: created.name }),
       });
     }
   };
@@ -88,7 +96,7 @@ export function CustomerFormDialog({
       onOpenChange={onOpenChange}
       title={mode === "add" ? "Add Customer" : "Edit Customer"}
       schema={customerSchema}
-      defaultValues={customerFormValues(customer)}
+      defaultValues={customerFormValues(customer, defaultName)}
       submitLabel={mode === "add" ? "Add customer" : "Save changes"}
       onSubmit={handleSubmit}
     >

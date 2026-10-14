@@ -324,3 +324,38 @@ working until 0004 is in. Prerequisites: migrations 0001-0003b applied.
 4. As Editor: Archive and Restore work; the archived row's menu has
    **no** Delete permanently. As Viewer: both active and archived row
    menus show only View.
+
+---
+
+## S-32 — Add transaction sheet (no new migration)
+
+**Status: code done; no migration to apply.** The sheet writes through
+the same `createTransaction` the v1 sheets used (`source: "manual"`,
+`created_by` and `business_id` set client-side, RLS enforced
+server-side), and the live preview reads the `customer_balances` view —
+so nothing here needs schema work. Prerequisites: migrations 0001-0004
+applied; a business with a customer that has a non-zero balance and at
+least one older transaction.
+
+1. Top bar > **Add transaction**: the sheet opens with the searchable
+   customer picker first and **Amount focused**; pick a customer → the
+   **Current balance** strip appears; type an amount → **Balance
+   after** updates live; Enter saves; Escape closes and focus returns
+   to the top-bar button.
+2. Customer row menu > **Add transaction** (preselected — the picker
+   already shows her name): switch Type to **Payment**, enter an amount
+   larger than the balance → the preview flips to "You owe …" while
+   typing > **Add payment**: the list row's badge now reads **You owe
+   ₹…**; open her ledger → the new row is at the top and the balance
+   flashed when it recalculated.
+3. Validation pass: submit an empty amount, `0` and `1.234` (three
+   inline messages in turn, nothing saves); tomorrow's date is refused,
+   yesterday's saves; a 501-character note is refused.
+4. Failure: DevTools offline > save → the sheet stays open with the
+   error and every value intact > back online > save again succeeds.
+5. "Customer added" toast: add a customer, click the toast's **Add
+   transaction** → the sheet opens with that new customer preselected.
+6. As Viewer: no **Add transaction** in the top bar, no **Add
+   Transaction** on the ledger, no Add buttons on Dashboard or
+   Transactions; row menus show only View. As Editor: everything above
+   works (transaction rights are Owner+Editor).

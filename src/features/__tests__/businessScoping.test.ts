@@ -162,9 +162,12 @@ describe("business scoping (required — S-20)", () => {
       "b1",
     );
     const insert = state.chains[0]!.find((c) => c.method === "insert")!;
+    // S-32's provenance scenario: manual source, me as creator, the
+    // business that scopes it.
     expect(insert.args[0]).toMatchObject({
       business_id: "b1",
       created_by: "user-1",
+      source: "manual",
     });
   });
 

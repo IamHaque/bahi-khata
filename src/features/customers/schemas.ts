@@ -63,12 +63,13 @@ export const customerSchema = z.object({
 
 export type CustomerForm = z.infer<typeof customerSchema>;
 
-/** Form state for Add (everything empty) and Edit (the row's values). */
+/** Form state for Add (everything empty, or prefilled via defaultName) and Edit (the row's values). */
 export function customerFormValues(
   customer?: Customer | null,
+  defaultName?: string,
 ): Record<string, string> {
   return {
-    name: customer?.name ?? "",
+    name: customer?.name ?? defaultName ?? "",
     phone: customer?.phone ?? "",
     email: customer?.email ?? "",
     address: customer?.address ?? "",

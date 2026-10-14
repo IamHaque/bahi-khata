@@ -13,6 +13,7 @@ import {
   useSetCustomerArchived,
 } from "@/features/customers/hooks";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
+import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import type {
   CustomerListParams,
   CustomerListRow,
@@ -241,10 +242,15 @@ export function CustomersPage() {
         label: "Edit",
         onSelect: () => setDialog({ kind: "form", mode: "edit", customer: row }),
       });
-      // S-32 ships the row's preselected Add transaction sheet; the v1
-      // quick-add sheet cannot know which row it came from, so this item
-      // stays visible but disabled until then.
-      items.push({ label: "Add transaction", onSelect: () => {}, disabled: true });
+    }
+    if (!archived && can("manageTransactions")) {
+      // Live since S-32: opens the shared sheet with this row's
+      // customer preselected.
+      items.push({
+        label: "Add transaction",
+        onSelect: () =>
+          openTransactionSheet({ id: row.id, name: row.name }),
+      });
     }
     if (can("archiveCustomers")) {
       if (archived) {

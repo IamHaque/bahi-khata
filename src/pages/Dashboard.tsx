@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { paths, transactionsPath } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
-import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useCustomers } from "@/features/customers/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { usePermissions } from "@/features/business/hooks";
+import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import {
   useAllCustomerBalances,
   useTodayActivity,
@@ -18,12 +19,12 @@ export function DashboardPage() {
   // "" only happens in tests that render the page outside /b/:businessId;
   // falsy businessId behaves unscoped (v1 transitional), same as undefined.
   const businessId = useScopedBusinessId() ?? "";
+  const { can } = usePermissions();
   const { data: customers = [], isLoading, error, refetch } =
     useCustomers(businessId);
   const { data: balances = {} } = useAllCustomerBalances(businessId);
   const { data: todayActivity } = useTodayActivity(businessId);
   const { data: todayTransactions = [] } = useTodayTransactions(businessId, 5);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const customersWithBalance: CustomerWithBalance[] = useMemo(
     () =>
@@ -108,7 +109,13 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setQuickAddOpen(true)}>Add Transaction</Button>
+          {/* S-32: opens the shared sheet (top bar instance), picker
+              first. Viewers see no Add action anywhere. */}
+          {can("manageTransactions") && (
+            <Button onClick={() => openTransactionSheet()}>
+              Add Transaction
+            </Button>
+          )}
         </div>
       </div>
 
@@ -253,8 +260,6 @@ export function DashboardPage() {
           </div>
         )}
       </div>
-
-      <QuickAddTransactionSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
     </div>
   );
 }

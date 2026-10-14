@@ -6,13 +6,21 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Search,
   Sun,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMemberships } from "@/features/business/hooks";
+import { useMemberships, usePermissions } from "@/features/business/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { CustomerCommandPalette } from "@/features/customers/components/CustomerCommandPalette";
+import { TransactionSheet } from "@/features/transactions/components/TransactionSheet";
+import {
+  closeTransactionSheet,
+  openTransactionSheet,
+  useTransactionSheet,
+} from "@/features/transactions/sheetStore";
 import { paths } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +66,14 @@ export function Topbar({
   // memberships query — no extra network). Clicking goes to /businesses.
   const { data: memberships } = useMemberships();
   const invitationCount = memberships?.invitations.length ?? 0;
+
+  // S-32: the top bar's Add transaction (viewers see nothing — no Add
+  // actions anywhere) and the app's one TransactionSheet instance;
+  // row menus, the ledger and the "Customer added" toast all open the
+  // same store this subscribes to.
+  const businessId = useScopedBusinessId() ?? "";
+  const { can } = usePermissions();
+  const sheet = useTransactionSheet();
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -111,6 +127,20 @@ export function Topbar({
             ⌘K
           </kbd>
         </button>
+
+        {/* Add transaction (S-32) — owner/editor only, anywhere in the
+            business. Opens the shared sheet with the picker first. */}
+        {businessId !== "" && can("manageTransactions") && (
+          <button
+            type="button"
+            onClick={() => openTransactionSheet()}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash"
+            aria-label="Add transaction"
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Add transaction</span>
+          </button>
+        )}
 
         {/* Invitation count badge (S-24) — opens the businesses page
             where each invitation is answered. */}
@@ -170,6 +200,17 @@ export function Topbar({
       </div>
 
       <CustomerCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
+
+      {/* The app's one add-transaction sheet (S-32). */}
+      <TransactionSheet
+        open={sheet.open}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) openTransactionSheet(sheet.customer);
+          else closeTransactionSheet();
+        }}
+        businessId={businessId}
+        customer={sheet.customer}
+      />
     </header>
   );
 }

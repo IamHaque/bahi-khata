@@ -35,7 +35,8 @@ interface EntityDialogProps {
   description?: string;
   schema: z.ZodTypeAny;
   defaultValues: Record<string, unknown>;
-  submitLabel: string;
+  /** Rendered inside the footer, so a form-aware element works too. */
+  submitLabel: ReactNode;
   onSubmit: (
     values: Record<string, unknown>,
   ) => void | Promise<void> | { fieldErrors?: FieldErrors; message?: string };

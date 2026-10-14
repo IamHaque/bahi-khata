@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
-import { AddTransactionSheet } from "@/components/AddTransactionSheet";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { DataTable, type Column } from "@/components/DataTable";
 import { useSort } from "@/hooks/useSort";
 import { useCustomer, useUpdateCustomer } from "@/features/customers/hooks";
+import { usePermissions } from "@/features/business/hooks";
 import {
   useCustomerBalance,
   useCustomerTransactions,
 } from "@/features/transactions/hooks";
+import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
@@ -36,8 +37,8 @@ export function CustomerDetailPage() {
   );
   const { data: balance = 0 } = useCustomerBalance(customerId ?? "", businessId);
   const updateCustomer = useUpdateCustomer(businessId);
+  const { can } = usePermissions();
   const [editOpen, setEditOpen] = useState(false);
-  const [addTxOpen, setAddTxOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
   const balanceRef = useRef<HTMLParagraphElement>(null);
   const { sortBy, sortDir, toggleSort } = useSort("occurredAtMs", "desc");
@@ -254,12 +255,19 @@ export function CustomerDetailPage() {
         <p className={`text-xs ${balanceClass}`}>{balanceLabel}</p>
       </div>
 
-      <Button
-        variant="outline"
-        onClick={() => setAddTxOpen(true)}
-      >
-        Add Transaction
-      </Button>
+      {/* S-32: the shared transaction sheet opens with this customer
+          preselected; the balance flashes when it lands. Viewers see no
+          Add action at all. */}
+      {customer && can("manageTransactions") && (
+        <Button
+          variant="outline"
+          onClick={() =>
+            openTransactionSheet({ id: customer.id, name: customer.name })
+          }
+        >
+          Add Transaction
+        </Button>
+      )}
 
       <DataTable
         columns={columns}
@@ -286,15 +294,6 @@ export function CustomerDetailPage() {
         initialData={customer}
         mode="edit"
       />
-
-      {customerId && (
-        <AddTransactionSheet
-          open={addTxOpen}
-          onOpenChange={setAddTxOpen}
-          customerId={customerId}
-          currentBalance={balance}
-        />
-      )}
 
       {editTx && (
         <EditTransactionSheet

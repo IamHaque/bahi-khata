@@ -8,6 +8,7 @@ import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
 import { paths, routePatterns } from "@/lib/paths";
 import { toast } from "sonner";
+import { getTransactionSheetState } from "@/features/transactions/sheetStore";
 import type { Memberships } from "@/features/business/api";
 import type { CustomerListRow } from "@/features/customers/api";
 
@@ -222,8 +223,8 @@ describe("S-29 customer form", () => {
     const scope = await rowScope("Asha Verma");
     expect(scope.getByText("Settled")).toBeTruthy();
 
-    // Toast: "Customer added" with an Add transaction action that lands
-    // on the new customer's ledger.
+    // Toast: "Customer added" with an Add transaction action that opens
+    // the S-32 sheet with this brand-new customer preselected (B-04).
     const added = vi
       .mocked(toast.success)
       .mock.calls.find((call) => call[0] === "Customer added");
@@ -235,12 +236,16 @@ describe("S-29 customer form", () => {
     expect(options.action.label).toBe("Add transaction");
 
     const created = (await customersApi.createCustomer.mock.results[0]!
-      .value) as { id: string };
+      .value) as { id: string; name: string };
+    expect(getTransactionSheetState().open).toBe(false);
     options.action.onClick();
-    await waitFor(() =>
-      expect(screen.getByTestId("location").textContent).toBe(
-        paths.customerDetail("b1", created.id),
-      ),
+    expect(getTransactionSheetState()).toMatchObject({
+      open: true,
+      customer: { id: created.id, name: created.name },
+    });
+    // And it did not navigate anywhere — the sheet IS the next step.
+    expect(screen.getByTestId("location").textContent).toBe(
+      paths.customers("b1"),
     );
   });
 

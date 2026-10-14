@@ -378,14 +378,15 @@ describe("S-28 customers list", () => {
       .map((item) => item.textContent);
     expect(labels).toEqual(["View", "Edit", "Add transaction", "Archive"]);
 
-    // Not wired yet (S-32) — visible but disabled, never a lie.
+    // Live since S-32: opens the shared sheet with this row's customer
+    // preselected (the sheet itself mounts in the Topbar).
     expect(
       (
         within(menu).getByRole("menuitem", {
           name: "Add transaction",
         }) as HTMLButtonElement
       ).disabled,
-    ).toBe(true);
+    ).toBe(false);
     // Live since S-30: the archive column exists, so Archive opens the
     // confirmation instead of pretending.
     expect(

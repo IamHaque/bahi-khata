@@ -11,11 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable, type Column } from "@/components/DataTable";
-import { QuickAddTransactionSheet } from "@/components/QuickAddTransactionSheet";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSort } from "@/hooks/useSort";
 import { useTransactions } from "@/features/transactions/hooks";
+import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { usePermissions } from "@/features/business/hooks";
 import { formatDate, formatDayMonth, formatMonthYear } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import type { TransactionWithCustomer } from "@/types";
@@ -243,6 +244,7 @@ export function TransactionsPage() {
   // "" only happens in tests that render the page outside /b/:businessId;
   // falsy businessId behaves unscoped (v1 transitional), same as undefined.
   const businessId = useScopedBusinessId() ?? "";
+  const { can } = usePermissions();
   const initialPreset = searchParams.get("range") === "today"
     ? "today"
     : searchParams.get("range") === "this-week"
@@ -257,7 +259,6 @@ export function TransactionsPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const { sortBy, sortDir, toggleSort } = useSort("date", "desc");
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(customerSearch, 200);
 
@@ -342,7 +343,13 @@ export function TransactionsPage() {
           Transactions
         </h2>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setQuickAddOpen(true)}>Add Transaction</Button>
+          {/* S-32: opens the shared sheet (top bar instance), picker
+              first. Viewers see no Add action anywhere. */}
+          {can("manageTransactions") && (
+            <Button onClick={() => openTransactionSheet()}>
+              Add Transaction
+            </Button>
+          )}
         </div>
       </div>
 
@@ -519,8 +526,6 @@ export function TransactionsPage() {
           }
         />
       )}
-
-      <QuickAddTransactionSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
     </div>
   );
 }
