@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
+  Mail,
   Menu,
   Moon,
   PanelLeftClose,
@@ -9,6 +11,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMemberships } from "@/features/business/hooks";
+import { paths } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -32,8 +36,14 @@ export function Topbar({
 }: TopbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const isDark = resolvedTheme === "dark";
+
+  // S-24: how many invitations are waiting for me (from the shared
+  // memberships query — no extra network). Clicking goes to /businesses.
+  const { data: memberships } = useMemberships();
+  const invitationCount = memberships?.invitations.length ?? 0;
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -86,6 +96,22 @@ export function Topbar({
             ⌘K
           </kbd>
         </button>
+
+        {/* Invitation count badge (S-24) — opens the businesses page
+            where each invitation is answered. */}
+        {invitationCount > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate(paths.businesses)}
+            aria-label={`Invitations (${invitationCount} pending)`}
+            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
+          >
+            <Mail className="size-5" />
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+              {invitationCount}
+            </span>
+          </button>
+        )}
 
         <Button
           variant="ghost"

@@ -210,3 +210,74 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
     }
   });
 }
+
+/** One invitation addressed to me (S-24), with display names joined in. */
+export interface MyInvitation {
+  id: string;
+  businessId: string;
+  businessName: string;
+  inviterName: string | null;
+  role: BusinessRole;
+  createdAt: string;
+}
+
+/**
+ * The pending invitations for the signed-in user (S-24). The database
+ * matches on the caller's own JWT email (case-insensitively) inside a
+ * security-definer function, because an invitee is not yet a member and
+ * row-level security correctly hides businesses and profiles from them —
+ * the caller passes no arguments at all.
+ */
+export async function getMyInvitations(): Promise<MyInvitation[]> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("my_invitations");
+    if (error) throw error;
+
+    interface InvitationRow {
+      id: string;
+      business_id: string;
+      business_name: string;
+      inviter_name: string | null;
+      role: BusinessRole;
+      created_at: string;
+    }
+
+    return ((data ?? []) as unknown as InvitationRow[]).map((row) => ({
+      id: row.id,
+      businessId: row.business_id,
+      businessName: row.business_name,
+      inviterName: row.inviter_name,
+      role: row.role,
+      createdAt: row.created_at,
+    }));
+  });
+}
+
+/**
+ * Accepts or declines one invitation (S-24) via the 0002 RPC. Accepting
+ * while already a member is a silent success (the insert is `on
+ * conflict do nothing`); a revoked, answered or business-less invitation
+ * raises "This invitation is no longer available." — that exact message
+ * is kept (it is what the scenario asks the user to see), and the
+ * caller's list is refetched so the card disappears.
+ */
+export async function respondToInvitation(
+  invitationId: string,
+  accept: boolean,
+): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("respond_to_invitation", {
+      p_invitation_id: invitationId,
+      p_accept: accept,
+    });
+    if (error) {
+      if (/no longer available/i.test(error.message ?? "")) {
+        throw new AppError(
+          "validation",
+          "This invitation is no longer available.",
+        );
+      }
+      throw error;
+    }
+  });
+}

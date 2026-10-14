@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { paths } from "@/lib/paths";
 import { useMemberships } from "@/features/business/hooks";
+import { useMyInvitations } from "@/features/members/hooks";
+import { InvitationCard } from "@/features/members/components/InvitationCard";
 import type { BusinessSummary } from "@/features/business/api";
 import { PageHeader } from "@/components/app/PageHeader";
 import { DataTable, type Column } from "@/components/app/DataTable";
@@ -16,11 +18,12 @@ function roleLabel(role: string): string {
 /**
  * Minimal My businesses page (S-16, constraint C-2): heading plus the
  * user's memberships with name, role and an Open button. S-24 adds the
- * Invitations section; S-26 completes the page.
+ * Invitations section; S-26 completes the page (three sections).
  */
 export function BusinessesPage() {
   const navigate = useNavigate();
   const { data, isLoading, refetch } = useMemberships();
+  const { data: invitations } = useMyInvitations();
 
   const businesses: BusinessSummary[] = data?.businesses ?? [];
 
@@ -83,6 +86,27 @@ export function BusinessesPage() {
           </EmptyState>
         }
       />
+
+      {/* Invitations addressed to me (S-24). S-26 restructures this page
+          into My business / Shared with me / Invitations. */}
+      {(invitations?.length ?? 0) > 0 && (
+        <section aria-label="Invitations" className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            Invitations
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            You were invited to these businesses. Accept to join, or decline.
+          </p>
+          <div className="space-y-3">
+            {invitations?.map((invitation) => (
+              <InvitationCard
+                key={invitation.id}
+                invitation={invitation}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

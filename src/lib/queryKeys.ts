@@ -62,4 +62,6 @@ export const businessKeys = {
     ["business", businessId, "members"] as const,
   invitations: (businessId: string) =>
     ["business", businessId, "invitations"] as const,
+  // User-level: the invitations addressed to the signed-in user (S-24).
+  myInvitations: () => ["myInvitations"] as const,
 };

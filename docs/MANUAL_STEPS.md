@@ -23,6 +23,7 @@ must be applied:
 | `20260913170000_add_balance_rpc_functions.sql` | v1 (already applied) | balance RPC functions |
 | `0001_multi_business_schema.sql` | S-05 | additive multi-business schema |
 | `0002_membership_rls.sql` | S-06 | membership-based RLS, RPCs, secure views |
+| `0002b_my_invitations.sql` | S-24 | `my_invitations()` — invitee's pending invitations with display names |
 | `0003_*.sql` | S-20 | enforce tenancy (drops old policies, makes business_id mandatory) |
 | `0004_*.sql` | S-30 | permanent customer delete RPC |
 | `0005_*.sql` | S-34 | void_reason column |
@@ -155,3 +156,34 @@ policies and NULL-business rows must be gone first.**
    `select * from customers where id = '<A''s customer id>';` returns 0
    rows, and `update customers set name = 'x' where id = '<...>';` reports
    `UPDATE 0`. Repeat in the other direction.
+
+---
+
+## S-24 — `my_invitations()` for the invitee flow (file: `supabase/migrations/0002b_my_invitations.sql`)
+
+**Status: written, not yet applied.** An invitee is not a member, so
+row-level security correctly hides `businesses` and `profiles` from them —
+but the S-24 scenario requires the invitation list to show the business
+name and inviter. `my_invitations()` is a small security-definer function
+that joins exactly those display fields for the caller's own pending
+invitations (matched on the JWT email, case-insensitively; the caller
+passes no arguments). It sorts between 0002 and 0003, so `db push`
+applies it right after the membership schema; it has no dependency on
+0003. Without it the app still works; the invitation list is simply
+empty.
+
+1. Backup (same as S-06: the dashboard's "Download backup" or
+   `pg_dump`). The function is additive, but the habit stands.
+2. Apply `supabase/migrations/0002b_my_invitations.sql` (`supabase db
+   push` or paste into the SQL editor).
+3. **Verify:** `select proname from pg_proc where proname =
+   'my_invitations';` returns 1 row; run
+   `supabase/tests/0002b_my_invitations.sql` — it passes (invitee sees
+   their invitation with names, outsider sees nothing, answered
+   invitations leave the list, re-accepting an existing member succeeds
+   without a duplicate row).
+4. **UI check:** with two accounts — as the owner, invite the second
+   account; sign in as the invitee: the top bar shows the count badge,
+   `/businesses` lists the invitation with business name, inviter and
+   role; Accept shows "You joined …" with an Open business action;
+   Decline removes the card.

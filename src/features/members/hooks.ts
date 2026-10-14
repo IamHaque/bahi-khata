@@ -5,6 +5,8 @@ import {
   createInvitation,
   getBusinessInvitations,
   getMembers,
+  getMyInvitations,
+  respondToInvitation,
   revokeInvitation,
   type InvitationInput,
 } from "./api";
@@ -73,6 +75,44 @@ export function useRevokeInvitation(businessId: string) {
       queryClient.invalidateQueries({
         queryKey: businessKeys.impact(businessId),
       });
+    },
+  });
+}
+
+/**
+ * The invitations addressed to me (S-24). User-level, not business
+ * scoped — I am not a member of the inviting business yet, which is
+ * exactly why the database joins the display names inside a
+ * security-definer function.
+ */
+export function useMyInvitations() {
+  return useQuery({
+    queryKey: businessKeys.myInvitations(),
+    queryFn: getMyInvitations,
+  });
+}
+
+/**
+ * Accept or decline an invitation (S-24). No permission guard: an
+ * invitee has no role yet, and the database's RPC matches on the
+ * caller's own JWT email — the client cannot answer for anyone else.
+ * Both memberships (the new business appears) and my invitations (the
+ * card leaves the list) refresh on success; on failure the list also
+ * refetches so a stale card disappears after the message is shown.
+ */
+export function useRespondToInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invitationId,
+      accept,
+    }: {
+      invitationId: string;
+      accept: boolean;
+    }) => respondToInvitation(invitationId, accept),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: businessKeys.myInvitations() });
+      queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
     },
   });
 }

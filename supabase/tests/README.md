@@ -75,3 +75,8 @@ psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/
   invitation visibility and `respond_to_invitation`, including the
   cross-business transaction rejection from the 0001 trigger. It drops the
   v1 broad policies inside its transaction, exactly as described above.
+- `0002b_my_invitations.sql` (S-24) — proves `my_invitations()` returns the
+  invitee's own pending invitations joined with business and inviter names
+  (case-insensitive JWT email match), returns nothing for outsiders,
+  drops answered invitations from the list, and that accepting while
+  already a member succeeds without a duplicate membership row.

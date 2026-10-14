@@ -31,9 +31,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-21 Permission layer | Done | (see below) | lib/permissions.ts matrix + can/assertCan, usePermissions hook, Can component (hide/disable), assertCan in every write mutation, UI-CONTRACT mapping, 2 new SQL denial tests |
 | S-22 Members page | Done | (see below) | `src/features/members/` api+hooks+MembersPage, `/b/:id/members` route, Members nav visible, owner-first list with role badges, owner-only Invite + pending invitations section |
 | S-23 Invite by email and manage invitations | Done | (see below) | InviteMemberDialog (zod email, lowercased, role Editor/Viewer default Viewer), inline rejections (bad email/own email/member/pending) + DB unique-index backstop, Copy app link, revoke with confirmation, useCreate/RevokeInvitation guards |
-| S-22 Members page | Pending | | |
-| S-23 Invite by email and manage invitations | Pending | | |
-| S-24 Respond to invitations | Pending | | |
+| S-24 Respond to invitations | Done | (see below) | `my_invitations()` RPC (0002b) + InvitationCard + invitations section on /businesses, top bar count badge, accept/decline via respond_to_invitation RPC, stale-invitation message preserved |
 | S-25 Change role, remove member, leave business | Pending | | |
 | S-26 My businesses page and business switcher | Pending | | |
 | S-27 Lost-access handling | Pending | | |
@@ -70,7 +68,15 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
 
-## S-23 scenarios (checklist)
+## S-24 scenarios (checklist)
+
+- [x] I see my invitations — the top bar shows an invitation count badge (count from the shared memberships query; hidden at zero, clicking opens `/businesses`); `/businesses` lists each invitation with business name, inviter, role badge, and Accept and Decline buttons — tested
+- [x] Accept — I become a member with the invited role and see "You joined Acme" with an **Open business** action that navigates to `/b/:businessId`; the client calls `respondToInvitation(id, true)` with **no email argument** (email matching lives in the database, case-insensitively — SQL test 0002b §3); accepting while already a member is treated as success without an error (RPC `on conflict do nothing`, SQL test 0002b §6) — tested
+- [x] Decline — the invitation is marked declined and removed from the list on refetch (SQL test 0002b §5) — tested
+- [x] Stale invitation — a revoked/answered/gone invitation shows the database's own message "This invitation is no longer available." and the card disappears on the `onSettled` refetch — tested
+- [x] Email matching is case-insensitive — JWT email `Vic@Example.com` matches stored `vic@example.com` (SQL test 0002b §3); the client cannot influence matching (it passes only the invitation id)
+
+**S-24 notes:** the scenario requires the business name and inviter on the card, but RLS correctly hides `businesses` and `profiles` from non-members — so migration `0002b_my_invitations.sql` adds a small security-definer `my_invitations()` that joins exactly those display fields for the caller's own pending invitations (matched on the JWT email; the caller passes no arguments). **DEV-11:** the PRD touch zone for S-24 lists only `InvitationCard.tsx` and the BusinessesPage invitations section, but the scenario also mandates the **top bar count badge** — `src/components/layout/Topbar.tsx` was touched for it (badge reuses `useMemberships()`, so no extra fetch; hidden at zero). The badge counts from memberships (`getMemberships`) while the list comes from `my_invitations()` — both read the same pending rows under the same RLS match, and accepting/declining invalidates both. Accept uses `toastSuccess(message, { label: "Open business", onClick })` (S-11 toast helper). The RPC error (42501 "This invitation is no longer available.") is mapped to `AppError("validation", ...)` before `toAppError` would flatten it to a generic forbidden message — the scenario requires the exact text. BusinessesPage keeps its S-16 shape; S-26 restructures it into the three-section page.
 
 - [x] Send an invitation — the owner opens "Invite member", enters `Vic@Example.com`, chooses Viewer and presses Invite → `createInvitation` receives the **lowercased** `vic@example.com` with role viewer (schema trims + lowercases; DB check requires lowercase); the dialog explains "They will see the invitation after signing in with this Google account. No email is sent."; a **Copy app link** button copies `window.location.origin` (toast + "Copied" state) — tested
 - [x] Role choice — the role selector offers Editor and Viewer with one-line descriptions ("Editor — can record customers and transactions" / "Viewer — can only see the data"), defaulting to Viewer — tested
@@ -308,6 +314,7 @@ Re-run after every story that touches data or routing:
 | DEV-8 | `lib/format.ts`, `lib/queryKeys.ts`, `src/app/paths.ts` exist | None exist; money/dates are inline `toLocaleString`/`toLocaleDateString`, paths are hardcoded | Created in S-09 (`format.ts`), S-04 (`queryKeys.ts`), S-12 (`paths.ts`). |
 | DEV-9 | v1 has no `updated_by`/`voided_*` audit columns (PRD 4.1 additive list) | Confirmed absent; only `created_by` exists | Added in S-05 exactly as sketched. |
 | DEV-10 | S-16/C-2 minimal My businesses page must include an "Open" button per membership | No per-business URL exists before S-17, so Open on a shared business would redirect through the resolver and bounce back (loop) | Open renders for the owned business from S-16; **resolved by S-17** — business URLs exist, every membership's Open navigates to `/b/:id`, the guard enforces membership. |
+| DEV-11 | S-24 touch zone lists only `InvitationCard.tsx` + the BusinessesPage invitations section | The scenario also mandates (a) a top bar invitation count badge (`src/components/layout/Topbar.tsx`) and (b) business name + inviter on the card, which RLS correctly hides from non-members — requiring a new DB function | The badge reuses the shared `useMemberships()` query (no extra fetch; hidden at zero). Migration `0002b_my_invitations.sql` adds `my_invitations()`, a security-definer function joining only the display fields for the caller's own pending invitations (matched on the JWT email; zero arguments). The app works without it (empty list). |
 
 ### Touch-zone mapping (DEV-1)
 
