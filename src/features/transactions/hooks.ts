@@ -12,8 +12,9 @@ import {
   getTodayTransactions,
   getTransactionById,
   listTransactionsByCustomer,
+  restoreTransaction,
   updateTransaction,
-  updateTransactionStatus,
+  voidTransaction,
 } from "./api";
 import type { Transaction, TransactionWithCustomer } from "@/types";
 
@@ -138,20 +139,27 @@ export function useUpdateTransaction(businessId: string) {
   });
 }
 
-export function useUpdateTransactionStatus(businessId: string) {
+export function useVoidTransaction(businessId: string) {
   const invalidate = useTransactionInvalidation(businessId);
   const { assertCan } = usePermissions();
   return useMutation({
-    mutationFn: ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: "active" | "edited" | "voided";
-    }) => {
+    mutationFn: ({ id, reason }: { id: string; reason: string | null }) => {
       // S-21: a known viewer fails here, before the network.
       assertCan("manageTransactions");
-      return updateTransactionStatus(id, status, businessId);
+      return voidTransaction(id, reason, businessId);
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreTransaction(businessId: string) {
+  const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("manageTransactions");
+      return restoreTransaction(id, businessId);
     },
     onSuccess: invalidate,
   });

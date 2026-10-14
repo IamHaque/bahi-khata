@@ -10,7 +10,9 @@ import {
   getCustomerBalance,
   getDashboardSummary,
   listTransactionsByCustomer,
+  restoreTransaction,
   updateTransaction,
+  voidTransaction,
 } from "@/features/transactions/api";
 
 interface Call {
@@ -65,6 +67,11 @@ vi.mock("@/lib/supabase", () => ({
         // S-33 chain method (the scoping assertions below are unchanged).
         in: (...args: unknown[]) => {
           calls.push({ method: "in", args });
+          return chain;
+        },
+        // S-34 chain method: the voided-row guard on edits.
+        neq: (...args: unknown[]) => {
+          calls.push({ method: "neq", args });
           return chain;
         },
         // S-30 chain methods (the scoping assertions below are unchanged).
@@ -211,6 +218,8 @@ describe("business scoping (required — S-20)", () => {
     // Still business-scoped like every write.
     expect(calls).toContainEqual({ method: "eq", args: ["id", "t1"] });
     expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+    // S-34 hardening: a voided row can only come back through restore.
+    expect(calls).toContainEqual({ method: "neq", args: ["status", "voided"] });
   });
 
   it("resolves the ledger's editor names in one profiles lookup (S-33)", async () => {
@@ -220,22 +229,25 @@ describe("business scoping (required — S-20)", () => {
         { id: "t1", updated_by: "u-eli" },
         { id: "t2", updated_by: "u-gone" },
         { id: "t3", updated_by: null },
+        { id: "t4", updated_by: "u-eli", status: "voided" },
       ],
       [{ id: "u-eli", full_name: "Eli", email: "eli@example.com" }],
     ];
 
     const rows = await listTransactionsByCustomer("c1", "b1");
 
-    // The transactions read is business-scoped; edited rows are part
-    // of the ledger's status set.
+    // The transactions read is business-scoped, with no status filter:
+    // voided rows stay on the ledger (S-34).
     expect(state.chains[0]).toContainEqual({
       method: "eq",
       args: ["business_id", "b1"],
     });
-    expect(state.chains[0]).toContainEqual({
-      method: "in",
-      args: ["status", ["active", "edited"]],
-    });
+    expect(
+      state.chains[0]!.some(
+        (c) => c.method === "eq" && c.args[0] === "status",
+      ),
+    ).toBe(false);
+    expect(rows.some((row) => row.status === "voided")).toBe(true);
     // One profiles query for the distinct editors (excluding the null
     // of a never-edited row).
     expect(state.chains[1]![0]).toEqual({ method: "from", args: ["profiles"] });
@@ -249,6 +261,39 @@ describe("business scoping (required — S-20)", () => {
       "Eli",
       null,
       null,
+      "Eli",
+    ]);
+  });
+
+  it("voidTransaction stamps the voider and the reason, never updated_by (S-34)", async () => {
+    state.resolveValue = { id: "t1" };
+
+    await voidTransaction("t1", "Duplicate entry", "b1");
+
+    const calls = state.chains[0]!;
+    const update = calls.find((c) => c.method === "update")!;
+    expect(update.args[0]).toMatchObject({
+      status: "voided",
+      void_reason: "Duplicate entry",
+      voided_by: "user-1",
+    });
+    // The restore marker: updated_by still means "content-edited at
+    // least once", so voiding must never touch it.
+    expect(update.args[0]).not.toHaveProperty("updated_by");
+    expect(calls).toContainEqual({ method: "eq", args: ["id", "t1"] });
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+  });
+
+  it("restoreTransaction defers the restored status to the row (S-34)", async () => {
+    await restoreTransaction("t1", "b1");
+
+    // "Edited if it had been edited before, otherwise active" is the
+    // row's to decide — the security-invoker RPC decides it.
+    expect(state.rpcCalls).toEqual([
+      {
+        fn: "restore_transaction",
+        args: { p_transaction_id: "t1", p_business_id: "b1" },
+      },
     ]);
   });
 

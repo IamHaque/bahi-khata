@@ -1,13 +1,20 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { EditTransactionSheet } from "@/components/EditTransactionSheet";
-import { useTransaction } from "@/features/transactions/hooks";
+import {
+  useRestoreTransaction,
+  useTransaction,
+} from "@/features/transactions/hooks";
+import {
+  VoidTransactionDialog,
+  type VoidableTransaction,
+} from "@/features/transactions/components/VoidTransactionDialog";
+import { openTransactionEdit } from "@/features/transactions/sheetStore";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate, formatTime } from "@/lib/format";
 import { paths } from "@/lib/paths";
-import type { TransactionWithCustomer } from "@/types";
+import { toast } from "sonner";
 
 export function TransactionDetailPage() {
   const { transactionId } = useParams<{ transactionId: string }>();
@@ -21,10 +28,12 @@ export function TransactionDetailPage() {
     error,
     refetch,
   } = useTransaction(transactionId ?? "", businessId);
-  const [editTx, setEditTx] = useState<TransactionWithCustomer | null>(null);
-  // S-33: viewers have no edit action anywhere (S-34 will rework this
-  // page's void/restore story around the same gate).
+  // S-33/S-34: edit happens in the shared sheet; void confirms with an
+  // optional reason; restore only ever adds history back, so it goes
+  // straight through. Viewers have no actions at all.
+  const [voidTx, setVoidTx] = useState<VoidableTransaction | null>(null);
   const { can } = usePermissions();
+  const restore = useRestoreTransaction(businessId);
 
   if (isLoading) {
     return (
@@ -108,14 +117,51 @@ export function TransactionDetailPage() {
             Transaction Detail
           </h2>
         </div>
-        {transaction.status !== "voided" && can("manageTransactions") && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditTx(transaction)}
-          >
-            Edit
-          </Button>
+        {can("manageTransactions") && (
+          <div className="flex items-center gap-2">
+            {transaction.status !== "voided" ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    openTransactionEdit(transaction, {
+                      id: transaction.customer_id,
+                      name: transaction.customer_name,
+                    })
+                  }
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVoidTx(transaction)}
+                >
+                  Void
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  restore.mutate(
+                    { id: transaction.id },
+                    {
+                      onSuccess: () => toast.success("Transaction restored."),
+                      onError: () =>
+                        toast.error(
+                          "Could not restore the transaction. Try again.",
+                        ),
+                    },
+                  )
+                }
+              >
+                Restore
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -177,15 +223,28 @@ export function TransactionDetailPage() {
           <p className="text-xs text-muted-foreground/70">Status</p>
           <p className={`text-sm font-medium ${statusClass}`}>{statusLabel}</p>
         </div>
+
+        {/* S-34: a voided row keeps its reason as part of the audit
+            trail (FR-9a); voids without one say so plainly. */}
+        {transaction.status === "voided" && (
+          <div>
+            <p className="text-xs text-muted-foreground/70">Void reason</p>
+            <p className="text-sm text-foreground">
+              {transaction.void_reason || "No reason given"}
+            </p>
+          </div>
+        )}
       </div>
 
-      {editTx && (
-        <EditTransactionSheet
-          open={!!editTx}
-          onOpenChange={(open) => { if (!open) setEditTx(null); }}
-          transaction={editTx}
-        />
-      )}
+      {/* S-34: the void confirmation; its own toast carries Undo. */}
+      <VoidTransactionDialog
+        open={!!voidTx}
+        onOpenChange={(open) => {
+          if (!open) setVoidTx(null);
+        }}
+        businessId={businessId}
+        transaction={voidTx}
+      />
     </div>
   );
 }

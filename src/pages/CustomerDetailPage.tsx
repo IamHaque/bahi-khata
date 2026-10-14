@@ -9,19 +9,24 @@ import { usePermissions } from "@/features/business/hooks";
 import {
   useCustomerBalance,
   useCustomerTransactions,
+  useRestoreTransaction,
 } from "@/features/transactions/hooks";
-import type { TransactionWithEditor } from "@/features/transactions/api";
+import type { TransactionWithAudit } from "@/features/transactions/api";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
+import { VoidTransactionDialog } from "@/features/transactions/components/VoidTransactionDialog";
 import {
   openTransactionEdit,
   openTransactionSheet,
 } from "@/features/transactions/sheetStore";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { StatusBadge } from "@/components/app/StatusBadge";
+import { toast } from "sonner";
 import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
 
-// S-33: the ledger rows carry the audit data the Edited badge reads.
-type TransactionWithSort = TransactionWithEditor & { occurredAtMs: number };
+// S-33/S-34: the ledger rows carry the audit data the Edited and
+// Voided badges read.
+type TransactionWithSort = TransactionWithAudit & { occurredAtMs: number };
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -43,6 +48,10 @@ export function CustomerDetailPage() {
   const updateCustomer = useUpdateCustomer(businessId);
   const { can } = usePermissions();
   const [editOpen, setEditOpen] = useState(false);
+  // S-34: the void confirmation for one row at a time; Restore on the
+  // ledger mutates directly (it only ever adds history back).
+  const [voidTx, setVoidTx] = useState<TransactionWithSort | null>(null);
+  const restore = useRestoreTransaction(businessId);
   const balanceRef = useRef<HTMLParagraphElement>(null);
   const { sortBy, sortDir, toggleSort } = useSort("occurredAtMs", "desc");
 
@@ -112,8 +121,9 @@ export function CustomerDetailPage() {
               updatedAt={row.updated_at}
             />
           )}
+          {/* S-34: a voided row stays visible, muted. */}
           {row.status === "voided" && (
-            <span className="text-xs text-muted-foreground line-through">(voided)</span>
+            <StatusBadge label="Voided" tone="muted" />
           )}
         </div>
       ),
@@ -146,28 +156,74 @@ export function CustomerDetailPage() {
     {
       key: "actions",
       header: "",
-      render: (row) =>
-        // S-33: editing opens the shared sheet in edit mode; viewers
-        // have no edit action at all (voided rows keep their S-34
-        // restore story instead).
-        row.status !== "voided" && customer && can("manageTransactions") ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openTransactionEdit(row, {
-                id: customer.id,
-                name: customer.name,
-              });
-            }}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={`Edit ${row.type} of ₹${row.amount}`}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-        ) : null,
+      render: (row) => {
+        // S-33/S-34: the pencil edits in the shared sheet, Void opens
+        // the confirmation with an optional reason, and a voided row
+        // offers Restore (it only ever adds history back, so it
+        // confirms nothing). Viewers have no actions at all.
+        if (!customer || !can("manageTransactions")) return null;
+
+        if (row.status === "voided") {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                restore.mutate(
+                  { id: row.id },
+                  {
+                    onSuccess: () => toast.success("Transaction restored."),
+                    onError: () =>
+                      toast.error(
+                        "Could not restore the transaction. Try again.",
+                      ),
+                  },
+                );
+              }}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Restore ${row.type} of ₹${row.amount}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+            </button>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openTransactionEdit(row, {
+                  id: customer.id,
+                  name: customer.name,
+                });
+              }}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Edit ${row.type} of ₹${row.amount}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setVoidTx(row);
+              }}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Void ${row.type} of ₹${row.amount}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -306,6 +362,16 @@ export function CustomerDetailPage() {
         onSubmit={handleEdit}
         initialData={customer}
         mode="edit"
+      />
+
+      {/* S-34: the void confirmation; its own toast carries Undo. */}
+      <VoidTransactionDialog
+        open={!!voidTx}
+        onOpenChange={(open) => {
+          if (!open) setVoidTx(null);
+        }}
+        businessId={businessId}
+        transaction={voidTx}
       />
     </div>
   );

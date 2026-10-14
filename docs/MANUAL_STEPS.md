@@ -393,3 +393,53 @@ second member.
    transaction detail page.
 7. Void/restore still live in the v1 sheet opened from the
    **transaction detail page**'s Edit button — unchanged until S-34.
+
+---
+
+## S-34 — Void and restore transactions (migration 0005)
+
+**Status: code done; migration 0005 and SQL test 0005 must be applied
+here** (they are written but never executed by the build agent). Until
+0005 is in, Void still works (it is a plain column update) but
+**Restore fails** ("function restore_transaction does not exist") and
+the detail page cannot show a void reason. Prerequisites: migrations
+0001-0004 applied.
+
+1. Apply `supabase/migrations/0005_void_reason_restore.sql` (SQL
+   Editor or `supabase db push`). It: adds `transactions.void_reason`
+   (nullable — voids without a reason are legal), adds the
+   security-invoker `restore_transaction(transaction_id, business_id)`
+   RPC — the restored status is the row's to decide ("edited" if
+   `updated_by` is set, else "active") and the void's stamps are
+   cleared — with its grants.
+2. Run `supabase/tests/0005_void_restore.sql` — it must finish with
+   no exception (any "TEST FAILED" is a regression). It proves:
+   viewer's void attempt changes nothing; editor voids with a reason;
+   the restore marker (`updated_by`) survives the void untouched; the
+   balance view and dashboard totals stop counting the voided row;
+   restore brings a never-edited row back **active** and an
+   edited-before row back **edited**; restoring a non-voided row, a
+   mismatched business id and an outsider's call all end in "Void
+   transaction not found."; anon cannot execute the function.
+3. UI pass as Owner (a customer with a payment and — ideally — a row
+   that was edited before, plus a second member for step 5):
+   - Ledger row > ban icon (**Void payment of ₹500**): the
+     confirmation asks "Void this payment of ₹500?" with an optional
+     Reason (capped at 200 characters) and a **Void transaction**
+     button > confirm: the row *stays* with a **Voided** badge and a
+     struck-through amount, the balance flashes without it, and the
+     toast "Transaction voided." offers **Undo** for 8 s > click Undo:
+     the row counts again.
+   - Void a row that carries the **Edited** badge > **Restore**: it
+     comes back **Edited**. Void a never-edited row > **Restore**: it
+     comes back **Active**.
+   - Transaction detail page: **Void** uses the same dialog; the
+     voided view shows **Void reason** ("No reason given" when
+     empty); **Restore** works from the page; **Edit** opens the
+     shared edit sheet (the v1 sheet is gone for good).
+   - Cancel the confirmation: nothing changes.
+   - Balance + dashboard: after a void, the customer balance and the
+     dashboard receivable stop counting the row (they excluded voided
+     server-side all along — now the UI proves it).
+4. As Editor: void and restore work. As Viewer: no Void, no Restore
+   anywhere; the ledger rows stay readable.

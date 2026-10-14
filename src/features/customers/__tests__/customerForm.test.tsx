@@ -54,7 +54,8 @@ vi.mock("@/features/transactions/api", () => ({
   getTransactionById: vi.fn(),
   listTransactionsByCustomer: vi.fn(async () => []),
   updateTransaction: vi.fn(),
-  updateTransactionStatus: vi.fn(),
+  restoreTransaction: vi.fn(),
+  voidTransaction: vi.fn(),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

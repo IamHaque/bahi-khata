@@ -37,7 +37,8 @@ const transactionsApi = vi.hoisted(() => ({
   getTransactionById: vi.fn(),
   listTransactionsByCustomer: vi.fn(),
   updateTransaction: vi.fn(),
-  updateTransactionStatus: vi.fn(),
+  restoreTransaction: vi.fn(),
+  voidTransaction: vi.fn(),
 }));
 // The fake database, richer than the add-sheet suite: rows carry the
 // audit columns the Edited badge reads, profiles hold the editor
@@ -92,7 +93,8 @@ vi.mock("@/features/transactions/api", () => ({
   getTransactionById: transactionsApi.getTransactionById,
   listTransactionsByCustomer: transactionsApi.listTransactionsByCustomer,
   updateTransaction: transactionsApi.updateTransaction,
-  updateTransactionStatus: transactionsApi.updateTransactionStatus,
+  restoreTransaction: transactionsApi.restoreTransaction,
+  voidTransaction: transactionsApi.voidTransaction,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

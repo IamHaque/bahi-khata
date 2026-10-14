@@ -33,6 +33,17 @@ export interface TransactionWithEditor extends Transaction {
   updated_by_name?: string | null;
 }
 
+/**
+ * S-34 — a ledger row with everything the void/restore story reads:
+ * the void's reason and its audit stamps (columns from migration 0001,
+ * the reason from 0005).
+ */
+export interface TransactionWithAudit extends TransactionWithEditor {
+  void_reason?: string | null;
+  voided_at?: string | null;
+  voided_by?: string | null;
+}
+
 async function guard<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -44,23 +55,27 @@ async function guard<T>(fn: () => Promise<T>): Promise<T> {
 export async function listTransactionsByCustomer(
   customerId: string,
   businessId: string,
-): Promise<TransactionWithEditor[]> {
+): Promise<TransactionWithAudit[]> {
   return guard(async () => {
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
       .eq("customer_id", customerId)
       .eq("business_id", businessId)
-      // S-33: edited rows stay on the ledger — they carry the Edited
-      // badge; only voided rows leave it (S-34 brings them back with
-      // restore).
-      .in("status", ["active", "edited"])
+      // S-34: every status is part of the ledger — voided rows stay
+      // visible (muted, struck through, with the Voided badge) and
+      // balance views already leave them out of the math.
       .order("occurred_at", { ascending: false });
 
     if (error) throw error;
 
     const rows = (data ?? []) as Array<
-      Transaction & { updated_by: string | null }
+      Transaction & {
+        updated_by: string | null;
+        void_reason: string | null;
+        voided_at: string | null;
+        voided_by: string | null;
+      }
     >;
 
     // Resolve the last editor for the badge in one extra query — there
@@ -173,19 +188,55 @@ export async function createTransactionsBatch(
   });
 }
 
-export async function updateTransactionStatus(
+/**
+ * S-34 — void instead of erase: the row stays, marked with who voided
+ * it, when, and why. `updated_by` is deliberately untouched — it still
+ * means "content-edited at least once", which is how restore decides
+ * between "edited" and "active" (migration 0005). Balance views and
+ * dashboard_summary already exclude voided rows.
+ */
+export async function voidTransaction(
   id: string,
-  status: "active" | "edited" | "voided",
+  reason: string | null,
   businessId: string,
 ): Promise<Transaction> {
   return guard(async () => {
+    const { data: userResult } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from("transactions")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({
+        status: "voided",
+        void_reason: reason,
+        voided_at: new Date().toISOString(),
+        voided_by: userResult.user?.id ?? "",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .eq("business_id", businessId)
       .select()
       .single();
+
+    if (error) throw error;
+    return data as Transaction;
+  });
+}
+
+/**
+ * S-34 — bring a voided row back. The restored status is the row's to
+ * decide ("edited" if it had been edited before, otherwise "active"),
+ * so this goes through the security-invoker RPC from migration 0005
+ * rather than a payload the client would have to guess.
+ */
+export async function restoreTransaction(
+  id: string,
+  businessId: string,
+): Promise<Transaction> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("restore_transaction", {
+      p_transaction_id: id,
+      p_business_id: businessId,
+    });
 
     if (error) throw error;
     return data as Transaction;
@@ -213,6 +264,9 @@ export async function updateTransaction(
       })
       .eq("id", id)
       .eq("business_id", businessId)
+      // S-34: a voided row can only come back through restore — an
+      // edit can never silently un-void it.
+      .neq("status", "voided")
       .select()
       .single();
 
@@ -374,7 +428,9 @@ export async function getAllTransactions(
 export async function getTransactionById(
   id: string,
   businessId: string,
-): Promise<TransactionWithCustomer | null> {
+): Promise<
+  (TransactionWithCustomer & Pick<TransactionWithAudit, "void_reason">) | null
+> {
   return guard(async () => {
     const { data, error } = await supabase
       .from("transactions")
@@ -390,6 +446,7 @@ export async function getTransactionById(
 
     const tx = data as Transaction & {
       customers: { name: string; phone: string } | null;
+      void_reason: string | null;
     };
     return {
       ...tx,

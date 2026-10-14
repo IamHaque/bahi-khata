@@ -43,7 +43,8 @@ const transactionsApi = vi.hoisted(() => ({
   getTransactionById: vi.fn(),
   listTransactionsByCustomer: vi.fn(),
   updateTransaction: vi.fn(),
-  updateTransactionStatus: vi.fn(),
+  restoreTransaction: vi.fn(),
+  voidTransaction: vi.fn(),
 }));
 // The fake database: mutations write here, queries read here, so the
 // refetch-after-save behaviour (new row on top, recalculated balance)
@@ -92,7 +93,8 @@ vi.mock("@/features/transactions/api", () => ({
   getTransactionById: transactionsApi.getTransactionById,
   listTransactionsByCustomer: transactionsApi.listTransactionsByCustomer,
   updateTransaction: transactionsApi.updateTransaction,
-  updateTransactionStatus: transactionsApi.updateTransactionStatus,
+  restoreTransaction: transactionsApi.restoreTransaction,
+  voidTransaction: transactionsApi.voidTransaction,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
