@@ -75,9 +75,11 @@
 
 `src/lib/permissions.ts` is the single UI source for PRD §3. The
 database (row-level security) is the source of truth; this table maps
-every action name to the SQL test in `supabase/tests/0002_rls_membership.sql`
-that proves the database agrees. Fixture roles: Olivia = Owner,
-Eli = Editor, Vic = Viewer, Zed = outsider.
+every action name to the SQL test that proves the database agrees —
+sections of `supabase/tests/0002_rls_membership.sql`, plus
+`0002c_membership_management.sql` (S-25) for the membership-management
+rows. Fixture roles: Olivia = Owner, Eli = Editor, Vic = Viewer, Zed =
+outsider.
 
 | UI action (`permissionMatrix` key) | Owner | Editor | Viewer | SQL test assertion(s) in `0002_rls_membership.sql` |
 | ---------------------------------- | ----- | ------ | ------ | -------------------------------------------------- |
@@ -89,9 +91,9 @@ Eli = Editor, Vic = Viewer, Zed = outsider.
 | `manageTransactions` | ✅ | ✅ | ❌ | §5 "Vic cannot insert a transaction" / "Vic cannot update a transaction"; §6 "Eli inserted a transaction" |
 | `importTransactions` | ✅ | ✅ | ❌ | Same insert policy as `manageTransactions` (a batch is many inserts) — §6 "Eli inserted a transaction" |
 | `manageBusiness` | ✅ | ❌ | ❌ | §6 "Eli cannot update the business details" (added in S-21); §7 "Olivia updated the business" |
-| `manageMembers` | ✅ | ❌ | ❌ | §6 "Eli cannot change a member role" / "Eli cannot remove a member" / "Eli cannot insert an invitation" (added in S-21) |
+| `manageMembers` | ✅ | ❌ | ❌ | 0002 §6 "Eli cannot change a member role" / "Eli cannot remove a member" / "Eli cannot insert an invitation" (S-21); 0002c §3 owner changes a role, owner row protected (no promote-to-owner, no remove) (S-25) |
 | `deleteBusiness` | ✅ | ❌ | ❌ | §6 "Eli cannot delete the business"; §10 "Olivia deleted the business" |
-| `leaveBusiness` | ❌ | ✅ | ✅ | §7 "Olivia cannot leave her own business" (owner must delete instead) |
+| `leaveBusiness` | ❌ | ✅ | ✅ | 0002 §7 "Olivia cannot leave her own business" (owner must delete instead); 0002c §5 a member leaves and loses access (S-25) |
 
 Two guard rails keep the two layers honest:
 

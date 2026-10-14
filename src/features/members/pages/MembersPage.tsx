@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -13,10 +14,18 @@ import { Avatar } from "@/components/app/Avatar";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
+import { paths } from "@/lib/paths";
 import { toastSuccess } from "@/lib/toast";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
-import { useMembers, useBusinessInvitations, useRevokeInvitation } from "../hooks";
+import {
+  useMembers,
+  useBusinessInvitations,
+  useRevokeInvitation,
+  useChangeMemberRole,
+  useRemoveMember,
+  useLeaveBusiness,
+} from "../hooks";
 import { InviteMemberDialog } from "../components/InviteMemberDialog";
 import type {
   BusinessInvitation,
@@ -41,12 +50,14 @@ function displayName(member: BusinessMember): string {
 
 /**
  * Who belongs to this business (S-22). Any member can see the list;
- * only the Owner gets management controls (the Invite button and the
- * pending invitations section) — S-23 wires the button to the invite
- * dialog, S-25 adds row actions (change role, remove).
+ * only the Owner gets management controls (the Invite button, the
+ * pending invitations section, and the per-row actions: change role
+ * and remove — S-25). Any member may leave the business themselves
+ * (S-25); Owners instead see the note that they must delete it.
  */
 export function MembersPage() {
   const businessId = useScopedBusinessId() ?? "";
+  const navigate = useNavigate();
   const { isOwner } = usePermissions();
   const {
     data: members,
@@ -56,8 +67,13 @@ export function MembersPage() {
   } = useMembers(businessId);
   const { data: invitations } = useBusinessInvitations(businessId);
   const revokeInvitation = useRevokeInvitation(businessId);
+  const changeRole = useChangeMemberRole(businessId);
+  const removeMember = useRemoveMember(businessId);
+  const leaveBusiness = useLeaveBusiness(businessId);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revoking, setRevoking] = useState<BusinessInvitation | null>(null);
+  const [removing, setRemoving] = useState<BusinessMember | null>(null);
+  const [leaving, setLeaving] = useState(false);
 
   // Owner first, then everyone else by joined date (stable, matches the
   // PRD's "Owner is listed first").
@@ -159,6 +175,45 @@ export function MembersPage() {
     }
   };
 
+  const handleChangeRole = async (
+    member: BusinessMember,
+    newRole: BusinessRole,
+  ) => {
+    try {
+      await changeRole.mutateAsync({ userId: member.userId, newRole });
+      toastSuccess(
+        `${displayName(member)} is now a ${roleLabel(newRole)}`,
+      );
+    } catch {
+      toast.error("Could not change the role. Try again.");
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!removing) return;
+    try {
+      await removeMember.mutateAsync(removing.userId);
+      toastSuccess(`${displayName(removing)} was removed`);
+    } catch {
+      toast.error("Could not remove the member. Try again.");
+    }
+  };
+
+  const handleLeave = async () => {
+    try {
+      await leaveBusiness.mutateAsync();
+      toastSuccess(`You left this business`);
+      // The guard no longer admits me here; go back to the list.
+      navigate(paths.businesses);
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not leave the business. Try again.",
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -183,7 +238,59 @@ export function MembersPage() {
           loading={isLoading}
           error={error ? "Could not load members. Try again." : null}
           onRetry={() => void refetch()}
+          renderRowActions={
+            // S-25: management actions are the owner's alone, and the
+            // owner row itself is protected (no role change, no remove).
+            isOwner
+              ? (row) =>
+                  row.role === "owner" ? null : (
+                    <RowActionsMenu
+                      items={[
+                        ...(row.role === "editor"
+                          ? [
+                              {
+                                label: "Change to Viewer",
+                                onSelect: () =>
+                                  void handleChangeRole(row, "viewer"),
+                              },
+                            ]
+                          : [
+                              {
+                                label: "Change to Editor",
+                                onSelect: () =>
+                                  void handleChangeRole(row, "editor"),
+                              },
+                            ]),
+                        {
+                          label: "Remove",
+                          variant: "destructive",
+                          onSelect: () => setRemoving(row),
+                        },
+                      ]}
+                      triggerLabel={`Actions for ${displayName(row)}`}
+                    />
+                  )
+              : undefined
+          }
         />
+      )}
+
+      {/* Leaving (S-25): the button for members, the scenario's exact
+          note for owners — who must delete the business instead. */}
+      {isOwner ? (
+        <p className="text-sm text-muted-foreground">
+          Owners cannot leave. Delete the business instead.
+        </p>
+      ) : (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setLeaving(true)}
+          >
+            Leave business
+          </Button>
+        </div>
       )}
 
       {/* Pending invitations: owner-only, both by permission and by RLS */}
@@ -233,6 +340,28 @@ export function MembersPage() {
         description="They will no longer be able to join with this invitation. You can invite them again later."
         confirmLabel="Revoke"
         onConfirm={() => void handleRevoke()}
+      />
+
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setRemoving(null);
+        }}
+        title={`Remove ${removing ? displayName(removing) : ""}?`}
+        description="They will lose access to this business immediately. Transactions they recorded stay with the business."
+        confirmLabel={
+          removing ? `Remove ${displayName(removing)}` : "Remove"
+        }
+        onConfirm={() => void handleRemove()}
+      />
+
+      <ConfirmDialog
+        open={leaving}
+        onOpenChange={setLeaving}
+        title="Leave this business?"
+        description="You will lose access to this business's customers and transactions. You can be invited again later."
+        confirmLabel="Leave business"
+        onConfirm={() => void handleLeave()}
       />
     </div>
   );

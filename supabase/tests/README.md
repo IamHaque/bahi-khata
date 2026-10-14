@@ -80,3 +80,10 @@ psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/
   (case-insensitive JWT email match), returns nothing for outsiders,
   drops answered invitations from the list, and that accepting while
   already a member succeeds without a duplicate membership row.
+- `0002c_membership_management.sql` (S-25) — proves the membership-management
+  scenarios against the 0002 RPCs: the owner changes a role, promotion to
+  owner and touching/removing the owner row are refused, an owner cannot
+  leave, a removed member loses all access while their customers and
+  transactions stay put, a member can leave themselves, and the history
+  contract (creator name resolves while the profile row is readable, degrades
+  to NULL → "Former member" once it is not, transaction never moves).

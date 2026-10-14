@@ -187,3 +187,28 @@ empty.
    `/businesses` lists the invitation with business name, inviter and
    role; Accept shows "You joined …" with an Open business action;
    Decline removes the card.
+
+---
+
+## S-25 — Change role, remove member, leave business (no new migration)
+
+**Status: code done; no migration to apply.** The three RPCs
+(`change_member_role`, `remove_member`, `leave_business`) already ship in
+migration 0002; this story is the client-side management UI on top of them.
+The only human steps are the SQL regression test and a two-account UI pass.
+
+1. Prerequisite: migrations 0001 and 0002 applied (S-05/S-06 sections
+   above).
+2. Run `supabase/tests/0002c_membership_management.sql` (SQL editor or
+   `psql -f`) — it passes: owner changes a role, owner row protected
+   (no promote-to-owner, no remove, no leave), removed member loses all
+   access while their history stays, a member can leave, creator name
+   degrades to NULL → "Former member" once the profile is gone.
+3. **UI check (two accounts):** as the owner, open Members — the owner
+   row has no actions menu; on the other member's row, change their role
+   and confirm the toast and badge update; choose Remove, confirm
+   `Remove <name>`, and the member disappears and (as them) can no longer
+   open the business. As an editor/viewer, Members shows a **Leave
+   business** button — confirm it and you land on `/businesses`; as the
+   owner, the button is replaced by the note "Owners cannot leave. Delete
+   the business instead."

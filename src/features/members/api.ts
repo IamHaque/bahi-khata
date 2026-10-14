@@ -281,3 +281,67 @@ export async function respondToInvitation(
     }
   });
 }
+
+/**
+ * Changes one member's role (S-25) via the 0002 RPC. Owner-only in the
+ * database; promoting anyone to owner is refused there too (ownership
+ * transfer is out of scope), so the UI only ever offers Editor/Viewer.
+ */
+export async function changeMemberRole(
+  businessId: string,
+  userId: string,
+  newRole: BusinessRole,
+): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("change_member_role", {
+      p_business_id: businessId,
+      p_user_id: userId,
+      p_new_role: newRole,
+    });
+    if (error) throw error;
+  });
+}
+
+/**
+ * Removes one member (S-25) via the 0002 RPC. Owner-only; the owner row
+ * is protected in the database. Only the membership row goes — the
+ * person's transactions and profile stay, so history remains readable
+ * (their name resolves while their profile exists, and the UI falls
+ * back to 'Former member' once it does not; SQL test 0002c).
+ */
+export async function removeMember(
+  businessId: string,
+  userId: string,
+): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("remove_member", {
+      p_business_id: businessId,
+      p_user_id: userId,
+    });
+    if (error) throw error;
+  });
+}
+
+/**
+ * Leaves a business (S-25) via the 0002 RPC — any member may leave
+ * themselves; only their own membership row is deleted. Owners are
+ * refused by the database with the scenario's exact sentence, which is
+ * kept verbatim (the UI already shows it as a note instead of a
+ * button, so this only covers races like a last-minute promotion).
+ */
+export async function leaveBusiness(businessId: string): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("leave_business", {
+      p_business_id: businessId,
+    });
+    if (error) {
+      if (/Owners cannot leave/i.test(error.message ?? "")) {
+        throw new AppError(
+          "forbidden",
+          "Owners cannot leave. Delete the business instead.",
+        );
+      }
+      throw error;
+    }
+  });
+}

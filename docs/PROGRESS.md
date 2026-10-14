@@ -32,7 +32,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-22 Members page | Done | (see below) | `src/features/members/` api+hooks+MembersPage, `/b/:id/members` route, Members nav visible, owner-first list with role badges, owner-only Invite + pending invitations section |
 | S-23 Invite by email and manage invitations | Done | (see below) | InviteMemberDialog (zod email, lowercased, role Editor/Viewer default Viewer), inline rejections (bad email/own email/member/pending) + DB unique-index backstop, Copy app link, revoke with confirmation, useCreate/RevokeInvitation guards |
 | S-24 Respond to invitations | Done | (see below) | `my_invitations()` RPC (0002b) + InvitationCard + invitations section on /businesses, top bar count badge, accept/decline via respond_to_invitation RPC, stale-invitation message preserved |
-| S-25 Change role, remove member, leave business | Pending | | |
+| S-25 Change role, remove member, leave business | Done | (see below) | row actions on Members (change role / remove with named confirm), Leave business button + owner note, change_member_role/remove_member/leave_business client fns guarded by assertCan, SQL test 0002c (history stays readable) |
 | S-26 My businesses page and business switcher | Pending | | |
 | S-27 Lost-access handling | Pending | | |
 | S-28 Customers list v2 | Pending | | |
@@ -67,6 +67,17 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-25 scenarios (checklist)
+
+- [x] Owner changes a role — the row menu on a non-owner row offers "Change to Viewer" (editor row) or "Change to Editor" (viewer row); selecting it calls `change_member_role` (b1, userId, newRole), a toast confirms "<name> is now a <Role>", and the table reflects the new role on the invalidation-driven refetch — tested (11 tests in `memberManagement.test.tsx`)
+- [x] Owner removes a member — Remove in the row menu → ConfirmDialog naming the person ("Remove Vic?") with confirm label **Remove Vic** → `remove_member` called, toast, and the member disappears from the list on refetch; cancelling removes nothing — tested; the member losing access is proven in SQL test 0002c §4 (reads return zero, `dashboard_summary` denied)
+- [x] Owner row is protected — no actions trigger renders on the owner row — tested; the database backstop (cannot promote to owner, cannot remove the owner, owner cannot leave) is proven in SQL test 0002c §3
+- [x] Member leaves — an editor/viewer sees a **Leave business** button, confirms in a dialog, `leave_business` is called with the business id, toast confirms, and the router lands on `/businesses` — tested; losing access after leaving is proven in SQL test 0002c §5
+- [x] Owners cannot leave — the owner sees the note "Owners cannot leave. Delete the business instead." instead of the button — tested; `assertCan("leaveBusiness")` blocks a known owner before the network (probe test), and the database refuses them with the exact sentence (SQL test 0002c §3, error mapped verbatim in `leaveBusiness`)
+- [x] History stays readable — SQL test 0002c §4/§6: removing a member touches only the `business_members` row; their customers and transactions remain, and the creator's name resolves while the profile row is readable — after removal the co-members RLS correctly hides the profile from ex-mates (join yields NULL → UI renders "Former member"), and deleting the profile row entirely leaves the transaction intact. The **display** of "Recorded by" belongs to S-35's transactions DataTable (no UI shows creator names before it); S-25 pins the data contract the display will consume.
+
+**S-25 notes:** all three RPCs already exist in migration 0002 — no new migration for this story; `supabase/tests/0002c_membership_management.sql` is new and covers the S-25 guarantees against those RPCs (the non-owner-denial cases stay in 0002 §6, same functions). The client mirrors the S-21/S-23 pattern: `assertCan("manageMembers")` inside `useChangeMemberRole`/`useRemoveMember`'s `mutationFn`, `assertCan("leaveBusiness")` inside `useLeaveBusiness` (a known owner fails before the network — probe-tested); on leave, the `["business", id]` prefix is dropped and memberships invalidated so the guard/switcher update before the page navigates to `paths.businesses`. The "Former member" fallback string is proven as the data contract (NULL creator name) in SQL; the component that renders it lands with S-35's "Recorded by (avatar and name)" column — noted so S-35 ships the fallback with the column.
 
 ## S-24 scenarios (checklist)
 
@@ -315,6 +326,7 @@ Re-run after every story that touches data or routing:
 | DEV-9 | v1 has no `updated_by`/`voided_*` audit columns (PRD 4.1 additive list) | Confirmed absent; only `created_by` exists | Added in S-05 exactly as sketched. |
 | DEV-10 | S-16/C-2 minimal My businesses page must include an "Open" button per membership | No per-business URL exists before S-17, so Open on a shared business would redirect through the resolver and bounce back (loop) | Open renders for the owned business from S-16; **resolved by S-17** — business URLs exist, every membership's Open navigates to `/b/:id`, the guard enforces membership. |
 | DEV-11 | S-24 touch zone lists only `InvitationCard.tsx` + the BusinessesPage invitations section | The scenario also mandates (a) a top bar invitation count badge (`src/components/layout/Topbar.tsx`) and (b) business name + inviter on the card, which RLS correctly hides from non-members — requiring a new DB function | The badge reuses the shared `useMemberships()` query (no extra fetch; hidden at zero). Migration `0002b_my_invitations.sql` adds `my_invitations()`, a security-definer function joining only the display fields for the caller's own pending invitations (matched on the JWT email; zero arguments). The app works without it (empty list). |
+| DEV-12 | S-25 "History stays readable" says removed members' transactions "show the creator's name, or 'Former member' if the profile is gone" | No UI renders transaction creators yet — the "Recorded by (avatar and name)" column is S-35's, outside S-25's touch zone | S-25 pins the **data contract** in SQL test 0002c: transactions survive removal, the creator's name resolves while the profile is readable, and the join yields NULL once it is not (removed member's profile is co-members-RLS-hidden; deleted profile row leaves the transaction intact). The UI that renders name-or-"Former member" ships with S-35's column, which must implement the fallback per this contract. |
 
 ### Touch-zone mapping (DEV-1)
 

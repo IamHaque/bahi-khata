@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessKeys } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  changeMemberRole,
   createInvitation,
   getBusinessInvitations,
   getMembers,
   getMyInvitations,
+  leaveBusiness,
+  removeMember,
   respondToInvitation,
   revokeInvitation,
+  type BusinessRole,
   type InvitationInput,
 } from "./api";
 
@@ -112,6 +116,80 @@ export function useRespondToInvitation() {
     }) => respondToInvitation(invitationId, accept),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: businessKeys.myInvitations() });
+      queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
+    },
+  });
+}
+
+/**
+ * Change a member's role (S-25) — owner-only, blocked before the
+ * network like every other write. The member list refetches so the
+ * table reflects the new role immediately.
+ */
+export function useChangeMemberRole(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      newRole,
+    }: {
+      userId: string;
+      newRole: BusinessRole;
+    }) => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("manageMembers");
+      return changeMemberRole(businessId, userId, newRole);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.members(businessId),
+      });
+    },
+  });
+}
+
+/** Remove a member (S-25) — owner-only, blocked before the network. */
+export function useRemoveMember(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: (userId: string) => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("manageMembers");
+      return removeMember(businessId, userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.members(businessId),
+      });
+      // The impact counts in the delete dialog include members.
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.impact(businessId),
+      });
+    },
+  });
+}
+
+/**
+ * Leave the business yourself (S-25). Guarded by `leaveBusiness`
+ * (owner:false in the matrix) — the UI already replaces the button
+ * with a note for owners, and the database refuses them too. After a
+ * successful leave this business is no longer mine: the scoped caches
+ * are dropped and memberships refetch, which unblocks the guard's
+ * redirect to /businesses.
+ */
+export function useLeaveBusiness(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: () => {
+      // S-21: a known owner fails here, before the network.
+      assertCan("leaveBusiness");
+      return leaveBusiness(businessId);
+    },
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["business", businessId] });
       queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
     },
   });
