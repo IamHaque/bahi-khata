@@ -7,18 +7,14 @@ import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
-import {
-  useCreateCustomer,
-  useCustomerList,
-  useUpdateCustomer,
-} from "@/features/customers/hooks";
+import { useCustomerList } from "@/features/customers/hooks";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import type {
   CustomerListParams,
   CustomerListRow,
   CustomerStatusFilter,
 } from "@/features/customers/api";
-import { CustomerFormDialog } from "@/components/CustomerFormDialog";
+import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { SearchInput } from "@/components/app/SearchInput";
@@ -171,8 +167,6 @@ export function CustomersPage() {
   const { data, isPending, error, refetch } = useCustomerList(businessId, params);
   const { data: balances, isSuccess: balancesLoaded } =
     useAllCustomerBalances(businessId);
-  const createCustomer = useCreateCustomer(businessId);
-  const updateCustomer = useUpdateCustomer(businessId);
 
   // One dialog serves Add (header button, empty state) and Edit (row menu).
   const [dialog, setDialog] = useState<{
@@ -407,18 +401,9 @@ export function CustomersPage() {
         onOpenChange={(open) => {
           if (!open) setDialog(null);
         }}
+        businessId={businessId}
         mode={dialog?.mode ?? "add"}
-        initialData={dialog?.customer ?? undefined}
-        onSubmit={async (formData) => {
-          if (dialog?.mode === "edit" && dialog.customer) {
-            await updateCustomer.mutateAsync({
-              id: dialog.customer.id,
-              input: formData,
-            });
-          } else {
-            await createCustomer.mutateAsync(formData);
-          }
-        }}
+        customer={dialog?.customer ?? null}
       />
     </div>
   );

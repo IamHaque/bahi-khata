@@ -398,7 +398,7 @@ describe("S-28 customers list", () => {
       within(dialog).getByRole("heading", { name: "Edit Customer" }),
     ).toBeTruthy();
     expect(
-      (within(dialog).getByLabelText("Name *") as HTMLInputElement).value,
+      (within(dialog).getByLabelText("Name") as HTMLInputElement).value,
     ).toBe("Asha");
   });
 

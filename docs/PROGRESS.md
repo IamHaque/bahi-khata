@@ -36,7 +36,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-26 My businesses page and business switcher | Done | (see below) | three-section /businesses (My business / Shared with me / Invitations), prominent Create your business card, shared cards with owner name + role, BusinessSwitcher menu (own first, shared, All businesses, Create business when I own none), keyboard + aria-checked announcement, switch test proves no old-business data remains visible |
 | S-27 Lost-access handling | Done | (see below) | guard detects vanished memberships (toast + purge + route: removed → /businesses, deleted → landing resolver via `business_exists()` probe in migration 0003b), global forbidden→memberships refetch in queryClient factory, memberships refetch on focus, downgraded-save forbidden toast + read-only fallback |
 | S-28 Customers list v2 | Done | (see below) | feature-path CustomersPage on S-10 DataTable with URL state (`q, status, sort, page`), server-side `queryCustomers` (search/filter/sort/paging + exact counts + last activity), summary strip, role-aware row menu, v1 form dialog for Add/Edit, Topbar Ctrl/Cmd+K customer palette |
-| S-29 Customer form (add and edit) | Pending | | |
+| S-29 Customer form (add and edit) | Done | (see below) | feature-path `CustomerFormDialog` on the S-11 form kit (EntityDialog + zod `schemas.ts` + shared fields), name-first layout with the rest under an Additional details disclosure, inline validation (name 1–100, phone/email plausibility, tag limits), duplicate name+phone hint with "Open existing customer", "Customer added" toast with an Add transaction action |
 | S-30 Archive, restore, permanently delete customers | Pending | | |
 | S-32 Add transaction sheet | Pending | | |
 | S-33 Edit transaction | Pending | | |
@@ -67,6 +67,18 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-29 scenarios (checklist)
+
+- [x] Fast add — as Owner/Editor, **Add customer** → type "Asha Verma" → Enter creates the customer with a zero balance (no transactions → the view's Settled badge) and the toast says **Customer added** with an **Add transaction** action — tested (`customerForm.test.tsx`, 9 tests); the action opens the new customer's ledger today, S-32's sheet will re-point it (BACKLOG B-04)
+- [x] Fields — **Name** required (1–100 characters); Phone, Email, Address, Alternate contact (name and phone), Tags (up to 10, each up to 24 characters) and Notes sit under the **Additional details** disclosure, with Name always visible for fast add — tested
+- [x] Validation — empty Name, implausible Email or Phone → inline errors and nothing is saved; tag count/length caps fail the same way — tested (three cases)
+- [x] Duplicate hint, not a block — same name **and** phone as an existing customer shows a non-blocking notice with **Open existing customer**; **Add customer** still submits — tested (both halves)
+- [x] Edit is the same dialog — prefilled from the row (tags as comma-separated text, notes intact), **Save changes** runs the update and the invalidated list and detail queries refresh immediately (toast **Customer updated**) — tested
+- [x] Safe failure — the save rejecting (network error) leaves the dialog open with every keystroke intact and the error shown inline — tested
+- [x] Viewer — cannot open the dialog: no Add/Edit entry points exist for them (this file's viewer test + S-28's) and the mutations' `assertCan` backstop refuses a viewer before the network (S-21 probe) — tested
+
+**S-29 notes:** new files `src/features/customers/schemas.ts` (zod rules + form defaults + tag split) and `src/features/customers/components/CustomerFormDialog.tsx`; the S-28 page now imports the feature dialog and passes `businessId`/`mode`/`customer`, so the dialog owns the mutations, toasts and navigation while the page only tracks open state. The v1 `src/components/CustomerFormDialog.tsx` stays alive untouched for its two remaining consumers — CustomerDetailPage (replaced by S-31) and QuickAddTransactionSheet (S-32) — so nothing outside the touch zone changed. Design decisions worth knowing: (1) the duplicate hint requires **both** fields — a shared first name alone is not a duplicate — and only queries once the name has ≥2 characters and a phone is entered (debounced 300 ms, editing row excluded, live values compared so a stale notice can never outlive the keystrokes that produced it); it runs inside EntityDialog's FormProvider as a form child. (2) Tags travel through the shared TagsField as a comma-separated string and become an array in the submit handler, so field and schema agree on the shape. (3) **Open existing customer** closes the dialog without the discard prompt — navigating to that customer *is* the discard. (4) Enter submits because the dialog is a real form with a submit button (EntityDialog), name auto-focused. No MANUAL_STEPS entry: no migration, and these are the same create/update mutations the v1 dialog shipped with — the human pass folds into the S-28 list verification steps and the smoke checklist.
 
 ## S-28 scenarios (checklist)
 
