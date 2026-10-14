@@ -411,44 +411,231 @@ export async function getTodayActivity(businessId: string): Promise<{
   });
 }
 
-export async function getAllTransactions(
+/**
+ * S-35 — one row of the transactions page's detailed view: the stored
+ * entry, the linked customer (name + phone — the linked column and
+ * half of the search) and the resolved names of the creator and last
+ * editor. Everything (filter, sort, page) is decided SERVER-side; the
+ * customer join is `!inner` so the archived-customer exclusion can
+ * ride on it.
+ */
+export interface TransactionListRow extends Transaction {
+  customer: { id: string; name: string; phone: string | null };
+  /** The S-35 "Recorded by" label; null renders "Former member". */
+  created_by_name?: string | null;
+  /** The S-33 Edited badge's editor; null renders "Former member". */
+  updated_by_name?: string | null;
+}
+
+export interface TransactionListParams {
+  /** Half-open [start, end) instants; null = unbounded on that side. */
+  range?: { start: string; end: string } | null;
+  type?: "all" | "charge" | "payment";
+  customerId?: string | null;
+  /** Substring over customer name, customer phone and the note. */
+  search?: string;
+  includeVoided?: boolean;
+  /** "occurred_at" (default) or "amount". */
+  sort?: string;
+  dir?: "asc" | "desc";
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+}
+
+export interface TransactionListResult {
+  rows: TransactionListRow[];
+  /** Every row matching the filter, not just this page. */
+  total: number;
+}
+
+export async function queryTransactions(
   businessId: string,
-  options?: {
-    dateRange?: { start: string; end: string } | null;
-    typeFilter?: "all" | "charge" | "payment";
-  },
-): Promise<TransactionWithCustomer[]> {
+  params: TransactionListParams,
+): Promise<TransactionListResult> {
   return guard(async () => {
+    const ascending = params.dir === "asc";
+    const column = params.sort === "amount" ? "amount" : "occurred_at";
+
     let query = supabase
       .from("transactions")
-      .select("*, customers(name, phone)")
+      // Inner join: feeds the linked customer column AND lets one
+      // filter drop archived customers' rows entirely (the scenario
+      // "Archived customers") — their history lives on their own
+      // detail page, not in the cross-customer feed.
+      .select("*, customer:customers!inner(id, name, phone)", {
+        count: "exact",
+      })
       .eq("business_id", businessId)
-      .in("status", ["active", "edited"]);
+      .is("customers.archived_at", null)
+      .order(column, { ascending })
+      // A deterministic tiebreak keeps paging stable across requests.
+      .order("id", { ascending });
 
-    if (options?.dateRange) {
+    if (params.range) {
       query = query
-        .gte("occurred_at", options.dateRange.start)
-        .lt("occurred_at", options.dateRange.end);
+        .gte("occurred_at", params.range.start)
+        .lt("occurred_at", params.range.end);
+    }
+    if (params.type === "charge" || params.type === "payment") {
+      query = query.eq("type", params.type);
+    }
+    if (params.customerId) {
+      query = query.eq("customer_id", params.customerId);
+    }
+    if (!params.includeVoided) {
+      query = query.neq("status", "voided");
+    }
+    const search = params.search?.trim();
+    if (search) {
+      // One OR across the customer columns and the note: the embedded
+      // paths filter the transaction through the !inner join.
+      query = query.or(
+        `customers.name.ilike.%${search}%,customers.phone.ilike.%${search}%,note.ilike.%${search}%`,
+      );
     }
 
-    if (options?.typeFilter && options.typeFilter !== "all") {
-      query = query.eq("type", options.typeFilter);
+    const from = (params.page - 1) * params.pageSize;
+    query = query.range(from, from + params.pageSize - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const rows = (data ?? []) as Array<
+      Transaction & {
+        customer: { id: string; name: string; phone: string | null };
+        updated_by?: string | null;
+      }
+    >;
+
+    // One profiles lookup feeds both names the row can show (the
+    // creator's "Recorded by" and the S-33 badge's editor). Profiles
+    // RLS shows co-members; a person who has since left resolves to
+    // nothing → "Former member" (the S-25/0002c data contract).
+    const personIds = [
+      ...new Set(
+        rows
+          .flatMap((row) => [row.created_by, row.updated_by ?? null])
+          .filter((id): id is string => typeof id === "string" && id !== ""),
+      ),
+    ];
+    if (personIds.length === 0) {
+      return {
+        rows: rows.map((row) => ({
+          ...row,
+          created_by_name: null,
+          updated_by_name: null,
+        })),
+        total: count ?? 0,
+      };
     }
 
-    const { data, error } = await query;
+    const { data: people, error: peopleError } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", personIds);
+    if (peopleError) throw peopleError;
+
+    const names = new Map(
+      (
+        (people ?? []) as Array<{
+          id: string;
+          full_name: string | null;
+          email: string | null;
+        }>
+      ).map((profile) => [profile.id, profile.full_name ?? profile.email ?? null]),
+    );
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        created_by_name: row.created_by
+          ? (names.get(row.created_by) ?? null)
+          : null,
+        updated_by_name: row.updated_by
+          ? (names.get(row.updated_by) ?? null)
+          : null,
+      })),
+      total: count ?? 0,
+    };
+  });
+}
+
+/**
+ * S-35 — the summarized view and the totals footer, computed by
+ * migration 0006b's `transaction_rollup` RPC: the same filters as the
+ * detailed list, voided rows out unless asked for, archived customers
+ * always out, periods cut in the CALLER'S timezone (so "today" is the
+ * user's today) and handed back as wall-clock dates the client labels
+ * with its normal local formatters. `granularity: null` returns one
+ * row — the totals for everything matching, not only the page.
+ */
+export interface TransactionRollupParams {
+  range?: { start: string; end: string } | null;
+  type?: "all" | "charge" | "payment";
+  customerId?: string | null;
+  search?: string;
+  includeVoided?: boolean;
+  /** "day" | "week" | "month" | null (one row for the whole set). */
+  granularity?: "day" | "week" | "month" | null;
+}
+
+export interface TransactionRollupRow {
+  /** Wall clock ("2026-10-12T00:00:00") in the caller's timezone. */
+  period_start: string | null;
+  entries: number;
+  total_charged: number;
+  total_paid: number;
+  net: number;
+}
+
+export async function transactionRollup(
+  businessId: string,
+  params: TransactionRollupParams = {},
+): Promise<TransactionRollupRow[]> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("transaction_rollup", {
+      p_business_id: businessId,
+      p_from: params.range?.start ?? null,
+      p_to: params.range?.end ?? null,
+      p_type:
+        params.type === "charge" || params.type === "payment"
+          ? params.type
+          : null,
+      p_customer_id: params.customerId ?? null,
+      p_search: params.search?.trim() || null,
+      p_include_voided: params.includeVoided ?? false,
+      p_granularity: params.granularity ?? null,
+      p_timezone: currentTimeZone(),
+    });
 
     if (error) throw error;
 
     return (
-      data as Array<
-        Transaction & { customers: { name: string; phone: string } | null }
-      >
-    ).map((tx) => ({
-      ...tx,
-      customer_name: tx.customers?.name ?? "Unknown",
-      customer_phone: tx.customers?.phone ?? "",
+      (data ?? []) as Array<{
+        period_start: string | null;
+        entries: number;
+        total_charged: number;
+        total_paid: number;
+        net: number;
+      }>
+    ).map((row) => ({
+      period_start: row.period_start,
+      entries: Number(row.entries),
+      total_charged: Number(row.total_charged),
+      total_paid: Number(row.total_paid),
+      net: Number(row.net),
     }));
   });
+}
+
+/** The browser's IANA zone — passed so SQL buckets periods the same
+ *  way the client's date formatters label them. */
+function currentTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
 }
 
 export async function getTransactionById(

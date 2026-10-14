@@ -40,6 +40,17 @@ export const transactionKeys = {
     "customer",
     customerId,
   ],
+  // S-35: the server-side transactions page — the detailed list
+  // (paged, filtered) and the rollup (summarized periods + totals
+  // footer). Separate keys because the two query different shapes.
+  pagedList: (businessId?: string) => [
+    ...transactionKeys.all(businessId),
+    "paged",
+  ],
+  rollup: (businessId?: string) => [
+    ...transactionKeys.all(businessId),
+    "rollup",
+  ],
   today: (businessId?: string) => [
     ...transactionKeys.all(businessId),
     "today",

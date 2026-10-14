@@ -21,7 +21,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
-import { TransactionsPage } from "@/pages/TransactionsPage";
+import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
 import { CreateBusinessPage } from "@/features/business/pages/CreateBusinessPage";
 

@@ -5,17 +5,19 @@ import {
   createTransaction,
   createTransactionsBatch,
   getAllCustomerBalances,
-  getAllTransactions,
   getCustomerBalance,
   getCustomerLedger,
   getDashboardSummary,
   getTodayActivity,
   getTodayTransactions,
   getTransactionById,
+  queryTransactions,
   restoreTransaction,
+  transactionRollup,
   updateTransaction,
   voidTransaction,
 } from "./api";
+import type { TransactionListParams, TransactionRollupParams } from "./api";
 import type { Transaction, TransactionWithCustomer } from "@/types";
 
 // S-20 contract: every query and mutation carries a businessId. Omitting
@@ -48,16 +50,30 @@ export function useTransaction(id: string, businessId: string) {
   });
 }
 
-export function useTransactions(
+// S-35 — the transactions page's two reads: the paged detailed list
+// and the rollup (summarized periods + the totals footer). Both carry
+// their full filter set in the query key, and both keys live under
+// transactionKeys.all, so every mutation's invalidation refetches
+// them wherever the page is mounted.
+export function useTransactionList(
   businessId: string,
-  options?: {
-    dateRange?: { start: string; end: string } | null;
-    typeFilter?: "all" | "charge" | "payment";
-  },
+  params: TransactionListParams,
 ) {
   return useQuery({
-    queryKey: transactionKeys.list(businessId),
-    queryFn: () => getAllTransactions(businessId, options),
+    queryKey: [...transactionKeys.pagedList(businessId), params],
+    queryFn: () => queryTransactions(businessId, params),
+    enabled: Boolean(businessId),
+  });
+}
+
+export function useTransactionRollup(
+  businessId: string,
+  params: TransactionRollupParams,
+) {
+  return useQuery({
+    queryKey: [...transactionKeys.rollup(businessId), params],
+    queryFn: () => transactionRollup(businessId, params),
+    enabled: Boolean(businessId),
   });
 }
 

@@ -10,7 +10,9 @@ import {
   getCustomerBalance,
   getCustomerLedger,
   getDashboardSummary,
+  queryTransactions,
   restoreTransaction,
+  transactionRollup,
   updateTransaction,
   voidTransaction,
 } from "@/features/transactions/api";
@@ -89,6 +91,24 @@ vi.mock("@/lib/supabase", () => ({
         },
         order: (...args: unknown[]) => {
           calls.push({ method: "order", args });
+          return chain;
+        },
+        // S-35 chain methods: the detailed list's half-open date
+        // window, its text search and server-side paging.
+        gte: (...args: unknown[]) => {
+          calls.push({ method: "gte", args });
+          return chain;
+        },
+        lt: (...args: unknown[]) => {
+          calls.push({ method: "lt", args });
+          return chain;
+        },
+        or: (...args: unknown[]) => {
+          calls.push({ method: "or", args });
+          return chain;
+        },
+        range: (...args: unknown[]) => {
+          calls.push({ method: "range", args });
           return chain;
         },
         insert: (...args: unknown[]) => {
@@ -295,6 +315,151 @@ describe("business scoping (required — S-20)", () => {
       {
         fn: "restore_transaction",
         args: { p_transaction_id: "t1", p_business_id: "b1" },
+      },
+    ]);
+  });
+
+  it("queryTransactions is scoped, excludes archived customers and voided rows, and pages server-side (S-35)", async () => {
+    // The transactions chain resolves first, the profiles lookup second.
+    state.resolveQueue = [
+      [
+        {
+          id: "t1",
+          business_id: "b1",
+          customer_id: "c9",
+          type: "charge",
+          amount: 5000,
+          status: "active",
+          occurred_at: "2026-10-12T10:00:00+00:00",
+          note: null,
+          source: "manual",
+          created_by: "u1",
+          created_at: "2026-10-12T10:00:00+00:00",
+          updated_at: "2026-10-12T10:00:00+00:00",
+          updated_by: null,
+          customer: { id: "c9", name: "Asha Verma", phone: "01711 111111" },
+        },
+      ],
+      [{ id: "u1", full_name: "Eli Hassan", email: "eli@example.com" }],
+    ];
+
+    const result = await queryTransactions("b1", {
+      range: {
+        start: "2026-10-01T00:00:00.000Z",
+        end: "2026-11-01T00:00:00.000Z",
+      },
+      type: "charge",
+      customerId: "c9",
+      search: "asha",
+      includeVoided: false,
+      page: 2,
+      pageSize: 25,
+    });
+
+    const calls = state.chains[0]!;
+    expect(calls[0]).toEqual({ method: "from", args: ["transactions"] });
+    expect(calls).toContainEqual({
+      method: "eq",
+      args: ["business_id", "b1"],
+    });
+    // The archived-customer exclusion rides the inner join (the scenario
+    // "Archived customers": their money leaves this page entirely).
+    expect(calls).toContainEqual({
+      method: "select",
+      args: ["*, customer:customers!inner(id, name, phone)", { count: "exact" }],
+    });
+    expect(calls).toContainEqual({
+      method: "is",
+      args: ["customers.archived_at", null],
+    });
+    // Voided rows stay out unless explicitly included.
+    expect(calls).toContainEqual({ method: "neq", args: ["status", "voided"] });
+    expect(calls).toContainEqual({ method: "eq", args: ["type", "charge"] });
+    expect(calls).toContainEqual({ method: "eq", args: ["customer_id", "c9"] });
+    // The half-open date window [start, end).
+    expect(calls).toContainEqual({
+      method: "gte",
+      args: ["occurred_at", "2026-10-01T00:00:00.000Z"],
+    });
+    expect(calls).toContainEqual({
+      method: "lt",
+      args: ["occurred_at", "2026-11-01T00:00:00.000Z"],
+    });
+    // One OR across the customer columns and the note, filtered through
+    // the !inner join.
+    expect(calls.find((c) => c.method === "or")).toEqual({
+      method: "or",
+      args: [
+        "customers.name.ilike.%asha%,customers.phone.ilike.%asha%,note.ilike.%asha%",
+      ],
+    });
+    // Paged server-side: page 2 of 25 → rows 25..49.
+    expect(calls).toContainEqual({ method: "range", args: [25, 49] });
+
+    // "Recorded by" resolves through one profiles lookup (the S-25
+    // "Former member" fallback covers the missing side).
+    expect(state.chains[1]![0]).toEqual({ method: "from", args: ["profiles"] });
+    expect(state.chains[1]).toContainEqual({
+      method: "in",
+      args: ["id", ["u1"]],
+    });
+    expect(result.rows[0]).toMatchObject({
+      created_by_name: "Eli Hassan",
+      updated_by_name: null,
+    });
+    expect(result.rows[0]!.customer.name).toBe("Asha Verma");
+  });
+
+  it("transaction_rollup carries the business scope, filter set and browser timezone (S-35)", async () => {
+    state.rpcValue = [
+      {
+        period_start: "2026-10-12T00:00:00",
+        entries: "2",
+        total_charged: "5000",
+        total_paid: "500",
+        net: "4500",
+      },
+    ];
+
+    const rows = await transactionRollup("b1", {
+      range: {
+        start: "2026-10-01T00:00:00.000Z",
+        end: "2026-11-01T00:00:00.000Z",
+      },
+      type: "charge",
+      customerId: "c1",
+      search: "sha",
+      includeVoided: false,
+      granularity: "day",
+    });
+
+    // Everything the SQL needs travels in one RPC call; the scope is
+    // mandatory and the caller's timezone decides the period cuts.
+    expect(state.rpcCalls).toEqual([
+      {
+        fn: "transaction_rollup",
+        args: {
+          p_business_id: "b1",
+          p_from: "2026-10-01T00:00:00.000Z",
+          p_to: "2026-11-01T00:00:00.000Z",
+          p_type: "charge",
+          p_customer_id: "c1",
+          p_search: "sha",
+          p_include_voided: false,
+          p_granularity: "day",
+          p_timezone: expect.any(String),
+        },
+      },
+    ]);
+    // NUMERIC/ BIGINT columns come back numeric — no strings leak into
+    // the table or the totals footer.
+    expect(rows).toEqual([
+      {
+        period_start: "2026-10-12T00:00:00",
+        entries: 2,
+        total_charged: 5000,
+        total_paid: 500,
+        net: 4500,
       },
     ]);
   });

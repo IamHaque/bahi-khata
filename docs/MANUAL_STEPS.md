@@ -504,3 +504,77 @@ work). Prerequisites: migrations 0001-0005 applied.
    **Restore**; Add charge/Add payment/Edit/⋯/row actions are all
    hidden while the history stays visible; **Restore** brings the
    writes back.
+
+## S-35 — Transactions page v2 (migration 0006b)
+
+**Status: code done; migration 0006b and SQL test 0006b must be
+applied here** (written, never executed by the build agent). Until
+0006b is in, the transactions page **cannot summarize or total**:
+the detailed list still works (it is plain PostgREST), but the
+summarized view shows the ErrorState with **Try again** and the
+totals footer stays at "—" ("function transaction_rollup does not
+exist"). Prerequisites: migrations 0001-0006 applied.
+
+1. Apply `supabase/migrations/0006b_transaction_rollup.sql` (SQL
+   Editor or `supabase db push`). It adds the security-INVOKER,
+   `stable` `transaction_rollup(...)` RPC: the same filter set as the
+   detailed list (half-open date window, type, customer, search over
+   customer name/phone/note, voided excluded unless asked, **archived
+   customers always excluded**), grouped by day/week/month **in the
+   caller's own timezone** when `p_granularity` is set, or returned
+   as one ungrouped totals row when it is NULL (that row is the
+   footer's "everything matching, not only the visible page").
+   Grants: `authenticated` only (revoked from `public`, `anon`); the
+   read is still RLS-scoped because the function is a security
+   invoker. Numbered 0006b because C-5 pins 0007/0008 to S-37/S-38
+   (the 0002b/0003b letter convention).
+2. Run `supabase/tests/0006b_transaction_rollup.sql` — it must finish
+   with no exception (any "TEST FAILED" is a regression). It proves:
+   the ungrouped row equals the manual sum of the four matching
+   detail rows (entries/charges/payments/net); day, week (Monday
+   start) and month bucketing each equal their period's manual sum,
+   newest period first; `p_include_voided` pulls the voided row back
+   in; the archived customer's 999 never appears in any figure; every
+   filter narrows (range, type, customer, name/phone/note search);
+   `p_timezone 'Asia/Dhaka'` moves a 19:30-UTC entry to the next
+   day's bucket; a member of another business gets zero rows; anon is
+   refused.
+3. UI pass as Owner (business with rows in several months, one voided
+   row, one edited row, one imported row, one archived customer with
+   history):
+   - Detailed: columns Date, Customer (avatar, **linked**), Type,
+     Note, Amount, Recorded by (avatar + name — a departed member
+     reads "Former member"), Status (Edited / Voided / Import
+     badges), newest first; sortable Date and Amount headers;
+     clicking a row opens the entry; the customer link goes to that
+     customer's page instead.
+   - Filters: Range presets Today / This week / This month / Last 30
+     days / Custom (two date inputs); default is **This month**; type
+     pills; the Customer popover searches and selects; the search
+     box matches customer name, phone and note (debounced); **Include
+     voided** adds the muted voided rows. Each active filter shows a
+     removable chip and lands in the URL (copy the address bar and
+     reload — the view reproduces exactly). `?range=today` (the
+     dashboard's Today link) opens with Today's chip and bounds.
+   - Summarized: switch to **Summarized** — rows per day by default;
+     Group by Week / Month re-cuts server-side; period labels match
+     the dates; each row's Entries/Charges/Payments/Net equal a
+     manual sum of the detailed rows for that period.
+   - Footer: "Totals for this filter · N entries" with Charges,
+     Payments, Net — flip to page 2 (or widen/narrow any filter) and
+     confirm the footer follows the *filter*, not the page, and that
+     it equals the manual sum over all matching rows.
+   - States: reload → skeleton; filter to nothing → "No transactions
+     match these filters" with the chips + **Clear filters**; a true
+     empty business → "No transactions yet" with **Add Transaction**
+     (opens the shared sheet); stop the network → error state, **Try
+     again** re-reads.
+   - Narrow the window (≤767 px): cards, full amounts (never
+     truncated), row actions on the right.
+4. As Editor: everything above works. As Viewer: all rows, filters
+   and totals readable; no Add Transaction, no Edit/Void/Restore
+   buttons anywhere.
+5. Archived customer check: archive a customer with transactions
+   (Customers > row menu > Archive) → their rows leave this page
+   (search their name: no results), while their detail page still
+   shows the history; **Restore** brings the rows back here.
