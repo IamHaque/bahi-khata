@@ -1,6 +1,6 @@
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
 import { toastSuccess } from "@/lib/toast";
@@ -11,6 +11,8 @@ import { TextAreaField } from "@/components/app/fields/TextAreaField";
 import { SelectField } from "@/components/app/fields/SelectField";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { DangerZone } from "@/features/business/components/DangerZone";
+import { downloadBusinessBackup } from "@/features/import-export/exports";
+import { useExportRunner } from "@/features/import-export/hooks";
 import {
   useBusiness,
   usePermissions,
@@ -195,11 +197,49 @@ export function SettingsPage() {
         <ReadonlyDetails business={business} />
       )}
 
+      {/* S-39: every member — Viewers included — may take a backup.
+          It sits OUTSIDE the owner conditional on purpose. */}
+      <BackupSection businessId={businessId} />
+
       {/* S-19: deletion is owner-only; non-owners never see this section */}
       {isOwner && (
         <DangerZone businessId={businessId} businessName={business.name} />
       )}
     </div>
+  );
+}
+
+function BackupSection({ businessId }: { businessId: string }) {
+  const { progress, run } = useExportRunner((message) =>
+    toast.error(message),
+  );
+  return (
+    <section
+      aria-label="Backup"
+      className="max-w-2xl space-y-3 rounded-lg border border-border p-4"
+    >
+      <div>
+        <h3 className="text-sm font-medium text-foreground">Backup</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Download every customer and transaction in this business as two
+          CSV files: customers.csv and transactions.csv.
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        disabled={Boolean(progress)}
+        onClick={() =>
+          void run((onProgress) =>
+            downloadBusinessBackup(businessId, onProgress),
+          )
+        }
+      >
+        <Download className="size-4" />
+        {progress
+          ? `Preparing… ${progress.done}/${progress.total}`
+          : "Download backup"}
+      </Button>
+    </section>
   );
 }
 

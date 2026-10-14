@@ -34,7 +34,7 @@ export function AppShell() {
       {/* Desktop sidebar — collapses to icon rail */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 transition-[width] duration-150 lg:block",
+          "sticky top-0 hidden h-screen shrink-0 transition-[width] duration-150 lg:block print:hidden",
           collapsed ? "w-16" : "w-60",
         )}
       >
@@ -51,7 +51,7 @@ export function AppShell() {
           onToggleSidebar={() => setCollapsed((c) => !c)}
           onOpenMenu={() => setDrawerOpen(true)}
         />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 print:max-w-none print:px-0 print:py-0">
           <Outlet />
         </main>
       </div>

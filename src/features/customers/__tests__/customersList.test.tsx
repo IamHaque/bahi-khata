@@ -27,7 +27,14 @@ const customersApi = vi.hoisted(() => ({
 const transactionsApi = vi.hoisted(() => ({
   getAllCustomerBalances: vi.fn(async () => ({})),
 }));
+// S-39: the export writer is asserted, not performed.
+const importExportApi = vi.hoisted(() => ({
+  exportCustomersCsv: vi.fn(),
+  exportTransactionsCsv: vi.fn(),
+  downloadBusinessBackup: vi.fn(),
+}));
 
+vi.mock("@/features/import-export/exports", () => importExportApi);
 vi.mock("@/features/business/api", () => ({
   getMemberships: businessApi.getMemberships,
 }));
@@ -517,5 +524,47 @@ describe("S-28 customers list", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("columnheader", { name: "Customer" })).toBeTruthy();
+  });
+});
+
+describe("S-39 export CSV on the customers list", () => {
+  it("exports exactly what the current URL filters match", async () => {
+    renderPage("/b/b1/customers?q=rahim&status=owes");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Export CSV" }),
+    );
+
+    expect(importExportApi.exportCustomersCsv).toHaveBeenCalledTimes(1);
+    const [businessId, filters, onProgress] =
+      importExportApi.exportCustomersCsv.mock.calls[0]!;
+    expect(businessId).toBe("b1");
+    // The filters from the URL — not just the visible page's rows.
+    expect(filters).toEqual({
+      search: "rahim",
+      status: "owes",
+      sort: "name",
+      dir: "asc",
+    });
+    expect(typeof onProgress).toBe("function");
+  });
+
+  it("a Viewer sees Export CSV too — exporting is everyone's right", async () => {
+    businessApi.getMemberships.mockImplementation(async () =>
+      membershipsFor("viewer"),
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Export CSV" }),
+    ).toBeTruthy();
+    // The write actions stay gated.
+    expect(
+      screen.queryByRole("button", { name: /Import CSV/ }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Add customer/ }),
+    ).toBeNull();
   });
 });

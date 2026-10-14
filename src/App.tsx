@@ -21,6 +21,7 @@ import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { ImportPage } from "@/features/import-export/pages/ImportPage";
+import { StatementPage } from "@/features/import-export/pages/StatementPage";
 import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
 import { CreateBusinessPage } from "@/features/business/pages/CreateBusinessPage";
@@ -130,6 +131,10 @@ export default function App() {
                         <Route
                           path={routePatterns.customerDetail}
                           element={<CustomerDetailPage />}
+                        />
+                        <Route
+                          path={routePatterns.statement}
+                          element={<StatementPage />}
                         />
                         <Route
                           path={routePatterns.transactions}

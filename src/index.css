@@ -153,3 +153,14 @@
     }
   }
 }
+
+/* S-39 — printing a statement: white paper, black ink. The app chrome
+   (sidebar, topbar) is hidden with print: utilities in AppShell, and
+   the statement page restyles itself for print; this keeps whatever
+   is left off the dark theme. */
+@media print {
+  body {
+    background: #fff;
+    color: #111;
+  }
+}

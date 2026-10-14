@@ -18,6 +18,8 @@ export const paths = {
   customers: (businessId: string) => `/b/${businessId}/customers`,
   customerDetail: (businessId: string, customerId: string) =>
     `/b/${businessId}/customers/${customerId}`,
+  statement: (businessId: string, customerId: string) =>
+    `/b/${businessId}/customers/${customerId}/statement`,
   importCustomers: (businessId: string) => `/b/${businessId}/customers/import`,
   transactions: (businessId: string) => `/b/${businessId}/transactions`,
   transactionDetail: (businessId: string, transactionId: string) =>
@@ -39,6 +41,7 @@ export const routePatterns = {
   customers: "/b/:businessId/customers",
   importCustomers: "/b/:businessId/customers/import",
   customerDetail: "/b/:businessId/customers/:customerId",
+  statement: "/b/:businessId/customers/:customerId/statement",
   transactions: "/b/:businessId/transactions",
   transactionDetail: "/b/:businessId/transactions/:transactionId",
   members: "/b/:businessId/members",

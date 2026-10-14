@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Upload } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -14,6 +14,8 @@ import {
 } from "@/features/customers/hooks";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import { openTransactionSheet } from "@/features/transactions/sheetStore";
+import { exportCustomersCsv } from "@/features/import-export/exports";
+import { useExportRunner } from "@/features/import-export/hooks";
 import type {
   CustomerListParams,
   CustomerListRow,
@@ -139,6 +141,10 @@ export function CustomersPage() {
   const navigate = useNavigate();
   const businessId = useScopedBusinessId() ?? "";
   const { can } = usePermissions();
+  // S-39: exporting is every member's right — no role gate here.
+  const { progress, run } = useExportRunner((message) =>
+    toast.error(message),
+  );
   const [searchParams, setSearchParams] = useSearchParams();
 
   // --- URL state (the single source of truth for the view) --------------
@@ -336,6 +342,24 @@ export function CustomersPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Customers" description="Everyone in this business">
+        <Button
+          variant="outline"
+          disabled={Boolean(progress)}
+          onClick={() =>
+            void run((onProgress) =>
+              exportCustomersCsv(
+                businessId,
+                { search: q, status, sort, dir },
+                onProgress,
+              ),
+            )
+          }
+        >
+          <Download className="size-4" />
+          {progress
+            ? `Exporting… ${progress.done}/${progress.total}`
+            : "Export CSV"}
+        </Button>
         {can("importTransactions") && (
           <Button
             variant="outline"

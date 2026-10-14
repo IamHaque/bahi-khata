@@ -111,6 +111,13 @@ vi.mock("@/features/transactions/api", () => ({
   updateTransaction: transactionsApi.updateTransaction,
   voidTransaction: transactionsApi.voidTransaction,
 }));
+// S-39: the export writer is asserted, not performed.
+const importExportApi = vi.hoisted(() => ({
+  exportCustomersCsv: vi.fn(),
+  exportTransactionsCsv: vi.fn(),
+  downloadBusinessBackup: vi.fn(),
+}));
+vi.mock("@/features/import-export/exports", () => importExportApi);
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -769,6 +776,46 @@ describe("S-35 transactions page v2", () => {
     );
     expect(
       screen.queryByRole("button", { name: "Edit charge of ₹300" }),
+    ).toBeNull();
+  });
+});
+
+describe("S-39 export CSV on the transactions list", () => {
+  it("exports exactly what the current URL filters match", async () => {
+    renderPage("/b/b1/transactions?type=charge&voided=1&q=asha");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Export CSV" }),
+    );
+
+    expect(importExportApi.exportTransactionsCsv).toHaveBeenCalledTimes(1);
+    const [businessId, filters, onProgress] =
+      importExportApi.exportTransactionsCsv.mock.calls[0]!;
+    expect(businessId).toBe("b1");
+    // The filters from the URL — not just the visible page's rows.
+    expect(filters).toMatchObject({
+      type: "charge",
+      includeVoided: true,
+      search: "asha",
+    });
+    // No paging in the export's filters — it pages the SERVER itself.
+    expect(filters).not.toHaveProperty("page");
+    expect(filters).not.toHaveProperty("pageSize");
+    expect(typeof onProgress).toBe("function");
+  });
+
+  it("a Viewer sees Export CSV but never Add Transaction", async () => {
+    businessApi.getMemberships.mockImplementation(async () =>
+      membershipsFor("viewer"),
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Export CSV" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Add Transaction" }),
     ).toBeNull();
   });
 });

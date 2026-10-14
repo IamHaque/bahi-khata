@@ -438,6 +438,17 @@ export function CustomerDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* S-39: every member — Viewers included — may open and print
+              a statement. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              navigate(paths.statement(businessId, customerId ?? ""))
+            }
+          >
+            Statement
+          </Button>
           {canManageCustomers && !archived && (
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               Edit

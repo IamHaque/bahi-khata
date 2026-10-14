@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 import { Avatar } from "@/components/app/Avatar";
 import {
   DataTable,
@@ -31,6 +32,8 @@ import { useSort } from "@/hooks/useSort";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { useCustomer, useCustomers } from "@/features/customers/hooks";
+import { exportTransactionsCsv } from "@/features/import-export/exports";
+import { useExportRunner } from "@/features/import-export/hooks";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
 import { VoidTransactionDialog } from "@/features/transactions/components/VoidTransactionDialog";
 import {
@@ -168,6 +171,10 @@ export function TransactionsPage() {
   // falsy businessId behaves unscoped (v1 transitional), same as undefined.
   const businessId = useScopedBusinessId() ?? "";
   const { can } = usePermissions();
+  // S-39: exporting is every member's right — no role gate here.
+  const { progress, run } = useExportRunner((message) =>
+    toast.error(message),
+  );
 
   // ---- URL state (the whole scenario "State in the URL") ----
   const view: ViewMode =
@@ -628,6 +635,32 @@ export function TransactionsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Transactions" description="Every entry across customers">
+        <Button
+          variant="outline"
+          disabled={Boolean(progress)}
+          onClick={() =>
+            void run((onProgress) =>
+              exportTransactionsCsv(
+                businessId,
+                {
+                  range,
+                  type,
+                  customerId: customerId || null,
+                  search: q,
+                  includeVoided,
+                  sort: sortBy === "amount" ? "amount" : "occurred_at",
+                  dir: sortDir,
+                },
+                onProgress,
+              ),
+            )
+          }
+        >
+          <Download className="size-4" />
+          {progress
+            ? `Exporting… ${progress.done}/${progress.total}`
+            : "Export CSV"}
+        </Button>
         {can("manageTransactions") && (
           <Button onClick={() => openTransactionSheet()}>Add Transaction</Button>
         )}

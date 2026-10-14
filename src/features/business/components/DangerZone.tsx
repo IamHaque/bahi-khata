@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { toAppError, type AppError } from "@/lib/AppError";
 import { paths } from "@/lib/paths";
 import { toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { downloadBusinessBackup } from "@/features/import-export/exports";
+import { useExportRunner } from "@/features/import-export/hooks";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +47,10 @@ export function DangerZone({
   const deleteBusiness = useDeleteBusiness(businessId);
   const { refetch: refetchMemberships } = useMemberships();
   const { data: impact } = useBusinessImpact(businessId, open);
+  // S-39: the pre-delete copy — the same runner Settings uses.
+  const { progress: exportProgress, run: runExport } = useExportRunner(
+    (message) => toast.error(message),
+  );
 
   const confirmed = confirmation === businessName;
 
@@ -128,6 +135,30 @@ export function DangerZone({
               </li>
             )}
           </ul>
+
+          {/* S-39 (C-6): the last-chance backup, right where the delete
+              happens — exporting is every member's right, no extra
+              gate beyond opening this owner-only dialog. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2">
+            <span className="text-sm text-muted-foreground">
+              Keep a copy of this data first.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={Boolean(exportProgress)}
+              onClick={() =>
+                void runExport((onProgress) =>
+                  downloadBusinessBackup(businessId, onProgress),
+                )
+              }
+            >
+              <Download className="size-4" />
+              {exportProgress
+                ? `Preparing… ${exportProgress.done}/${exportProgress.total}`
+                : "Download backup"}
+            </Button>
+          </div>
 
           <p className="text-sm font-medium text-destructive">
             This action cannot be undone.

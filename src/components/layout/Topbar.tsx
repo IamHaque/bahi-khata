@@ -84,7 +84,7 @@ export function Topbar({
   }, [signOut]);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-background">
+    <header className="sticky top-0 z-10 border-b border-border bg-background print:hidden">
       <div className="flex h-14 items-center gap-3 px-4">
         {/* Hamburger — mobile only */}
         <button

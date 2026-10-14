@@ -186,6 +186,10 @@ function renderDetail() {
       <Route path={routePatterns.business} element={<TopbarStub />}>
         <Route index element={<div>Business home</div>} />
         <Route path="customers/:customerId" element={<CustomerDetailPage />} />
+        <Route
+          path="customers/:customerId/statement"
+          element={<div>statement page</div>}
+        />
       </Route>
     </Routes>,
     { session, route: paths.customerDetail("b1", "c1") },
@@ -635,5 +639,17 @@ describe("S-31 customer detail v2", () => {
     // Second read succeeds: the empty state takes over.
     await screen.findByText("No transactions yet");
     expect(calls).toBe(2);
+  });
+});
+
+describe("S-39 statement entry point", () => {
+  it("the Statement button opens the printable statement (every role)", async () => {
+    renderDetail();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Statement" }),
+    );
+    // The statement route renders — no permission gate on the way in.
+    expect(await screen.findByText("statement page")).toBeTruthy();
   });
 });

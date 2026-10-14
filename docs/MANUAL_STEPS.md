@@ -724,3 +724,48 @@ Prerequisites: migrations 0001-0006b applied.
 4. As Editor: the same Import link, page and flow. As Viewer: the
    Import link is absent from the sidebar, and opening the URL shows
    only "Import needs Editor or Owner access" — no upload UI anywhere.
+
+## S-39 - Exports, printable statement and backup (no migration)
+
+**Status: code done; no database changes** (frontend only, zero new
+dependencies). Prerequisites: any state where the lists load.
+
+1. Customers page: set a filter (e.g. search plus Status: Owes you),
+   click **Export CSV** - the button shows Exporting... done/total
+   while it pages the server, then downloads **customers.csv**.
+   Open it: the rows must match the filter (not just the visible
+   page - a business with 600+ customers exports all of them), the
+   header is 
+ame,phone,balance,last_activity,created, and any
+   customer whose name begins with =, +, - or @ appears with a
+   leading apostrophe (create one called "=test" to verify).
+2. Transactions page: same with its filters (range, type, customer,
+   search, Include voided) - **transactions.csv** carries
+   date,type,customer,amount,note,status for every matching entry,
+   voided ones included when the filter says so.
+3. Customer statement: open any customer, click **Statement** -
+   the page at /b/:businessId/customers/:customerId/statement shows
+   the business name, the customer with phone, the From/To period
+   selector, every entry with its running balance, and the closing
+   balance. Narrow the period: the rows filter and the closing
+   balance recomputes. Click **Print** (or Save as PDF): the print
+   preview must show ONLY the statement - no sidebar, no topbar,
+   white background, and the chosen period printed at the top. An
+   empty period says "No entries in this period." and still shows
+   the closing balance.
+4. Settings: the **Backup** section (below the form or the read-only
+   details) offers **Download backup** - it downloads customers.csv
+   then transactions.csv for the WHOLE business with progress in the
+   button label.
+5. Delete dialog (owner): open Settings > Danger zone > **Delete
+   business** - the dialog offers "Keep a copy of this data first."
+   with **Download backup**; it downloads and LEAVES THE DIALOG
+   OPEN (a backup is not a delete).
+6. Role pass: as **Viewer** - Export CSV is visible on both lists,
+   the Backup section is in Settings, the statement opens and prints,
+   while Add customer / Add Transaction / Import CSV / Save changes /
+   Delete business stay absent. As Editor and Owner: everything
+   above plus the gated actions.
+7. Failure drill: start an export and stop the network - a toast
+   explains the failure and the button returns to "Export CSV"
+   (nothing half-downloaded).
