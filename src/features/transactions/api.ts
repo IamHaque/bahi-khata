@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import { toAppError } from "@/lib/AppError";
 import type {
   Transaction,
+  TransactionStatus,
+  TransactionSource,
   TransactionType,
   TransactionWithCustomer,
 } from "@/types";
@@ -52,30 +54,52 @@ async function guard<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function listTransactionsByCustomer(
+/**
+ * S-31 — one row of the customer detail ledger: the entry plus the
+ * balance as of after it. `balance_after` is computed by the
+ * `customer_ledger` RPC (migration 0006): the cumulative
+ * charge-minus-payment total in date order with voided rows
+ * contributing nothing — NUMERIC arithmetic in the database, never in
+ * the browser. `updated_by`/`updated_by_name` feed the S-33 Edited
+ * badge; voided rows come back too (the UI shows them muted).
+ */
+export interface CustomerLedgerRow {
+  id: string;
+  customer_id: string;
+  occurred_at: string;
+  type: TransactionType;
+  amount: number;
+  note: string | null;
+  status: TransactionStatus;
+  source: TransactionSource;
+  created_by: string;
+  created_at: string;
+  updated_by: string | null;
+  /** The badge's "on <date>" — the row's own audit stamp. */
+  updated_at: string;
+  updated_by_name: string | null;
+  balance_after: number;
+}
+
+/**
+ * S-31 — the customer detail ledger. Security INVOKER on the server:
+ * the caller's RLS scopes the read, and the business id scopes the
+ * cached entry (S-20 contract).
+ */
+export async function getCustomerLedger(
   customerId: string,
   businessId: string,
-): Promise<TransactionWithAudit[]> {
+): Promise<CustomerLedgerRow[]> {
   return guard(async () => {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("customer_id", customerId)
-      .eq("business_id", businessId)
-      // S-34: every status is part of the ledger — voided rows stay
-      // visible (muted, struck through, with the Voided badge) and
-      // balance views already leave them out of the math.
-      .order("occurred_at", { ascending: false });
+    const { data, error } = await supabase.rpc("customer_ledger", {
+      p_customer_id: customerId,
+      p_business_id: businessId,
+    });
 
     if (error) throw error;
 
     const rows = (data ?? []) as Array<
-      Transaction & {
-        updated_by: string | null;
-        void_reason: string | null;
-        voided_at: string | null;
-        voided_by: string | null;
-      }
+      Omit<CustomerLedgerRow, "updated_by_name">
     >;
 
     // Resolve the last editor for the badge in one extra query — there
@@ -90,7 +114,9 @@ export async function listTransactionsByCustomer(
           .filter((id): id is string => typeof id === "string" && id !== ""),
       ),
     ];
-    if (editorIds.length === 0) return rows;
+    if (editorIds.length === 0) {
+      return rows.map((row) => ({ ...row, updated_by_name: null }));
+    }
 
     const { data: editorData, error: editorError } = await supabase
       .from("profiles")

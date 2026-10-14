@@ -212,6 +212,7 @@ export function Topbar({
         customer={sheet.customer}
         mode={sheet.mode}
         transaction={sheet.transaction}
+        presetType={sheet.presetType}
       />
     </header>
   );

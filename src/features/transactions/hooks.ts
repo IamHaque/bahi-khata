@@ -7,11 +7,11 @@ import {
   getAllCustomerBalances,
   getAllTransactions,
   getCustomerBalance,
+  getCustomerLedger,
   getDashboardSummary,
   getTodayActivity,
   getTodayTransactions,
   getTransactionById,
-  listTransactionsByCustomer,
   restoreTransaction,
   updateTransaction,
   voidTransaction,
@@ -29,10 +29,15 @@ function useTransactionInvalidation(businessId: string) {
   };
 }
 
-export function useCustomerTransactions(customerId: string, businessId: string) {
+// S-31 — the customer detail ledger: rows arrive newest first, each
+// carrying its running balance from the customer_ledger RPC. The key
+// stays transactionKeys.byCustomer, so every mutation's
+// transactionKeys.all invalidation refetches it.
+export function useCustomerLedger(customerId: string, businessId: string) {
   return useQuery({
     queryKey: transactionKeys.byCustomer(customerId, businessId),
-    queryFn: () => listTransactionsByCustomer(customerId, businessId),
+    queryFn: () => getCustomerLedger(customerId, businessId),
+    enabled: Boolean(customerId),
   });
 }
 

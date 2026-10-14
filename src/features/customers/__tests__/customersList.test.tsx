@@ -50,7 +50,7 @@ vi.mock("@/features/transactions/api", () => ({
   getTodayActivity: vi.fn(async () => ({ count: 0, net: 0 })),
   getTodayTransactions: vi.fn(async () => []),
   getTransactionById: vi.fn(),
-  listTransactionsByCustomer: vi.fn(async () => []),
+  getCustomerLedger: vi.fn(async () => []),
   updateTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   voidTransaction: vi.fn(),

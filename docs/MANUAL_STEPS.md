@@ -443,3 +443,64 @@ the detail page cannot show a void reason. Prerequisites: migrations
      server-side all along — now the UI proves it).
 4. As Editor: void and restore work. As Viewer: no Void, no Restore
    anywhere; the ledger rows stay readable.
+
+## S-31 — Customer detail v2 (migration 0006)
+
+**Status: code done; migration 0006 and SQL test 0006 must be applied
+here** (written, never executed by the build agent). Until 0006 is in,
+the customer detail page's ledger **cannot load** ("function
+customer_ledger does not exist" — the page shows the ledger ErrorState
+with **Try again**; the header, balance hero and Details tab still
+work). Prerequisites: migrations 0001-0005 applied.
+
+1. Apply `supabase/migrations/0006_customer_ledger.sql` (SQL Editor or
+   `supabase db push`). It adds the security-INVOKER, `stable`
+   `customer_ledger(p_customer_id, p_business_id)` RPC: the customer's
+   transactions newest-first, each carrying `balance_after` — the
+   windowed `sum(charge ? amount : -amount) filter (where status in
+   ('active','edited'))` in date order, i.e. the running balance with
+   voided rows contributing nothing, computed as NUMERIC in the
+   database. Grants: `authenticated` only (revoked from `public`,
+   `anon`); RLS still scopes the read because the function is a
+   security invoker.
+2. Run `supabase/tests/0006_customer_ledger.sql` — it must finish with
+   no exception (any "TEST FAILED" is a regression). It proves: the
+   running balance advances correctly in `occurred_at, id` order
+   (charge 5000 → payment 500 → voided charge 300 yields 5000, 4500,
+   4500 with the voided row's own `balance_after` equal to the live
+   balance), rows come back newest-first with the full column set, a
+   member of another business gets zero rows, and anon is refused.
+3. UI pass as Owner (a customer with charges, a payment, ideally a
+   voided row and one edited row):
+   - Header: avatar initials, name, tags, `tel:` phone and `mailto:`
+     email links (tap on mobile), address; **Edit** opens the feature
+     form dialog; the ⋯ menu (**Customer actions**) offers **Archive**
+     (its confirmation names the transaction count).
+   - Hero: the balance is the biggest thing on the page with its
+     BalanceBadge; **Total charged** / **Total paid** / **Last
+     activity** match a manual sum of the entries below (voided rows
+     excluded); **Add charge** opens the shared sheet with Charge
+     preselected, **Add payment** with Payment preselected.
+   - Ledger: columns Date, Type, Note, Amount, Balance after — the
+     balance after each row must match a hand-computed running total
+     (voided rows neither muted-and-skipped nor counted); newest row
+     first; an edited row shows its **Edited** badge, a voided row is
+     muted/struck with **Voided**.
+   - Filters: All / Charges / Payments segment correctly; **Show
+     voided** starts ON — switching it off hides only the voided row.
+   - Details tab: every profile field and notes are present and
+     correct.
+   - Narrow the window (≤767 px): the ledger becomes cards, each with
+     its date, badges, amount, "Balance after …" and the row actions.
+   - Empty: a customer with no transactions shows the EmptyState whose
+     **Add charge / Add payment** buttons open the sheet; stat cards
+     read ₹0.00 / "No activity yet". Error: stop the network and load
+     the page → ErrorState, **Try again** re-reads.
+4. As Editor: everything above works. As Viewer: all information
+   readable, zero write actions (no Add charge/Add payment, no Edit,
+   no ⋯ menu, no row actions).
+5. As Owner with an archived customer (Customers > row menu >
+   Archive): the banner "This customer is archived." appears with
+   **Restore**; Add charge/Add payment/Edit/⋯/row actions are all
+   hidden while the history stays visible; **Restore** brings the
+   writes back.

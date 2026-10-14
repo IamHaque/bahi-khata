@@ -8,8 +8,8 @@ import {
   createTransaction,
   getAllCustomerBalances,
   getCustomerBalance,
+  getCustomerLedger,
   getDashboardSummary,
-  listTransactionsByCustomer,
   restoreTransaction,
   updateTransaction,
   voidTransaction,
@@ -27,6 +27,9 @@ const state = vi.hoisted(() => ({
   // ledger read followed by its profiles lookup).
   resolveQueue: [] as unknown[],
   rpcCalls: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+  // S-31: override for the customer_ledger RPC's rows (null = the
+  // dashboard_summary shape the dashboard tests assert on).
+  rpcValue: null as unknown,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -37,15 +40,16 @@ vi.mock("@/lib/supabase", () => ({
     rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
       state.rpcCalls.push({ fn, args });
       return {
-        data: {
-          total_receivable: 500,
-          total_credit: 0,
-          open_accounts: 1,
-          today_count: 1,
-          today_net: 500,
-          customer_count: 1,
-          top_debtors: [],
-        },
+        data:
+          state.rpcValue ?? {
+            total_receivable: 500,
+            total_credit: 0,
+            open_accounts: 1,
+            today_count: 1,
+            today_net: 500,
+            customer_count: 1,
+            top_debtors: [],
+          },
         error: null,
       };
     }),
@@ -128,6 +132,7 @@ describe("business scoping (required — S-20)", () => {
     state.rpcCalls.length = 0;
     state.resolveValue = null;
     state.resolveQueue.length = 0;
+    state.rpcValue = null;
   });
 
   it("scopes listCustomers by businessId", async () => {
@@ -222,36 +227,33 @@ describe("business scoping (required — S-20)", () => {
     expect(calls).toContainEqual({ method: "neq", args: ["status", "voided"] });
   });
 
-  it("resolves the ledger's editor names in one profiles lookup (S-33)", async () => {
-    // Ledger read first, profiles lookup second.
+  it("resolves the ledger's editor names in one profiles lookup (S-31)", async () => {
+    // customer_ledger RPC first, profiles lookup second.
+    state.rpcValue = [
+      { id: "t1", updated_by: "u-eli", status: "active" },
+      { id: "t2", updated_by: "u-gone", status: "edited" },
+      { id: "t3", updated_by: null, status: "active" },
+      { id: "t4", updated_by: "u-eli", status: "voided" },
+    ];
     state.resolveQueue = [
-      [
-        { id: "t1", updated_by: "u-eli" },
-        { id: "t2", updated_by: "u-gone" },
-        { id: "t3", updated_by: null },
-        { id: "t4", updated_by: "u-eli", status: "voided" },
-      ],
       [{ id: "u-eli", full_name: "Eli", email: "eli@example.com" }],
     ];
 
-    const rows = await listTransactionsByCustomer("c1", "b1");
+    const rows = await getCustomerLedger("c1", "b1");
 
-    // The transactions read is business-scoped, with no status filter:
-    // voided rows stay on the ledger (S-34).
-    expect(state.chains[0]).toContainEqual({
-      method: "eq",
-      args: ["business_id", "b1"],
-    });
-    expect(
-      state.chains[0]!.some(
-        (c) => c.method === "eq" && c.args[0] === "status",
-      ),
-    ).toBe(false);
+    // The ledger read is scoped to this customer AND this business.
+    expect(state.rpcCalls).toEqual([
+      {
+        fn: "customer_ledger",
+        args: { p_customer_id: "c1", p_business_id: "b1" },
+      },
+    ]);
+    // Voided rows stay on the ledger (S-34).
     expect(rows.some((row) => row.status === "voided")).toBe(true);
     // One profiles query for the distinct editors (excluding the null
     // of a never-edited row).
-    expect(state.chains[1]![0]).toEqual({ method: "from", args: ["profiles"] });
-    expect(state.chains[1]).toContainEqual({
+    expect(state.chains[0]![0]).toEqual({ method: "from", args: ["profiles"] });
+    expect(state.chains[0]).toContainEqual({
       method: "in",
       args: ["id", ["u-eli", "u-gone"]],
     });

@@ -5,7 +5,7 @@ import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
 import { Topbar } from "@/components/layout/Topbar";
-import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
+import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { paths, routePatterns } from "@/lib/paths";
 import { formatDate, formatTime } from "@/lib/format";
 import { closeTransactionSheet } from "@/features/transactions/sheetStore";
@@ -35,7 +35,7 @@ const transactionsApi = vi.hoisted(() => ({
   getTodayActivity: vi.fn(async () => ({ count: 0, net: 0 })),
   getTodayTransactions: vi.fn(async () => []),
   getTransactionById: vi.fn(),
-  listTransactionsByCustomer: vi.fn(),
+  getCustomerLedger: vi.fn(),
   updateTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   voidTransaction: vi.fn(),
@@ -91,7 +91,7 @@ vi.mock("@/features/transactions/api", () => ({
   getTodayActivity: transactionsApi.getTodayActivity,
   getTodayTransactions: transactionsApi.getTodayTransactions,
   getTransactionById: transactionsApi.getTransactionById,
-  listTransactionsByCustomer: transactionsApi.listTransactionsByCustomer,
+  getCustomerLedger: transactionsApi.getCustomerLedger,
   updateTransaction: transactionsApi.updateTransaction,
   restoreTransaction: transactionsApi.restoreTransaction,
   voidTransaction: transactionsApi.voidTransaction,
@@ -260,30 +260,37 @@ beforeEach(() => {
   transactionsApi.getAllCustomerBalances.mockImplementation(
     async () => ({ ...server.balances }),
   );
-  // Mirrors the real api: active + edited rows, newest first, editor
-  // names resolved against profiles (unreadable → null → the badge's
+  // S-31's customer_ledger contract: every status (voided rows stay
+  // visible — S-34), newest first, balance_after computed the way the
+  // RPC computes it (voided contributes nothing), editor names
+  // resolved against profiles (unreadable → null → the badge's
   // "Former member").
-  transactionsApi.listTransactionsByCustomer.mockImplementation(
-    async (id: string) =>
-      server.transactions
-        .filter(
-          (tx) =>
-            tx.customer_id === id &&
-            (tx.status === "active" || tx.status === "edited"),
-        )
-        .sort(
-          (a, b) =>
-            new Date(b.occurred_at).getTime() -
-            new Date(a.occurred_at).getTime(),
-        )
-        .map((tx) => ({
-          ...tx,
-          updated_by_name: tx.updated_by
-            ? (server.profiles.find((profile) => profile.id === tx.updated_by)
-                ?.full_name ?? null)
-            : null,
-        })),
-  );
+  transactionsApi.getCustomerLedger.mockImplementation(async (id: string) => {
+    const newestFirst = server.transactions
+      .filter((tx) => tx.customer_id === id)
+      .sort(
+        (a, b) =>
+          new Date(b.occurred_at).getTime() -
+          new Date(a.occurred_at).getTime(),
+      );
+    let running = 0;
+    return [...newestFirst]
+      .reverse()
+      .map((tx) => {
+        if (tx.status !== "voided") {
+          running += tx.type === "charge" ? tx.amount : -tx.amount;
+        }
+        return { ...tx, balance_after: running };
+      })
+      .reverse()
+      .map((tx) => ({
+        ...tx,
+        updated_by_name: tx.updated_by
+          ? (server.profiles.find((profile) => profile.id === tx.updated_by)
+              ?.full_name ?? null)
+          : null,
+      }));
+  });
   // Mirrors the real api's payload contract: only the editable fields
   // apply; provenance (source, created_by) is untouched; status flips
   // to edited with who/when; the balance swaps the old effect for the

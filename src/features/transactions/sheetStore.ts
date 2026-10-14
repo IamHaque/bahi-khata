@@ -17,6 +17,12 @@ interface TransactionSheetState {
   mode: "add" | "edit";
   customer: SheetCustomer | null;
   transaction: Transaction | null;
+  /**
+   * S-31 — the detail page offers two primary actions, Add charge and
+   * Add payment: each opens the sheet with its type already selected.
+   * Null falls back to charge (the v1 default).
+   */
+  presetType: "charge" | "payment" | null;
   /** The element that opened the sheet — focus returns to it on close
    *  (base-ui can't do this itself: the sheet opens programmatically,
    *  not from its own DialogTrigger). */
@@ -41,6 +47,7 @@ let state: TransactionSheetState = {
   mode: "add",
   customer: null,
   transaction: null,
+  presetType: null,
   trigger: null,
 };
 const listeners = new Set<() => void>();
@@ -56,15 +63,20 @@ function triggerFromDom(): HTMLElement | null {
     : null;
 }
 
-/** Open the sheet, optionally preselected with a customer. Calling it
- *  again while open simply swaps the customer (the form keeps whatever
- *  else was already typed). */
-export function openTransactionSheet(customer?: SheetCustomer | null) {
+/** Open the sheet, optionally preselected with a customer and a
+ *  transaction type (S-31's Add charge / Add payment buttons). Calling
+ *  it again while open simply swaps the customer (the form keeps
+ *  whatever else was already typed). */
+export function openTransactionSheet(
+  customer?: SheetCustomer | null,
+  presetType?: "charge" | "payment",
+) {
   state = {
     open: true,
     mode: "add",
     customer: customer ?? null,
     transaction: null,
+    presetType: presetType ?? null,
     trigger: triggerFromDom(),
   };
   emit();
@@ -81,6 +93,7 @@ export function openTransactionEdit(
     mode: "edit",
     customer,
     transaction,
+    presetType: null,
     trigger: triggerFromDom(),
   };
   emit();
@@ -88,7 +101,13 @@ export function openTransactionEdit(
 
 export function closeTransactionSheet() {
   // The trigger is kept so the sheet can hand focus back after closing.
-  state = { ...state, open: false, customer: null, transaction: null };
+  state = {
+    ...state,
+    open: false,
+    customer: null,
+    transaction: null,
+    presetType: null,
+  };
   emit();
 }
 

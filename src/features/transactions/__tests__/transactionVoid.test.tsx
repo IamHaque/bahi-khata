@@ -6,7 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { renderApp } from "@/test/app-render";
 import { Topbar } from "@/components/layout/Topbar";
-import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
+import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
 import { paths, routePatterns } from "@/lib/paths";
 import { closeTransactionSheet } from "@/features/transactions/sheetStore";
@@ -36,7 +36,7 @@ const transactionsApi = vi.hoisted(() => ({
   getTodayActivity: vi.fn(async () => ({ count: 0, net: 0 })),
   getTodayTransactions: vi.fn(async () => []),
   getTransactionById: vi.fn(),
-  listTransactionsByCustomer: vi.fn(),
+  getCustomerLedger: vi.fn(),
   updateTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   voidTransaction: vi.fn(),
@@ -91,7 +91,7 @@ vi.mock("@/features/transactions/api", () => ({
   getTodayActivity: transactionsApi.getTodayActivity,
   getTodayTransactions: transactionsApi.getTodayTransactions,
   getTransactionById: transactionsApi.getTransactionById,
-  listTransactionsByCustomer: transactionsApi.listTransactionsByCustomer,
+  getCustomerLedger: transactionsApi.getCustomerLedger,
   updateTransaction: transactionsApi.updateTransaction,
   restoreTransaction: transactionsApi.restoreTransaction,
   voidTransaction: transactionsApi.voidTransaction,
@@ -276,20 +276,28 @@ beforeEach(() => {
   transactionsApi.getAllCustomerBalances.mockImplementation(
     async () => ({ ...server.balances }),
   );
-  // Mirrors the real api: every status is on the ledger (voided rows
-  // stay visible, muted), newest first, editor names resolved against
-  // profiles.
-  transactionsApi.listTransactionsByCustomer.mockImplementation(
-    async (id: string) =>
-      server.transactions
-        .filter((tx) => tx.customer_id === id)
-        .sort(
-          (a, b) =>
-            new Date(b.occurred_at).getTime() -
-            new Date(a.occurred_at).getTime(),
-        )
-        .map((tx) => ({ ...tx })),
-  );
+  // S-31's customer_ledger contract: every status (voided rows stay
+  // visible, muted), newest first, balance_after computed the way the
+  // RPC computes it (a voided row contributes nothing).
+  transactionsApi.getCustomerLedger.mockImplementation(async (id: string) => {
+    const newestFirst = server.transactions
+      .filter((tx) => tx.customer_id === id)
+      .sort(
+        (a, b) =>
+          new Date(b.occurred_at).getTime() -
+          new Date(a.occurred_at).getTime(),
+      );
+    let running = 0;
+    return [...newestFirst]
+      .reverse()
+      .map((tx) => {
+        if (tx.status !== "voided") {
+          running += tx.type === "charge" ? tx.amount : -tx.amount;
+        }
+        return { ...tx, balance_after: running, updated_by_name: null };
+      })
+      .reverse();
+  });
   // Mirrors the real api's void contract: status flips, the reason and
   // the voider are stamped, updated_by stays untouched (the restore
   // marker), and the balance stops counting the entry.

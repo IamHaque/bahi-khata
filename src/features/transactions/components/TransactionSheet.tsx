@@ -40,6 +40,11 @@ interface TransactionSheetProps {
    */
   mode?: "add" | "edit";
   transaction?: Transaction | null;
+  /**
+   * S-31: Add charge / Add payment both open this sheet with the type
+   * already selected. Ignored in edit mode (the row's own type wins).
+   */
+  presetType?: "charge" | "payment" | null;
 }
 
 /**
@@ -59,6 +64,7 @@ export function TransactionSheet({
   customer,
   mode = "add",
   transaction = null,
+  presetType = null,
 }: TransactionSheetProps) {
   const create = useCreateTransaction(businessId);
   const update = useUpdateTransaction(businessId);
@@ -125,7 +131,7 @@ export function TransactionSheet({
         defaultValues={
           edited
             ? transactionEditFormValues(edited)
-            : transactionFormValues(customer?.id)
+            : transactionFormValues(customer?.id, presetType)
         }
         submitLabel={edited ? "Save changes" : <SubmitLabel />}
         onSubmit={handleSubmit}

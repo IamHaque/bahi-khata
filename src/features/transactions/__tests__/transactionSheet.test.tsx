@@ -11,7 +11,7 @@ import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
 import { Topbar } from "@/components/layout/Topbar";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
-import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
+import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { AppError } from "@/lib/AppError";
 import { paths, routePatterns } from "@/lib/paths";
 import { closeTransactionSheet } from "@/features/transactions/sheetStore";
@@ -41,7 +41,7 @@ const transactionsApi = vi.hoisted(() => ({
   getTodayActivity: vi.fn(async () => ({ count: 0, net: 0 })),
   getTodayTransactions: vi.fn(async () => []),
   getTransactionById: vi.fn(),
-  listTransactionsByCustomer: vi.fn(),
+  getCustomerLedger: vi.fn(),
   updateTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   voidTransaction: vi.fn(),
@@ -91,7 +91,7 @@ vi.mock("@/features/transactions/api", () => ({
   getTodayActivity: transactionsApi.getTodayActivity,
   getTodayTransactions: transactionsApi.getTodayTransactions,
   getTransactionById: transactionsApi.getTransactionById,
-  listTransactionsByCustomer: transactionsApi.listTransactionsByCustomer,
+  getCustomerLedger: transactionsApi.getCustomerLedger,
   updateTransaction: transactionsApi.updateTransaction,
   restoreTransaction: transactionsApi.restoreTransaction,
   voidTransaction: transactionsApi.voidTransaction,
@@ -193,12 +193,12 @@ function rowScopeNow(name: string) {
   return within(row);
 }
 
-/** Open the customer's ledger and press its Add Transaction button. */
+/** Open the customer's ledger and press its Add charge button. */
 async function openLedgerSheet(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
   await screen.findByText("Current Balance");
   await userEvent.click(
-    screen.getByRole("button", { name: "Add Transaction" }),
+    screen.getByRole("button", { name: "Add charge" }),
   );
   return screen.findByRole("dialog");
 }
@@ -296,15 +296,27 @@ beforeEach(() => {
   transactionsApi.getCustomerBalance.mockImplementation(
     async (id: string) => server.balances[id] ?? 0,
   );
-  transactionsApi.listTransactionsByCustomer.mockImplementation(
-    async (id: string) =>
-      server.transactions
-        .filter((tx) => tx.customer_id === id && tx.status === "active")
-        .sort(
-          (a, b) =>
-            new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
-        ),
-  );
+  // S-31's customer_ledger contract: every status, newest first, and
+  // balance_after computed the way the RPC computes it (voided rows
+  // contribute nothing).
+  transactionsApi.getCustomerLedger.mockImplementation(async (id: string) => {
+    const newestFirst = server.transactions
+      .filter((tx) => tx.customer_id === id)
+      .sort(
+        (a, b) =>
+          new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+      );
+    let running = 0;
+    return [...newestFirst]
+      .reverse()
+      .map((tx) => {
+        if (tx.status !== "voided") {
+          running += tx.type === "charge" ? tx.amount : -tx.amount;
+        }
+        return { ...tx, balance_after: running, updated_by_name: null };
+      })
+      .reverse();
+  });
   transactionsApi.getAllCustomerBalances.mockImplementation(
     async () => ({ ...server.balances }),
   );
@@ -555,7 +567,7 @@ describe("S-32 transaction sheet", () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
     await screen.findByText("Current Balance");
     await userEvent.click(
-      screen.getByRole("button", { name: "Add Transaction" }),
+      screen.getByRole("button", { name: "Add charge" }),
     );
     const dialog = await screen.findByRole("dialog");
     await waitFor(() =>
@@ -574,7 +586,7 @@ describe("S-32 transaction sheet", () => {
   it("Escape closes the clean sheet and focus returns to the trigger", async () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
     await screen.findByText("Current Balance");
-    const trigger = screen.getByRole("button", { name: "Add Transaction" });
+    const trigger = screen.getByRole("button", { name: "Add charge" });
     await userEvent.click(trigger);
     await screen.findByRole("dialog");
 

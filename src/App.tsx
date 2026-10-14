@@ -19,7 +19,7 @@ import { LegacyBusinessRedirect } from "@/features/business/components/LegacyBus
 import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/pages/Dashboard";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
-import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
+import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
 import { TransactionDetailPage } from "@/pages/TransactionDetailPage";

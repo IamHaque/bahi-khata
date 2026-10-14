@@ -41,16 +41,18 @@ export const transactionSchema = z.object({
 export type TransactionForm = z.infer<typeof transactionSchema>;
 
 /**
- * Form state for a fresh sheet: today's date, a charge, and the
+ * Form state for a fresh sheet: today's date, a charge by default
+ * (S-31 lets Add payment preselect the type instead), and the
  * preselected customer (when one came with the open request — the
  * picker-first flow starts empty).
  */
 export function transactionFormValues(
   customerId?: string | null,
+  presetType?: "charge" | "payment" | null,
 ): Record<string, unknown> {
   return {
     customer_id: customerId ?? "",
-    type: "charge",
+    type: presetType ?? "charge",
     amount: "",
     occurred_on: todayISO(),
     note: "",
