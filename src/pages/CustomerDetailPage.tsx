@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
-import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { DataTable, type Column } from "@/components/DataTable";
 import { useSort } from "@/hooks/useSort";
 import { useCustomer, useUpdateCustomer } from "@/features/customers/hooks";
@@ -11,13 +10,18 @@ import {
   useCustomerBalance,
   useCustomerTransactions,
 } from "@/features/transactions/hooks";
-import { openTransactionSheet } from "@/features/transactions/sheetStore";
+import type { TransactionWithEditor } from "@/features/transactions/api";
+import { EditedBadge } from "@/features/transactions/components/EditedBadge";
+import {
+  openTransactionEdit,
+  openTransactionSheet,
+} from "@/features/transactions/sheetStore";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
-import type { Transaction } from "@/types";
 
-type TransactionWithSort = Transaction & { occurredAtMs: number };
+// S-33: the ledger rows carry the audit data the Edited badge reads.
+type TransactionWithSort = TransactionWithEditor & { occurredAtMs: number };
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -39,7 +43,6 @@ export function CustomerDetailPage() {
   const updateCustomer = useUpdateCustomer(businessId);
   const { can } = usePermissions();
   const [editOpen, setEditOpen] = useState(false);
-  const [editTx, setEditTx] = useState<Transaction | null>(null);
   const balanceRef = useRef<HTMLParagraphElement>(null);
   const { sortBy, sortDir, toggleSort } = useSort("occurredAtMs", "desc");
 
@@ -102,8 +105,12 @@ export function CustomerDetailPage() {
           >
             {row.type === "charge" ? "Charge" : "Payment"}
           </span>
+          {/* S-33: the audit marker — who edited, when, on hover/focus. */}
           {row.status === "edited" && (
-            <span className="text-xs text-muted-foreground">(edited)</span>
+            <EditedBadge
+              editorName={row.updated_by_name}
+              updatedAt={row.updated_at}
+            />
           )}
           {row.status === "voided" && (
             <span className="text-xs text-muted-foreground line-through">(voided)</span>
@@ -140,12 +147,18 @@ export function CustomerDetailPage() {
       key: "actions",
       header: "",
       render: (row) =>
-        row.status !== "voided" ? (
+        // S-33: editing opens the shared sheet in edit mode; viewers
+        // have no edit action at all (voided rows keep their S-34
+        // restore story instead).
+        row.status !== "voided" && customer && can("manageTransactions") ? (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setEditTx(row);
+              openTransactionEdit(row, {
+                id: customer.id,
+                name: customer.name,
+              });
             }}
             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label={`Edit ${row.type} of ₹${row.amount}`}
@@ -294,14 +307,6 @@ export function CustomerDetailPage() {
         initialData={customer}
         mode="edit"
       />
-
-      {editTx && (
-        <EditTransactionSheet
-          open={!!editTx}
-          onOpenChange={(open) => { if (!open) setEditTx(null); }}
-          transaction={editTx}
-        />
-      )}
     </div>
   );
 }

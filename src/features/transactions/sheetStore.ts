@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { Transaction } from "@/types";
 
 /** The customer a sheet can arrive preselected with (null = ask first). */
 export interface SheetCustomer {
@@ -8,7 +9,14 @@ export interface SheetCustomer {
 
 interface TransactionSheetState {
   open: boolean;
+  /**
+   * S-32 add: record a new charge/payment. S-33 edit: correct
+   * `transaction` in the very same sheet — the customer is fixed to
+   * the row's and cannot change.
+   */
+  mode: "add" | "edit";
   customer: SheetCustomer | null;
+  transaction: Transaction | null;
   /** The element that opened the sheet — focus returns to it on close
    *  (base-ui can't do this itself: the sheet opens programmatically,
    *  not from its own DialogTrigger). */
@@ -20,7 +28,8 @@ interface TransactionSheetState {
  * customer row menu, the ledger, the "Customer added" toast action).
  * A tiny module store keeps the open state where any of them can reach
  * it; exactly one sheet instance subscribes (the Topbar renders it), so
- * opening from anywhere shows the same sheet.
+ * opening from anywhere shows the same sheet. S-33 added edit mode:
+ * the same instance, prefilled from the stored entry.
  *
  * A module store rather than context because the opener does not have
  * to be an ancestor of the sheet — the toast inside the customer form
@@ -29,7 +38,9 @@ interface TransactionSheetState {
 
 let state: TransactionSheetState = {
   open: false,
+  mode: "add",
   customer: null,
+  transaction: null,
   trigger: null,
 };
 const listeners = new Set<() => void>();
@@ -38,23 +49,46 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
+function triggerFromDom(): HTMLElement | null {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && active !== document.body
+    ? active
+    : null;
+}
+
 /** Open the sheet, optionally preselected with a customer. Calling it
  *  again while open simply swaps the customer (the form keeps whatever
  *  else was already typed). */
 export function openTransactionSheet(customer?: SheetCustomer | null) {
-  const active = document.activeElement;
   state = {
     open: true,
+    mode: "add",
     customer: customer ?? null,
-    trigger:
-      active instanceof HTMLElement && active !== document.body ? active : null,
+    transaction: null,
+    trigger: triggerFromDom(),
+  };
+  emit();
+}
+
+/** S-33 — correct a stored entry in the same sheet. The customer comes
+ *  along for display only; the form opens with the row's values. */
+export function openTransactionEdit(
+  transaction: Transaction,
+  customer: SheetCustomer,
+) {
+  state = {
+    open: true,
+    mode: "edit",
+    customer,
+    transaction,
+    trigger: triggerFromDom(),
   };
   emit();
 }
 
 export function closeTransactionSheet() {
   // The trigger is kept so the sheet can hand focus back after closing.
-  state = { ...state, open: false, customer: null };
+  state = { ...state, open: false, customer: null, transaction: null };
   emit();
 }
 

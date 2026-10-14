@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Transaction } from "@/types";
 
 /**
  * S-32 — the add-transaction form's validation, shared by every entry
@@ -53,5 +54,26 @@ export function transactionFormValues(
     amount: "",
     occurred_on: todayISO(),
     note: "",
+  };
+}
+
+/**
+ * S-33 — the same form, prefilled from the stored entry. The date
+ * arrives as the ISO day the entry happened; the note is a nullable
+ * column, empty in the form. Validation is shared with adding: the
+ * identical schema runs over whatever came in.
+ */
+export function transactionEditFormValues(
+  transaction: Pick<
+    Transaction,
+    "customer_id" | "type" | "amount" | "occurred_at" | "note"
+  >,
+): Record<string, unknown> {
+  return {
+    customer_id: transaction.customer_id,
+    type: transaction.type,
+    amount: transaction.amount,
+    occurred_on: transaction.occurred_at.split("T")[0] ?? "",
+    note: transaction.note ?? "",
   };
 }

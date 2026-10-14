@@ -22,6 +22,17 @@ export interface DashboardSummary {
   top_debtors: DashboardTopDebtor[];
 }
 
+/**
+ * S-33 — a ledger row with the audit data the Edited badge needs.
+ * `updated_by` is a real column (migration 0001) that the v1 base
+ * type never grew; `updated_by_name` is resolved here against
+ * profiles.
+ */
+export interface TransactionWithEditor extends Transaction {
+  updated_by?: string | null;
+  updated_by_name?: string | null;
+}
+
 async function guard<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -33,18 +44,60 @@ async function guard<T>(fn: () => Promise<T>): Promise<T> {
 export async function listTransactionsByCustomer(
   customerId: string,
   businessId: string,
-): Promise<Transaction[]> {
+): Promise<TransactionWithEditor[]> {
   return guard(async () => {
     const { data, error } = await supabase
       .from("transactions")
       .select("*")
       .eq("customer_id", customerId)
       .eq("business_id", businessId)
-      .eq("status", "active")
+      // S-33: edited rows stay on the ledger — they carry the Edited
+      // badge; only voided rows leave it (S-34 brings them back with
+      // restore).
+      .in("status", ["active", "edited"])
       .order("occurred_at", { ascending: false });
 
     if (error) throw error;
-    return data as Transaction[];
+
+    const rows = (data ?? []) as Array<
+      Transaction & { updated_by: string | null }
+    >;
+
+    // Resolve the last editor for the badge in one extra query — there
+    // is no transactions→profiles foreign key to embed through
+    // (updated_by points at auth.users). Profiles RLS shows
+    // co-members; an editor who has since left resolves to nothing and
+    // the badge falls back to "Former member".
+    const editorIds = [
+      ...new Set(
+        rows
+          .map((row) => row.updated_by)
+          .filter((id): id is string => typeof id === "string" && id !== ""),
+      ),
+    ];
+    if (editorIds.length === 0) return rows;
+
+    const { data: editorData, error: editorError } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", editorIds);
+    if (editorError) throw editorError;
+
+    const names = new Map(
+      (
+        (editorData ?? []) as Array<{
+          id: string;
+          full_name: string | null;
+          email: string | null;
+        }>
+      ).map((profile) => [profile.id, profile.full_name ?? profile.email ?? null]),
+    );
+    return rows.map((row) => ({
+      ...row,
+      updated_by_name: row.updated_by
+        ? (names.get(row.updated_by) ?? null)
+        : null,
+    }));
   });
 }
 
@@ -145,12 +198,18 @@ export async function updateTransaction(
   businessId: string,
 ): Promise<Transaction> {
   return guard(async () => {
+    // S-33: stamp who edited — the Edited badge reads it back with
+    // updated_at. Provenance fields (source, created_by, customer_id,
+    // business_id) are not in the payload and can never change here.
+    const { data: userResult } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from("transactions")
       .update({
         ...input,
         status: "edited",
         updated_at: new Date().toISOString(),
+        updated_by: userResult.user?.id ?? "",
       })
       .eq("id", id)
       .eq("business_id", businessId)

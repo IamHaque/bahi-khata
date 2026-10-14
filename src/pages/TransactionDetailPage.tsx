@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EditTransactionSheet } from "@/components/EditTransactionSheet";
 import { useTransaction } from "@/features/transactions/hooks";
+import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate, formatTime } from "@/lib/format";
 import { paths } from "@/lib/paths";
@@ -21,6 +22,9 @@ export function TransactionDetailPage() {
     refetch,
   } = useTransaction(transactionId ?? "", businessId);
   const [editTx, setEditTx] = useState<TransactionWithCustomer | null>(null);
+  // S-33: viewers have no edit action anywhere (S-34 will rework this
+  // page's void/restore story around the same gate).
+  const { can } = usePermissions();
 
   if (isLoading) {
     return (
@@ -104,7 +108,7 @@ export function TransactionDetailPage() {
             Transaction Detail
           </h2>
         </div>
-        {transaction.status !== "voided" && (
+        {transaction.status !== "voided" && can("manageTransactions") && (
           <Button
             variant="outline"
             size="sm"

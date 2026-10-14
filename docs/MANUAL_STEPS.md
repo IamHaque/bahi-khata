@@ -359,3 +359,37 @@ least one older transaction.
    Transaction** on the ledger, no Add buttons on Dashboard or
    Transactions; row menus show only View. As Editor: everything above
    works (transaction rights are Owner+Editor).
+
+---
+
+## S-33 — Edit transaction (no new migration)
+
+**Status: code done; no migration to apply.** Editing goes through the
+same sheet and the same RLS-scoped `updateTransaction` as before; the
+only server-side difference is the `updated_by` stamp on the existing
+column (migration 0001). Prerequisites: migrations 0001-0004 applied;
+a customer with at least one transaction, ideally one imported row
+(source "import") and two members so an edit can be done by the
+second member.
+
+1. Customer ledger > pencil on a row: the sheet opens titled **Edit
+   transaction** with Type/Amount/Date/Note prefilled and the customer
+   shown as text (no picker); change the amount → **Balance after**
+   updates live (it removes the old entry's effect first) > **Save
+   changes**: the row keeps its spot, the balance flashes the
+   recalculated number, and the row now shows an **Edited** pill.
+2. Hover and then keyboard-focus the Edited pill: the tooltip/sr text
+   reads "Edited by <name> on <date>, <time>" of the moment of the
+   save. If the editor has since left the business, it reads "Former
+   member" instead of a name.
+3. Validation: try an amount of 0 and tomorrow's date — same inline
+   messages as adding, nothing saves; the customer never changes.
+4. Imported row: edit its amount → it saves, still shows **Imported**
+   as its source on the transaction detail page, and its `created_by`
+   never changed.
+5. Edit a note to empty and save → reopening shows the note empty (v1
+   kept the old note).
+6. As Viewer: no pencil on the ledger and no Edit button on the
+   transaction detail page.
+7. Void/restore still live in the v1 sheet opened from the
+   **transaction detail page**'s Edit button — unchanged until S-34.

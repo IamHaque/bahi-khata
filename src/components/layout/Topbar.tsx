@@ -201,7 +201,7 @@ export function Topbar({
 
       <CustomerCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
 
-      {/* The app's one add-transaction sheet (S-32). */}
+      {/* The app's one transaction sheet (S-32 add, S-33 edit). */}
       <TransactionSheet
         open={sheet.open}
         onOpenChange={(nextOpen) => {
@@ -210,6 +210,8 @@ export function Topbar({
         }}
         businessId={businessId}
         customer={sheet.customer}
+        mode={sheet.mode}
+        transaction={sheet.transaction}
       />
     </header>
   );
