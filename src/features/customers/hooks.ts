@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { customerKeys } from "@/lib/queryKeys";
+import { customerKeys, transactionKeys } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  countCustomerTransactions,
   createCustomer,
+  deleteCustomerPermanently,
   getCustomer,
   listCustomers,
   queryCustomers,
+  setCustomerArchived,
   updateCustomer,
   type CustomerInput,
   type CustomerListParams,
@@ -81,6 +84,68 @@ export function useUpdateCustomer(businessId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
     },
+  });
+}
+
+/**
+ * S-30 — archive and restore are one mutation (the difference is a
+ * timestamp or its absence). Both roles that may archive may restore;
+ * a viewer fails on assertCan before the network. Success refreshes
+ * every customer cache (lists, detail, the balances strip) and the
+ * dashboard summary, whose SQL now excludes archived customers.
+ */
+export function useSetCustomerArchived(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) => {
+      // S-21: a known viewer fails here, before the network.
+      assertCan("archiveCustomers");
+      return setCustomerArchived(id, archived, businessId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.summary(businessId) });
+    },
+  });
+}
+
+/**
+ * S-30 — the owner's atomic destroy. Keyed like the other customer
+ * mutations; success also drops every transaction cache, because the
+ * customer's transactions are gone with them.
+ */
+export function useDeleteCustomerPermanently(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => {
+      // S-21: a non-owner fails here; the RPC refuses them again.
+      assertCan("deleteCustomer");
+      return deleteCustomerPermanently(id, businessId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
+    },
+  });
+}
+
+/**
+ * S-30 — exact transaction count for the confirm dialogs' copy
+ * ("12 transactions are kept" / "all 12 transactions are removed").
+ * The count shares the customer's cache family, so a customer mutation
+ * refreshes it along with everything else.
+ */
+export function useCustomerTransactionCount(
+  customerId: string,
+  businessId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...customerKeys.detail(customerId, businessId), "txCount"],
+    queryFn: () => countCustomerTransactions(customerId, businessId),
+    enabled: enabled && customerId !== "",
   });
 }
 

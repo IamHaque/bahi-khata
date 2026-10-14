@@ -378,7 +378,7 @@ describe("S-28 customers list", () => {
       .map((item) => item.textContent);
     expect(labels).toEqual(["View", "Edit", "Add transaction", "Archive"]);
 
-    // Not wired yet (S-32 and S-30) — visible but disabled, never a lie.
+    // Not wired yet (S-32) — visible but disabled, never a lie.
     expect(
       (
         within(menu).getByRole("menuitem", {
@@ -386,10 +386,12 @@ describe("S-28 customers list", () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
+    // Live since S-30: the archive column exists, so Archive opens the
+    // confirmation instead of pretending.
     expect(
       (within(menu).getByRole("menuitem", { name: "Archive" }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
 
     // Edit opens the form dialog with this row's customer loaded.
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Edit" }));

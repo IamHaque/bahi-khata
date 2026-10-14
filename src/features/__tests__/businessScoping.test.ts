@@ -54,6 +54,15 @@ vi.mock("@/lib/supabase", () => ({
           calls.push({ method: "eq", args });
           return chain;
         },
+        // S-30 chain methods (the scoping assertions below are unchanged).
+        is: (...args: unknown[]) => {
+          calls.push({ method: "is", args });
+          return chain;
+        },
+        not: (...args: unknown[]) => {
+          calls.push({ method: "not", args });
+          return chain;
+        },
         order: (...args: unknown[]) => {
           calls.push({ method: "order", args });
           return chain;

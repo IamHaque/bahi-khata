@@ -93,3 +93,13 @@ psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/
   S-27 guard distinguishes behave as the client needs (removal keeps the row
   → true, deletion removes it → false); and the function is not executable by
   `anon`.
+- `0004_archive_delete_customers.sql` (S-30) — proves archive, restore and
+  `delete_customer_permanently(p_customer_id, p_business_id)`: a viewer's
+  archive attempt changes zero rows while an editor's works; archiving keeps
+  every transaction and the balance view (which now exposes `archived_at`);
+  `dashboard_summary` totals drop the archived customer and restore brings
+  them back; Editor, Viewer and a complete outsider are refused with `42501`,
+  a mismatched business id is `P0002`/not found, the Owner's call removes the
+  customer **and** all their transactions atomically (the FK has no cascade —
+  the function deletes both) while a bystander customer stays; and `anon`
+  cannot execute the function.

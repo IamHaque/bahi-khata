@@ -30,6 +30,9 @@ export async function listCustomers(businessId: string): Promise<Customer[]> {
       .from("customers")
       .select("*")
       .eq("business_id", businessId)
+      // S-30: every picker and the dashboard's customer feed read this —
+      // archived customers step out of them; restore brings them back.
+      .is("archived_at", null)
       .order("name", { ascending: true });
 
     if (error) throw error;
@@ -41,7 +44,12 @@ export async function listCustomers(businessId: string): Promise<Customer[]> {
 // S-28: the list view's server-side query
 // ---------------------------------------------------------------------------
 
-export type CustomerStatusFilter = "all" | "owes" | "credit" | "settled";
+export type CustomerStatusFilter =
+  | "all"
+  | "owes"
+  | "credit"
+  | "settled"
+  | "archived";
 export type CustomerSortField = "name" | "balance" | "created";
 
 export interface CustomerListParams {
@@ -59,6 +67,12 @@ export interface CustomerListRow extends Customer {
   balance: number;
   /** Most recent transaction date, or null when the customer has none. */
   last_activity: string | null;
+  /**
+   * S-30: null/absent = active; a timestamp = archived (kept with all
+   * history, out of every working set). Optional because rows arrive
+   * from the server only after migration 0004 is applied.
+   */
+  archived_at?: string | null;
 }
 
 export interface CustomerListResult {
@@ -121,12 +135,21 @@ export async function queryCustomers(
       const pattern = escapeSearch(search);
       query = query.or(`name.ilike.%${pattern}%,phone.ilike.%${pattern}%`);
     }
-    if (status === "owes") {
-      query = query.gt("customer_balances.balance", 0);
-    } else if (status === "credit") {
-      query = query.lt("customer_balances.balance", 0);
-    } else if (status === "settled") {
-      query = query.eq("customer_balances.balance", 0);
+    if (status === "archived") {
+      // S-30: the Archived filter is the one view that shows archived
+      // rows — with their real balances (the view keeps them).
+      query = query.not("archived_at", "is", null);
+    } else {
+      // Every other status is the working set: archived customers are
+      // left out of lists, search and pickers alike.
+      query = query.is("archived_at", null);
+      if (status === "owes") {
+        query = query.gt("customer_balances.balance", 0);
+      } else if (status === "credit") {
+        query = query.lt("customer_balances.balance", 0);
+      } else if (status === "settled") {
+        query = query.eq("customer_balances.balance", 0);
+      }
     }
 
     const sortColumn =
@@ -140,14 +163,16 @@ export async function queryCustomers(
       .range((page - 1) * pageSize, page * pageSize - 1);
 
     // The unfiltered customer count feeds the summary strip even while a
-    // filter narrows the table.
+    // filter narrows the table. It counts the working set: archived
+    // customers are left out of every total (S-30).
     const [paged, all] = await Promise.all([
       query,
       supabase
         .from("customers")
         .select("id", { count: "exact", head: true })
         .eq("business_id", businessId)
-        .is("deleted_at", null),
+        .is("deleted_at", null)
+        .is("archived_at", null),
     ]);
     if (paged.error) throw paged.error;
     if (all.error) throw all.error;
@@ -242,5 +267,77 @@ export async function updateCustomer(
 
     if (error) throw error;
     return data as Customer;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// S-30: archive, restore, count for the confirm copy, permanent delete
+// ---------------------------------------------------------------------------
+
+/**
+ * Archive (archived = true) or restore (archived = false) one customer.
+ * Plain RLS on customers: editors and owners can update, viewers match
+ * zero rows. Nothing about the customer's transactions changes.
+ */
+export async function setCustomerArchived(
+  id: string,
+  archived: boolean,
+  businessId: string,
+): Promise<Customer> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("customers")
+      .update({
+        archived_at: archived ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("business_id", businessId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Customer;
+  });
+}
+
+/**
+ * Exact transaction count for one customer — the confirm dialogs say
+ * exactly how much history is kept (archive) or removed (delete).
+ * Every status counts: history is history.
+ */
+export async function countCustomerTransactions(
+  customerId: string,
+  businessId: string,
+): Promise<number> {
+  return guard(async () => {
+    const { count, error } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", customerId)
+      .eq("business_id", businessId);
+
+    if (error) throw error;
+    return count ?? 0;
+  });
+}
+
+/**
+ * The only operation that destroys history: owner-only on the server
+ * (migration 0004's RPC), atomic across the customer and every one of
+ * their transactions. businessId rides along per the S-20 contract and
+ * is checked against the row inside the function.
+ */
+export async function deleteCustomerPermanently(
+  id: string,
+  businessId: string,
+): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("delete_customer_permanently", {
+      p_customer_id: id,
+      p_business_id: businessId,
+    });
+
+    if (error) throw error;
   });
 }

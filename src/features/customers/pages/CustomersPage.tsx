@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
 import { formatDate, formatMoney } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
-import { useCustomerList } from "@/features/customers/hooks";
+import {
+  useCustomerList,
+  useSetCustomerArchived,
+} from "@/features/customers/hooks";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import type {
   CustomerListParams,
@@ -15,6 +19,8 @@ import type {
   CustomerStatusFilter,
 } from "@/features/customers/api";
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
+import { ArchiveCustomerDialog } from "@/features/customers/components/ArchiveCustomerDialog";
+import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatCard } from "@/components/app/StatCard";
 import { SearchInput } from "@/components/app/SearchInput";
@@ -46,6 +52,7 @@ const STATUS_OPTIONS: Array<{ value: CustomerStatusFilter; label: string }> = [
   { value: "owes", label: "Owes you" },
   { value: "credit", label: "You owe" },
   { value: "settled", label: "Settled" },
+  { value: "archived", label: "Archived" },
 ];
 
 function statusLabel(value: CustomerStatusFilter): string {
@@ -79,10 +86,18 @@ const columns: Array<Column<CustomerListRow>> = [
         <Avatar name={row.name} size="sm" />
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{row.name}</p>
-          {row.tags && row.tags.length > 0 && (
-            <p className="truncate text-xs text-muted-foreground">
-              {row.tags.join(", ")}
-            </p>
+          {row.archived_at ? (
+            /* Archived rows say so where the tags usually sit, so the
+               name cell's text (and tests that find rows by name) stay
+               untouched. */
+            <p className="truncate text-xs text-muted-foreground">Archived</p>
+          ) : (
+            row.tags &&
+            row.tags.length > 0 && (
+              <p className="truncate text-xs text-muted-foreground">
+                {row.tags.join(", ")}
+              </p>
+            )
           )}
         </div>
       </div>
@@ -129,7 +144,10 @@ export function CustomersPage() {
   const q = searchParams.get("q") ?? "";
   const statusParam = searchParams.get("status");
   const status: CustomerStatusFilter =
-    statusParam === "owes" || statusParam === "credit" || statusParam === "settled"
+    statusParam === "owes" ||
+    statusParam === "credit" ||
+    statusParam === "settled" ||
+    statusParam === "archived"
       ? statusParam
       : "all";
   const { sort, dir } = parseSort(searchParams.get("sort"));
@@ -167,12 +185,20 @@ export function CustomersPage() {
   const { data, isPending, error, refetch } = useCustomerList(businessId, params);
   const { data: balances, isSuccess: balancesLoaded } =
     useAllCustomerBalances(businessId);
+  // Restore has no dialog — the menu acts directly (S-30).
+  const restoreCustomer = useSetCustomerArchived(businessId);
 
-  // One dialog serves Add (header button, empty state) and Edit (row menu).
-  const [dialog, setDialog] = useState<{
-    mode: "add" | "edit";
-    customer: Customer | null;
-  } | null>(null);
+  // One dialog serves the form (Add header/empty state, Edit row menu)
+  // plus the S-30 archive and delete confirmations.
+  type DialogState =
+    | { kind: "form"; mode: "add" | "edit"; customer: Customer | null }
+    | { kind: "archive"; customer: CustomerListRow }
+    | { kind: "delete"; customer: CustomerListRow }
+    | null;
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const closeDialog = (open: boolean) => {
+    if (!open) setDialog(null);
+  };
 
   const rows = data?.items ?? [];
   const owesYou = Object.values(balances ?? {}).reduce(
@@ -199,16 +225,21 @@ export function CustomersPage() {
   }, [data, rows.length, page, pageSize, updateParams]);
 
   const rowMenuItems = (row: CustomerListRow): RowActionItem[] => {
+    // Archived rows keep history but leave the working set: no edit, no
+    // add-transaction — restore first. Delete permanently appears only
+    // on archived rows and only for the owner (the matrix, S-21), which
+    // makes archive the required first step toward destruction.
+    const archived = row.archived_at != null;
     const items: RowActionItem[] = [
       {
         label: "View",
         onSelect: () => navigate(paths.customerDetail(businessId, row.id)),
       },
     ];
-    if (can("manageCustomers")) {
+    if (!archived && can("manageCustomers")) {
       items.push({
         label: "Edit",
-        onSelect: () => setDialog({ mode: "edit", customer: row }),
+        onSelect: () => setDialog({ kind: "form", mode: "edit", customer: row }),
       });
       // S-32 ships the row's preselected Add transaction sheet; the v1
       // quick-add sheet cannot know which row it came from, so this item
@@ -216,12 +247,29 @@ export function CustomersPage() {
       items.push({ label: "Add transaction", onSelect: () => {}, disabled: true });
     }
     if (can("archiveCustomers")) {
-      // The archive column arrives with S-30's migration; enabling this
-      // earlier would promise an action the database cannot store.
+      if (archived) {
+        items.push({
+          label: "Restore",
+          onSelect: () => {
+            void restoreCustomer
+              .mutateAsync({ id: row.id, archived: false })
+              .catch(() => {
+                toast.error("Could not restore the customer. Try again.");
+              });
+          },
+        });
+      } else {
+        items.push({
+          label: "Archive",
+          onSelect: () => setDialog({ kind: "archive", customer: row }),
+          variant: "destructive",
+        });
+      }
+    }
+    if (archived && can("deleteCustomer")) {
       items.push({
-        label: "Archive",
-        onSelect: () => {},
-        disabled: true,
+        label: "Delete permanently",
+        onSelect: () => setDialog({ kind: "delete", customer: row }),
         variant: "destructive",
       });
     }
@@ -245,6 +293,9 @@ export function CustomersPage() {
         <div className="flex items-center gap-2">
           <Avatar name={row.name} size="sm" />
           <span className="truncate font-medium text-foreground">{row.name}</span>
+          {row.archived_at && (
+            <span className="text-xs text-muted-foreground">Archived</span>
+          )}
         </div>
         {row.phone && (
           <p className="mt-1 text-sm text-muted-foreground">{row.phone}</p>
@@ -288,7 +339,7 @@ export function CustomersPage() {
           </Button>
         )}
         {can("manageCustomers") && (
-          <Button onClick={() => setDialog({ mode: "add", customer: null })}>
+          <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
             <Plus className="size-4" /> Add customer
           </Button>
         )}
@@ -324,7 +375,7 @@ export function CustomersPage() {
         />
         <div
           role="group"
-          aria-label="Filter by balance status"
+          aria-label="Filter customers by status"
           className="flex flex-wrap gap-1"
         >
           {STATUS_OPTIONS.map((option) => (
@@ -364,7 +415,7 @@ export function CustomersPage() {
               description="Add your first customer to get started."
             >
               {can("manageCustomers") && (
-                <Button onClick={() => setDialog({ mode: "add", customer: null })}>
+                <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
                   <Plus className="size-4" /> Add your first customer
                 </Button>
               )}
@@ -397,13 +448,23 @@ export function CustomersPage() {
       />
 
       <CustomerFormDialog
-        open={dialog !== null}
-        onOpenChange={(open) => {
-          if (!open) setDialog(null);
-        }}
+        open={dialog?.kind === "form"}
+        onOpenChange={closeDialog}
         businessId={businessId}
-        mode={dialog?.mode ?? "add"}
-        customer={dialog?.customer ?? null}
+        mode={dialog?.kind === "form" ? dialog.mode : "add"}
+        customer={dialog?.kind === "form" ? dialog.customer : null}
+      />
+      <ArchiveCustomerDialog
+        open={dialog?.kind === "archive"}
+        onOpenChange={closeDialog}
+        businessId={businessId}
+        customer={dialog?.kind === "archive" ? dialog.customer : null}
+      />
+      <DeleteCustomerDialog
+        open={dialog?.kind === "delete"}
+        onOpenChange={closeDialog}
+        businessId={businessId}
+        customer={dialog?.kind === "delete" ? dialog.customer : null}
       />
     </div>
   );

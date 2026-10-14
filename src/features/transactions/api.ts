@@ -196,7 +196,13 @@ export async function getAllCustomerBalances(
     const { data, error } = await supabase
       .from("customer_balances")
       .select("customer_id, balance")
-      .eq("business_id", businessId);
+      .eq("business_id", businessId)
+      // S-30 (documented touch-zone stretch): archived customers are
+      // left out of totals — the customers-page strip and the dashboard
+      // compute "Owes you / You owe" straight from this feed. The view
+      // still carries archived rows (the Archived filter needs their
+      // balances), so the exclusion belongs here, at the totals' source.
+      .is("archived_at", null);
 
     if (error) throw error;
 

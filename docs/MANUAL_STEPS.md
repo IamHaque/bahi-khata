@@ -281,3 +281,46 @@ mix of owed/owing/settled, some without transactions).
    only View; an empty business shows the "Add your first customer"
    invitation (text only for the viewer); a nonsense search shows the
    distinct no-results state and **Clear filters** resets it.
+
+---
+
+## S-30 - Archive, restore and permanent delete (migration 0004)
+
+**Status: code done; migration 0004 and SQL test 0004 must be applied
+here** (they are written but never executed by the build agent). The
+code queries `customers.archived_at`, so the customers list stops
+working until 0004 is in. Prerequisites: migrations 0001-0003b applied.
+
+1. Apply `supabase/migrations/0004_customer_archive_delete.sql`
+   (SQL Editor or `supabase db push`). It: adds `customers.archived_at`
+   + index, recreates the `customer_balances` view (now exposes
+   `archived_at`, still includes archived rows), recreates
+   `dashboard_summary` (finally excludes archived - its C-6 comment
+   promised it), adds the owner-only `delete_customer_permanently`
+   RPC with its grants.
+2. Run `supabase/tests/0004_archive_delete_customers.sql` - it must
+   finish with no exception (any "TEST FAILED" is a regression). It
+   proves: viewer's archive attempt changes nothing, editor archives,
+   history and balances survive, dashboard totals drop the archived
+   customer, restore brings everything back, Editor/Viewer/outsider
+   get 42501 from the RPC, a wrong business id is "Customer not found",
+   the Owner's call removes customer + all transactions atomically
+   (bystander untouched), and anon cannot execute the function.
+3. UI pass as Owner (business with an active customer that has
+   transactions and a non-zero balance):
+   - Row menu > Archive: the dialog states the exact transaction count
+     and (balance != 0) the "left out of lists and dashboard totals"
+     warning > **Archive customer**: row vanishes, toast "Customer
+     archived" shows **Undo** for 8 s > click Undo: row returns with
+     balance intact.
+   - Re-archive > the **Archived** chip: the row appears with its
+     balance and the Archived marker; "Customers" strip count excludes
+     it; Ctrl/Cmd+K palette no longer finds her; clear the filter >
+     **Restore** from the menu: she is back in the active list.
+   - Archived row > **Delete permanently**: confirm stays disabled
+     until the exact name is typed > confirm: row and her transactions
+     are gone (detail URL 404s/empty, transactions list has no rows
+     for her).
+4. As Editor: Archive and Restore work; the archived row's menu has
+   **no** Delete permanently. As Viewer: both active and archived row
+   menus show only View.
