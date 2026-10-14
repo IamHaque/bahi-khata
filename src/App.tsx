@@ -18,7 +18,7 @@ import { BusinessGuard } from "@/features/business/components/BusinessGuard";
 import { LegacyBusinessRedirect } from "@/features/business/components/LegacyBusinessRedirect";
 import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/pages/Dashboard";
-import { CustomersPage } from "@/pages/CustomersPage";
+import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ImportPage } from "@/pages/ImportPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";

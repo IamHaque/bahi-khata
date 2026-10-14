@@ -264,7 +264,14 @@ export function DataTable<T>({
                 </TableCell>
               ))}
               {renderRowActions && (
-                <TableCell className="w-10 text-right">
+                // Row actions must not activate the row itself: without
+                // this a click on the menu trigger also fires onRowClick
+                // and navigates away before the menu opens (surfaced by
+                // S-28, the first page to combine both).
+                <TableCell
+                  className="w-10 text-right"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {renderRowActions(row)}
                 </TableCell>
               )}

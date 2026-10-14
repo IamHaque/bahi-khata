@@ -1,0 +1,10 @@
+# Backlog (ideas beyond the PRD)
+
+Extra ideas surfaced while executing stories. Not commitments — candidates
+for a later hardening/polish story or a post-v2 pass.
+
+| # | Idea | Where it came from | Notes |
+| --- | --- | --- | --- |
+| B-01 | Grouped "last activity" instead of embedding every transaction per customer row | S-28 `queryCustomers` embeds `transactions(occurred_at)` (ungrouped) so each list row carries its history's dates | Payload grows with transaction count per page of rows. After S-20's contract phase a `customer_last_activity` view (or lateral join in the query) caps it at one row per customer; the client's `last_activity` field is already the contract to keep. |
+| B-02 | DataTable loading headers keep the sort affordance | S-28 tests: the loading branch renders plain `<th>`s (no `role`/`aria-sort`/cursor) while data rows are skeletons | Harmless for one fetch, noticeable on slow links: headers look dead until data lands. A `sortable` pass-through on the skeleton header would keep the table's affordance stable across all five states. |
+| B-03 | Rows-per-page in the URL | S-28 keeps `pageSize` in component state (PRD lists only `q, status, sort, page` for the URL) | Reload resets to 10; sharing a "same view" link at 25 rows/page would not restore the size. Trivial to add if anyone asks for shareable page sizes. |

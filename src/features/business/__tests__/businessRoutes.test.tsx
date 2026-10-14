@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
 import { BusinessGuard } from "@/features/business/components/BusinessGuard";
 import { LegacyBusinessRedirect } from "@/features/business/components/LegacyBusinessRedirect";
-import { CustomersPage } from "@/pages/CustomersPage";
+import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { paths, routePatterns } from "@/lib/paths";
 import type { BusinessSummary, Memberships } from "@/features/business/api";
 
@@ -17,6 +17,7 @@ const activeBusinessState = vi.hoisted(() => ({
 }));
 const customersApi = vi.hoisted(() => ({
   listCustomers: vi.fn(),
+  queryCustomers: vi.fn(async () => ({ items: [], total: 0, allTotal: 0 })),
 }));
 
 vi.mock("@/features/business/api", () => ({
@@ -47,6 +48,7 @@ vi.mock("@/contexts/BusinessContext", () => ({
 
 vi.mock("@/features/customers/api", () => ({
   listCustomers: customersApi.listCustomers,
+  queryCustomers: customersApi.queryCustomers,
   createCustomer: vi.fn(),
   getCustomer: vi.fn(),
   updateCustomer: vi.fn(),
@@ -260,14 +262,20 @@ describe("S-17 URLs are the single source of truth", () => {
     // Tab A
     const tabA = renderCustomersTab("/b/tab-a/customers");
     await waitFor(() =>
-      expect(customersApi.listCustomers).toHaveBeenCalledWith("tab-a"),
+      expect(customersApi.queryCustomers).toHaveBeenCalledWith(
+        "tab-a",
+        expect.anything(),
+      ),
     );
     tabA.unmount();
 
     // Tab B — same user, different URL, different business
     const tabB = renderCustomersTab("/b/tab-b/customers");
     await waitFor(() =>
-      expect(customersApi.listCustomers).toHaveBeenCalledWith("tab-b"),
+      expect(customersApi.queryCustomers).toHaveBeenCalledWith(
+        "tab-b",
+        expect.anything(),
+      ),
     );
     tabB.unmount();
   });

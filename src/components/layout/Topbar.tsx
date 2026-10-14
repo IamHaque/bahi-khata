@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Mail,
@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMemberships } from "@/features/business/hooks";
+import { CustomerCommandPalette } from "@/features/customers/components/CustomerCommandPalette";
 import { paths } from "@/lib/paths";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +39,20 @@ export function Topbar({
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const isDark = resolvedTheme === "dark";
+
+  // S-28: Ctrl/Cmd+K opens the customer search palette from anywhere.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // S-24: how many invitations are waiting for me (from the shared
   // memberships query — no extra network). Clicking goes to /businesses.
@@ -84,9 +98,10 @@ export function Topbar({
           {title}
         </h1>
 
-        {/* Global search trigger — palette wired in S-28 */}
+        {/* Global search trigger (S-28) — opens the customer palette */}
         <button
           type="button"
+          onClick={() => setSearchOpen(true)}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
           aria-label="Search (Ctrl+K)"
         >
@@ -153,6 +168,8 @@ export function Topbar({
           </PopoverContent>
         </Popover>
       </div>
+
+      <CustomerCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

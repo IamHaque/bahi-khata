@@ -7,6 +7,10 @@ function scope(businessId?: string): BusinessScope {
 export const customerKeys = {
   all: (businessId?: string) => [...scope(businessId), "customers"],
   list: (businessId?: string) => [...customerKeys.all(businessId), "list"],
+  // The S-28 list view: server-side search/filter/sort/paging. Separate
+  // key from `list` (the unfiltered picker feed) so the two never share
+  // a cache entry with different query functions.
+  pagedList: (businessId?: string) => [...customerKeys.all(businessId), "paged"],
   detail: (id: string, businessId?: string) => [
     ...customerKeys.all(businessId),
     id,

@@ -244,3 +244,40 @@ existence boolean crosses the boundary. Without it the app still works
    landing resolver. As an owner-demotion check: as an editor with the
    settings form open, have the owner make you a Viewer and press Save —
    the save fails with a forbidden toast and the page turns read-only.
+
+---
+
+## S-28 — Customers list server-side query (no new migration)
+
+**Status: code done; no migration to apply.** Every scenario is covered
+by mocked-API tests, but the actual PostgREST query (`queryCustomers`:
+name/phone `ilike` search, balance filters and sort through the
+`customer_balances` view, exact counts, embedded last activity) only
+runs against the real database here. Prerequisite: migrations 0001 and
+0002 applied, and a business with customers (ideally a few hundred, a
+mix of owed/owing/settled, some without transactions).
+
+1. Open Customers — the table shows avatar/name/tags, phone, balance
+   badge, last activity (em dash when there are no transactions) and the
+   added date; the footer reads "Showing 1–Y of Z" with the pager
+   enabled only where it should be; the summary strip shows totals for
+   **all** customers even while a filter narrows the table.
+2. Search: type part of a name (`ash` — case-insensitive) and part of a
+   phone; results change after the debounce and `?q=` appears in the
+   URL. Also try a phone typed with punctuation (`(0171)`) — it still
+   matches (the query escapes LIKE wildcards and the `or=(…)` syntax
+   characters instead of erroring).
+3. Combine: set a balance filter (aria-pressed chip + `?status=`), click
+   the Customer/Balance/Added headers (`?sort=` changes, `aria-sort`
+   updates, ordering switches server-side), go to page 2 (`?page=`).
+   Reload the full URL — same view restored; the back button steps back
+   through filter/sort/page changes; changing any filter returns to
+   page 1.
+4. Ctrl/Cmd+K (or the top bar Search button): the palette finds
+   customers as you type and ArrowDown/Enter or a click opens the detail
+   page; on `/businesses` it explains no business is open and issues no
+   query.
+5. Viewer account: no Add customer / Import CSV buttons, row menu shows
+   only View; an empty business shows the "Add your first customer"
+   invitation (text only for the viewer); a nonsense search shows the
+   distinct no-results state and **Clear filters** resets it.

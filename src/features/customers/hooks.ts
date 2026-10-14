@@ -5,8 +5,10 @@ import {
   createCustomer,
   getCustomer,
   listCustomers,
+  queryCustomers,
   updateCustomer,
   type CustomerInput,
+  type CustomerListParams,
 } from "./api";
 import type { Customer } from "@/types";
 
@@ -17,6 +19,25 @@ export function useCustomers(businessId: string) {
   return useQuery({
     queryKey: customerKeys.list(businessId),
     queryFn: () => listCustomers(businessId),
+  });
+}
+
+/**
+ * S-28 list view: search, filter, sort and paging live in the URL and
+ * flow through as params. Params are part of the query key so back and
+ * forward restore the exact cached view. `options.enabled` lets a
+ * conditionally-visible consumer (the command palette) skip the fetch
+ * until it is actually shown.
+ */
+export function useCustomerList(
+  businessId: string,
+  params: CustomerListParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: [...customerKeys.pagedList(businessId), params],
+    queryFn: () => queryCustomers(businessId, params),
+    enabled: businessId !== "" && (options?.enabled ?? true),
   });
 }
 
