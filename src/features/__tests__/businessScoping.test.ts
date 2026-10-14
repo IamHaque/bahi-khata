@@ -16,6 +16,10 @@ import {
   updateTransaction,
   voidTransaction,
 } from "@/features/transactions/api";
+import {
+  getActivityFeed,
+  getDailyActivity,
+} from "@/features/dashboard/api";
 
 interface Call {
   method: string;
@@ -109,6 +113,11 @@ vi.mock("@/lib/supabase", () => ({
         },
         range: (...args: unknown[]) => {
           calls.push({ method: "range", args });
+          return chain;
+        },
+        // S-37 chain method: the activity feed's "last 10" cap.
+        limit: (...args: unknown[]) => {
+          calls.push({ method: "limit", args });
           return chain;
         },
         insert: (...args: unknown[]) => {
@@ -469,6 +478,41 @@ describe("business scoping (required — S-20)", () => {
     expect(state.rpcCalls).toEqual([
       { fn: "dashboard_summary", args: { p_business_id: "b1" } },
     ]);
+  });
+
+  it("reads getDailyActivity from the scoped daily_activity RPC (S-37)", async () => {
+    state.rpcValue = [];
+
+    await getDailyActivity("b1", 30);
+
+    expect(state.rpcCalls).toEqual([
+      {
+        fn: "daily_activity",
+        args: {
+          p_business_id: "b1",
+          p_days: 30,
+          p_timezone: expect.any(String),
+        },
+      },
+    ]);
+  });
+
+  it("reads getActivityFeed from the scoped transactions table (S-37)", async () => {
+    state.resolveValue = [];
+
+    const feed = await getActivityFeed("b1");
+
+    expect(feed).toEqual([]);
+    const calls = state.chains[0]!;
+    expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
+    expect(calls).toContainEqual({
+      method: "is",
+      args: ["customers.archived_at", null],
+    });
+    expect(calls).toContainEqual({ method: "neq", args: ["status", "voided"] });
+    expect(calls).toContainEqual({ method: "limit", args: [10] });
+    // The feed is a plain read — no unscoped RPC anywhere near it.
+    expect(state.rpcCalls).toEqual([]);
   });
 
   it("reads getCustomerBalance from the scoped customer_balances view (S-20)", async () => {

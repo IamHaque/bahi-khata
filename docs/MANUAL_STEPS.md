@@ -619,3 +619,52 @@ only affect other pages). The whole pass below is a UI check.
    1-2 present, **no** Invite step. As Viewer: every figure and the
    guidance readable, **no** Add customer / Add Transaction buttons
    anywhere.
+
+## S-37 — Dashboard trends and activity feed (migration 0007)
+
+**Status: code done; migration 0007 and SQL test 0007 must be applied
+here** (written, never executed by the build agent). Until 0007 is in,
+the dashboard's two new sections show their own error cards with
+**Try again** ("function daily_activity does not exist" / the feed's
+read still works — it is plain PostgREST, so only the chart fails);
+the KPIs, top balances and Today link (S-36) are unaffected.
+Prerequisites: migrations 0001-0006b applied.
+
+1. Apply `supabase/migrations/0007_daily_activity.sql` (SQL Editor or
+   `supabase db push`). It adds the security-INVOKER, `stable`
+   `daily_activity(p_business_id, p_days, p_timezone)` RPC: one
+   **zero-filled** row per day for the last `p_days` days (7/30/90),
+   charges and payments summed per day **in the caller's own
+   timezone**, voided rows out, edited rows in, archived customers
+   out. Grants: `authenticated` only.
+2. Run `supabase/tests/0007_daily_activity.sql` — it must finish with
+   no exception (any "TEST FAILED" is a regression). It proves: exactly
+   `p_days` zero-filled rows oldest-first; per-day figures equal the
+   manual sum of that day's rows (voided 300 and archived 999 never
+   appear, the edited payment does); a quiet day is `0`, never null;
+   window totals equal the manual sum; 7/30/90 select the window
+   length; a 19:30-UTC entry buckets **tomorrow** under
+   `Asia/Dhaka`; a complete outsider gets seven all-zero days; anon
+   cannot execute.
+3. UI pass as Owner (business with entries on several days, one
+   voided entry, one archived customer with history):
+   - Dashboard → **Daily activity** card: paired bars per day
+     (charges `--chart-1`, payments `--chart-2`), the visible text
+     summary ("Last 7 days: charged …, paid …") matching a manual sum
+     of the transactions page filtered to the same window, and the
+     **7 days / 30 days / 90 days** selector re-reading each window.
+   - Keyboard/screen-reader: the selector buttons carry
+     `aria-pressed`; the chart's equivalent data table is in the
+     accessibility tree ("Daily charges and payments, last N days")
+     with one row per day including the zero days.
+   - **Recent activity**: the last entries as sentences — "<who>
+     recorded a charge/payment of ₹… from <customer>, <when>" — the
+     customer's name opens that customer's page; a voided entry never
+     appears here; archive a customer and their entries leave too. A
+     departed member's entries read "Former member".
+   - States: new business → "No charges or payments in the last 7
+     days yet." and "No activity yet — the entries you record will
+     appear here."; stop the network → each section shows its own
+     error card, and **Try again** re-reads only that section.
+4. As Editor and Viewer: both sections readable, nothing to write
+   (the sections have no actions).

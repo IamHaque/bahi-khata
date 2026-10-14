@@ -71,3 +71,12 @@ export const businessKeys = {
   // User-level: the invitations addressed to the signed-in user (S-24).
   myInvitations: () => ["myInvitations"] as const,
 };
+
+// S-37: the dashboard's own reads beyond dashboard_summary — the trend
+// chart's per-day aggregation and the recent-activity feed.
+export const dashboardKeys = {
+  daily: (businessId: string, days: number) =>
+    [...scope(businessId), "dashboard", "daily", days] as const,
+  feed: (businessId: string) =>
+    [...scope(businessId), "dashboard", "feed"] as const,
+};

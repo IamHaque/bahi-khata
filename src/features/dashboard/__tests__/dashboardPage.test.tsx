@@ -15,8 +15,16 @@ import { formatMoney } from "@/lib/format";
 import { paths, routePatterns, transactionsPath } from "@/lib/paths";
 import type { Memberships } from "@/features/business/api";
 import type { DashboardSummary } from "@/features/transactions/api";
+import type {
+  ActivityFeedItem,
+  DailyActivityRow,
+} from "@/features/dashboard/api";
 
 const businessApi = vi.hoisted(() => ({ getMemberships: vi.fn() }));
+const dashboardApi = vi.hoisted(() => ({
+  getDailyActivity: vi.fn(),
+  getActivityFeed: vi.fn(),
+}));
 const customersApi = vi.hoisted(() => ({
   listCustomers: vi.fn(),
   queryCustomers: vi.fn(),
@@ -66,6 +74,8 @@ const server = vi.hoisted(() => ({
   rows: [] as unknown[],
   total: 0,
   totals: null as RollupTotalsRow | null,
+  daily: [] as DailyActivityRow[],
+  feed: [] as ActivityFeedItem[],
 }));
 
 vi.mock("@/features/business/api", () => ({
@@ -94,6 +104,10 @@ vi.mock("@/features/transactions/api", () => ({
   restoreTransaction: transactionsApi.restoreTransaction,
   updateTransaction: transactionsApi.updateTransaction,
   voidTransaction: transactionsApi.voidTransaction,
+}));
+vi.mock("@/features/dashboard/api", () => ({
+  getDailyActivity: dashboardApi.getDailyActivity,
+  getActivityFeed: dashboardApi.getActivityFeed,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -173,6 +187,32 @@ beforeEach(() => {
   server.rows = [];
   server.total = 0;
   server.totals = null;
+  server.daily = [
+    { activity_date: "2026-10-09", charges: 0, payments: 0 },
+    { activity_date: "2026-10-10", charges: 2400, payments: 0 },
+    { activity_date: "2026-10-11", charges: 0, payments: 600 },
+    { activity_date: "2026-10-12", charges: 0, payments: 0 },
+  ];
+  server.feed = [
+    {
+      id: "t1",
+      type: "payment",
+      amount: 500,
+      occurred_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      customer_id: "c1",
+      customer_name: "Asha Verma",
+      creator_name: "Eli",
+    },
+    {
+      id: "t2",
+      type: "charge",
+      amount: 1500,
+      occurred_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+      customer_id: "c9",
+      customer_name: "Rahim Traders",
+      creator_name: null,
+    },
+  ];
 
   businessApi.getMemberships.mockImplementation(async () =>
     membershipsFor("owner"),
@@ -190,6 +230,8 @@ beforeEach(() => {
       return server.totals ? [server.totals] : [];
     },
   );
+  dashboardApi.getDailyActivity.mockImplementation(async () => server.daily);
+  dashboardApi.getActivityFeed.mockImplementation(async () => server.feed);
 });
 
 describe("S-36 dashboard v2", () => {
@@ -457,5 +499,126 @@ describe("S-36 dashboard v2", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Total owes you")).toBeTruthy();
+  });
+
+  it("trend chart: server-aggregated days, text summary, hidden data table, selector re-reads", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Daily activity")).toBeTruthy();
+    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 7);
+
+    // The visible text summary and the chart itself (recharts svg,
+    // bars filled with the chart tokens).
+    expect(
+      screen.getByText("Last 7 days: charged ₹2,400.00, paid ₹600.00."),
+    ).toBeTruthy();
+    // The chart section itself carries the plot (the topbar's icons
+    // are svgs too, so the assertion stays inside the region).
+    const chart = await screen.findByRole("region", {
+      name: "Charges and payments per day",
+    });
+    expect(chart.querySelector("svg")).not.toBeNull();
+
+    // The equivalent, visually hidden data table: header + one row per
+    // day, including the zero days.
+    const table = await screen.findByRole("table", {
+      name: /Daily charges and payments/,
+    });
+    expect(within(table).getAllByRole("row")).toHaveLength(5);
+    expect(within(table).getByText("₹2,400.00")).toBeTruthy();
+    expect(within(table).getByText("₹600.00")).toBeTruthy();
+
+    // The 7/30/90 selector re-reads server-side per window.
+    await userEvent.click(screen.getByRole("button", { name: "30 days" }));
+    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 30);
+    expect(
+      screen.getByRole("button", { name: "30 days" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("trend chart: an all-zero window is a friendly empty state, no bare plot", async () => {
+    server.daily = [
+      { activity_date: "2026-10-09", charges: 0, payments: 0 },
+      { activity_date: "2026-10-10", charges: 0, payments: 0 },
+      { activity_date: "2026-10-11", charges: 0, payments: 0 },
+      { activity_date: "2026-10-12", charges: 0, payments: 0 },
+    ];
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        "No charges or payments in the last 7 days yet.",
+      ),
+    ).toBeTruthy();
+    const chart = await screen.findByRole("region", {
+      name: "Charges and payments per day",
+    });
+    expect(chart.querySelector("svg")).toBeNull();
+  });
+
+  it("trend chart: a failed read shows the error state and Try again re-reads", async () => {
+    dashboardApi.getDailyActivity.mockImplementation(async () => {
+      throw new Error("Chart exploded");
+    });
+    renderPage();
+
+    expect(await screen.findByText("Chart exploded")).toBeTruthy();
+
+    dashboardApi.getDailyActivity.mockImplementation(async () => server.daily);
+    await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/Last 7 days: charged/)).toBeTruthy();
+  });
+
+  it("activity feed: sentences with links, and the Former member fallback", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Recent activity")).toBeTruthy();
+    expect(dashboardApi.getActivityFeed).toHaveBeenCalledWith("b1");
+
+    const feed = await screen.findByRole("region", { name: "Recent activity" });
+    const items = within(feed).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+
+    // The PRD's sentence, in structure: "<creator> recorded a
+    // <type> of <amount> from <customer>, <when>".
+    expect(items[0]!.textContent).toContain("Eli recorded a payment of");
+    expect(items[0]!.textContent).toContain("₹500.00");
+    expect(items[0]!.textContent).toContain("2 hr ago");
+    expect(
+      within(items[0]!)
+        .getByRole("link", { name: "Asha Verma" })
+        .getAttribute("href"),
+    ).toBe(paths.customerDetail("b1", "c1"));
+
+    // A creator who has since left reads "Former member" (the S-25
+    // contract the transactions list already uses).
+    expect(items[1]!.textContent).toContain("Former member recorded a charge of");
+    expect(items[1]!.textContent).toContain("₹1,500.00");
+    expect(
+      within(items[1]!).getByRole("link", { name: "Rahim Traders" }),
+    ).toBeTruthy();
+  });
+
+  it("activity feed: a fresh business gets a friendly empty state", async () => {
+    server.feed = [];
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        "No activity yet — the entries you record will appear here.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("activity feed: a failed read offers retry", async () => {
+    dashboardApi.getActivityFeed.mockImplementation(async () => {
+      throw new Error("Feed exploded");
+    });
+    renderPage();
+
+    expect(await screen.findByText("Feed exploded")).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeTruthy();
   });
 });

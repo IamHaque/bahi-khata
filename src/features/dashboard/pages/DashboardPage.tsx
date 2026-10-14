@@ -14,6 +14,8 @@ import { formatMoney } from "@/lib/format";
 import { paths, transactionsPath } from "@/lib/paths";
 import { FirstRunCard } from "../components/FirstRunCard";
 import { TopOutstanding } from "../components/TopOutstanding";
+import { TrendChart } from "../components/TrendChart";
+import { ActivityFeed } from "../components/ActivityFeed";
 
 /**
  * S-36 — the business at a glance, every figure from the
@@ -23,8 +25,9 @@ import { TopOutstanding } from "../components/TopOutstanding";
  * business came for, so it is the largest card; the Today card opens
  * the transactions page filtered to today with identical figures. The
  * v1 page's client-side sums and its today list are gone: this page
- * interprets nothing, it displays what the database computed (S-37
- * adds the trend chart and activity feed alongside it).
+ * interprets nothing, it displays what the database computed. S-37
+ * adds the trend chart and the activity feed as independent sections
+ * below the summary, each with its own states.
  */
 export function DashboardPage() {
   const { user } = useAuth();
@@ -159,6 +162,11 @@ export function DashboardPage() {
           </div>
         </>
       )}
+
+      {/* S-37: two independent reads, each with its own states — they
+          render even when the summary above failed. */}
+      <TrendChart businessId={businessId} />
+      <ActivityFeed businessId={businessId} />
 
       <CustomerFormDialog
         open={customerFormOpen}
