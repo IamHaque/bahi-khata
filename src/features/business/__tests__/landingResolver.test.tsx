@@ -237,7 +237,7 @@ describe("S-16 minimal My businesses page", () => {
     );
   });
 
-  it("shows an empty state with a create shortcut when there are no businesses", async () => {
+  it("shows a prominent Create your business card when I own none", async () => {
     membershipState.impl = async () => nowhereMemberships;
 
     renderApp(
@@ -248,7 +248,8 @@ describe("S-16 minimal My businesses page", () => {
       { session },
     );
 
-    expect(await screen.findByText("No businesses yet")).toBeTruthy();
+    // S-26: the empty My business section becomes the create card.
+    expect(await screen.findByText("Create your business")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Create business/ }),
     );

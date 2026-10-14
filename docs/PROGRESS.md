@@ -33,7 +33,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-23 Invite by email and manage invitations | Done | (see below) | InviteMemberDialog (zod email, lowercased, role Editor/Viewer default Viewer), inline rejections (bad email/own email/member/pending) + DB unique-index backstop, Copy app link, revoke with confirmation, useCreate/RevokeInvitation guards |
 | S-24 Respond to invitations | Done | (see below) | `my_invitations()` RPC (0002b) + InvitationCard + invitations section on /businesses, top bar count badge, accept/decline via respond_to_invitation RPC, stale-invitation message preserved |
 | S-25 Change role, remove member, leave business | Done | (see below) | row actions on Members (change role / remove with named confirm), Leave business button + owner note, change_member_role/remove_member/leave_business client fns guarded by assertCan, SQL test 0002c (history stays readable) |
-| S-26 My businesses page and business switcher | Pending | | |
+| S-26 My businesses page and business switcher | Done | (see below) | three-section /businesses (My business / Shared with me / Invitations), prominent Create your business card, shared cards with owner name + role, BusinessSwitcher menu (own first, shared, All businesses, Create business when I own none), keyboard + aria-checked announcement, switch test proves no old-business data remains visible |
 | S-27 Lost-access handling | Pending | | |
 | S-28 Customers list v2 | Pending | | |
 | S-29 Customer form (add and edit) | Pending | | |
@@ -67,6 +67,17 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-26 scenarios (checklist)
+
+- [x] My businesses page — `/businesses` shows three sections: **My business**, **Shared with me** and **Invitations** — tested (`businessesPage.test.tsx`)
+- [x] My business shows my owned business card, or a prominent **Create your business** card (dashed border, description, Create business button → `/onboarding/business`) when I own none — tested (page test + landingResolver's updated empty-state test)
+- [x] Each shared business card shows name, owner name ("Owned by Rahim", email fallback) and my role badge — tested
+- [x] Switcher in the sidebar — the top of the sidebar shows the current business name and my role ("Bahi Khata / Owner"); its menu lists my own business first, then shared businesses, then All businesses; **Create business** appears only if I own none (gated on memberships being loaded) — tested (`businessSwitcher.test.tsx`)
+- [x] Switching — picking a business lands on that business's dashboard (`/b/:id`), and no data from the previous business remains visible: every page reads its businessId from the URL and every query key is business-scoped (S-20), proven by a probe page whose per-business detail is gone after the switch — tested
+- [x] Keyboard and screen reader — the trigger is a button, so Enter and Space open the menu (tested); arrow keys move between items (tested); the current business is a checked `menuitemradio` (announced as selected) and the trigger's accessible name is "Switch business: <name> (<role>)" — tested
+
+**S-26 notes:** the switcher menu is a `role="menu"` list of `menuitemradio` items (checked = current business) plus `menuitem` entries for All businesses and Create business; opening moves focus to the checked item so the selected business is announced first. Switching navigates only — the old business's cached queries stay in memory (fast return) but cannot render because keys are scoped by the URL business (S-17/S-20); S-27 adds lost-access handling. The BusinessesPage keeps its loading skeleton and error state; the invitations section keeps the S-24 cards (now with a quiet "No pending invitations." line when empty, so the three sections the scenario asks for are always present). `landingResolver.test.tsx`'s S-16 empty-state test was updated in this story (the "No businesses yet" empty state is now the Create your business card — the scenario's explicit requirement).
 
 ## S-25 scenarios (checklist)
 

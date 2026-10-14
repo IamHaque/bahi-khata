@@ -32,7 +32,8 @@ describe("app shell", () => {
   it("renders sidebar navigation, business slot and top bar", () => {
     renderShell();
 
-    // Business switcher slot shows the app name until S-26
+    // The switcher falls back to the app name while memberships are
+    // unavailable (S-26).
     expect(screen.getByText("BahiKhata")).toBeTruthy();
 
     // Sidebar nav — visible items only
