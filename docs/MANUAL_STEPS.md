@@ -32,6 +32,7 @@ must be applied:
 | `0007_*.sql` | S-37 | daily_activity RPC |
 | `0008_*.sql` | S-38 | import RPC |
 | `0009_void_reason_column.sql` | bugfix (DEV-15) | the `transactions.void_reason` column 0005 always assumed — found on first execution, added here |
+| `0010_respond_invitation_status_cast.sql` | bugfix (DEV-22) | `respond_to_invitation`'s CASE→text status assignment against the `invitation_status` enum — found by the test suite on first execution, fixed here |
 
 **To apply a migration:**
 
@@ -78,6 +79,7 @@ procedure, in order; each step names what success looks like.
    10. `0007_daily_activity.sql`
    11. `0008_import_history.sql`
    12. `0009_void_reason_column.sql` (bugfix found during this sync — see PROGRESS DEV-15)
+   13. `0010_respond_invitation_status_cast.sql` (bugfix found during this sync — see PROGRESS DEV-22)
 
    *Success per file:* the run finishes without an error (`DO` blocks
    may raise `NOTICE`s — that is normal). With the wipe done first,
