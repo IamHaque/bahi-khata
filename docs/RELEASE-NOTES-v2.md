@@ -90,9 +90,12 @@ Ordered; details and verification for each are in `docs/MANUAL_STEPS.md`.
    expand-then-contract cleanup — run its MANUAL_STEPS section at the
    scheduled time; the app shows a clear "database update pending" state
    for anything not yet applied.
-4. **Legacy data (one-time):** the S-20 backfill procedure in
-   `docs/MANUAL_STEPS.md` — **still needs the data owner's Google email**
-   (the one open input, flagged since S-20) before it can run.
+4. **Legacy data (one-time):** ~~the S-20 backfill~~ **cancelled — not
+   needed:** the owner confirmed a fresh start (existing data deleted),
+   so there is nothing to backfill and no owner email to supply.
+   Applying migrations in order to the empty database is enough; the
+   superseded procedure is kept in `docs/MANUAL_STEPS.md` (S-20) only
+   as a reference.
 5. **SQL test suite** against a scratch database
    (`supabase/tests/README.md`) — this environment had no database, so
    these are written-and-reviewed, not executed, here.

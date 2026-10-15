@@ -57,8 +57,9 @@ one reviewed commit per story on `feat/v2-multi-business`.
 ### Before deploying
 
 `docs/RELEASE-NOTES-v2.md` § "What a human must run before deploying" —
-env, OAuth redirects, migration order, the pending S-20 legacy backfill
-(needs the data owner's Google email), SQL tests, persona smoke.
+env, OAuth redirects, migration order, SQL tests, persona smoke.
+(The S-20 legacy backfill was cancelled by the owner's fresh-start
+decision of 2026-10-15 — existing data is deleted, nothing to backfill.)
 
 ### Status
 

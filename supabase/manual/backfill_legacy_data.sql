@@ -1,6 +1,11 @@
 -- ============================================================
 -- backfill_legacy_data.sql  (S-20 — HUMAN STEP, run as postgres)
 --
+-- CANCELLED 2026-10-15 (product-owner decision): the app starts
+-- from scratch — existing data is deleted, there are no legacy
+-- business_id IS NULL rows and no owner Google email is needed.
+-- This file is retained only as a reference procedure.
+--
 -- Attaches every legacy row (business_id IS NULL) to the legacy
 -- owner's business:
 --   * creates a business for that user if they own none

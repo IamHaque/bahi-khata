@@ -113,30 +113,36 @@ a business you want to keep.
    `delete from businesses where id = '<id of a business you do not own>';`
    reports `DELETE 0` (RLS filters it).
 
-## S-20 — Enforce tenancy (pending — READ BEFORE RUNNING)
+## S-20 — Enforce tenancy (contract phase)
 
-**This is the only destructive migration (`0003_enforce_tenancy.sql`). Do
-not run it before the backfill below, and DO NOT DEPLOY the
-`feat/v2-multi-business` branch before it has been applied — from S-20 on,
-the client code requires a businessId everywhere, so pre-v2 database
-policies and NULL-business rows must be gone first.**
+**DECISION, 2026-10-15 (product owner): existing data is deleted and the
+app starts from scratch — the legacy backfill in step 2 is CANCELLED and
+no owner Google email is needed. Applying the migrations in order to the
+empty database satisfies every requirement below. The original backfill
+procedure is kept (step 2) only in case that decision ever changes.**
+
+**`0003_enforce_tenancy.sql` is the only destructive migration. DO NOT
+DEPLOY the `feat/v2-multi-business` branch before it has been applied —
+from S-20 on, the client code requires a businessId everywhere, so
+pre-v2 database policies and NULL-business rows must be gone first (a
+fresh, migrated-in-order database satisfies this trivially: zero NULL
+rows).**
 
 1. **Backup first** (as in S-05): Supabase Dashboard → Database →
-   Backups, or `pg_dump` of the project.
-2. **Backfill legacy data:** the product owner supplies the Google email
-   of the account that should own the existing customers/transactions
-   (the only step that needs it). Open
-   `supabase/manual/backfill_legacy_data.sql`, set that email in
-   section 1, then run the file as postgres in one go. It creates a
-   business for the user if they own none, assigns every NULL
-   `business_id` row to it (customers first — the 0001 match trigger
-   requires it), prints the counts and is safe to re-run.
-   **Verify:** `select count(*) from customers where business_id is null;`
-   returns 0 (same for transactions), and the notices report
-   `created=false` on a second run.
+   Backups, or `pg_dump` of the project. (Free/optional on a brand-new
+   empty project, still cheap insurance.)
+2. **Backfill legacy data — NOT NEEDED (cancelled 2026-10-15):** the
+   owner confirmed a fresh start, so no `business_id IS NULL` rows exist
+   and no Google email is required. Original procedure, preserved in
+   `supabase/manual/backfill_legacy_data.sql` (set the email in
+   section 1 and run as postgres) should the decision ever change.
+   **Verify instead:** `select count(*) from customers where business_id
+   is null;` returns 0 (same for transactions) — trivially true on a
+   fresh database.
 3. Apply `supabase/migrations/0003_enforce_tenancy.sql` (`supabase db
    push` or the dashboard). It aborts with a pointer to the backfill
-   script if any NULL `business_id` remains, then makes `business_id`
+   script if any NULL `business_id` remains (none will on a fresh
+   database), then makes `business_id`
    NOT NULL, drops the two v1 broad policies and drops the unscoped
    balance RPCs.
 4. **Verify:** `\d customers` and `\d transactions` show `business_id` as
