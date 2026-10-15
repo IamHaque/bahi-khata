@@ -9,8 +9,10 @@
 -- AFTER migration 0003, which removes the v1 policies for good.
 --
 -- Fixture: business 'Acme' owned by Olivia, Eli = Editor,
--- Vic = Viewer, Zed = outsider. Business 'Beta' (also Olivia's)
--- exists so Eli can attempt a cross-business transaction.
+-- Vic = Viewer, Zed = outsider. Business 'Beta' — owned by Bea,
+-- a fifth fixture user, because D-01 (locked) allows at most one
+-- OWNED business per user — exists so Eli can attempt a
+-- cross-business transaction.
 --
 -- Run: Supabase SQL Editor (as postgres) or
 --   psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/0002_rls_membership.sql
@@ -59,11 +61,12 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
   ('22222222-2222-2222-2222-222222222222', 'eli@example.com',     '{"full_name":"Eli"}'),
   ('33333333-3333-3333-3333-333333333333', 'vic@example.com',     '{"full_name":"Vic"}'),
-  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',     '{"full_name":"Zed"}');
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',     '{"full_name":"Zed"}'),
+  ('55555555-5555-5555-5555-555555555555', 'bea@example.com',    '{"full_name":"Bea"}');
 
 insert into public.businesses (id, owner_id, name) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
-  ('bbbbbbbb-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Beta');
+  ('bbbbbbbb-0000-0000-0000-000000000002', '55555555-5555-5555-5555-555555555555', 'Beta');
 
 insert into public.business_members (business_id, user_id, role) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'),
