@@ -836,3 +836,51 @@ notes" - these steps cover what only a real device can show.
 5. Wide screens (1024 and 1440): content stays centred at max-w-5xl,
    tables get breathing room, nothing stretches edge to edge.
 6. Rotation test on a tablet: no layout breaks in landscape.
+
+## S-42 - Security verification (no migration)
+
+**Status: client-hygiene proofs run in CI/every commit; SQL proofs must
+be executed by a human** (this build environment has no database).
+Prerequisites: migrations applied in order to a scratch project (see
+earlier sections), then follow `supabase/tests/README.md` "How to run"
+(Option A: paste each file into the SQL Editor of a **scratch** project;
+Option B: `psql -f` against a local `supabase start` stack).
+
+Run every file in `supabase/tests/` and confirm each finishes without
+an exception (a failure RAISES with its assertion message):
+
+1. `0002_rls_membership.sql` - covers four S-42 negative cases:
+   outsider reads nothing (section 4), viewer read-only (section 5,
+   lines 202-228), editor refused permanent delete / role change /
+   member removal (lines 267-285), owner cannot `leave_business`
+   (line 338), cannot accept someone else's invitation (line 402),
+   outsider cannot call `dashboard_summary` (lines 407-411).
+2. `0002b_my_invitations.sql` - invitation visibility + response rules.
+3. `0002c_membership_management.sql` - owner-only role management,
+   owner cannot leave (line 171), departed member loses RPC access
+   (line 252).
+4. `0003b_business_exists.sql` - lost-access probe for all three
+   states.
+5. `0004_archive_delete_customers.sql` - archive + permanent delete
+   refused for editor, viewer and outsider with 42501 (section 8).
+6. `0005_void_restore.sql` - viewer cannot void; void/restore
+   integrity.
+7. `0006_customer_ledger.sql` - outsider gets zero rows, anon cannot
+   execute.
+8. `0006b_transaction_rollup.sql`, `0007_daily_activity.sql`,
+   `0008_import_history.sql` - RPC isolation and import history
+   access.
+
+Automated (no database needed, run any time):
+
+```bash
+npx vitest run src/lib/__tests__/clientHygiene.test.tsx
+```
+
+This proves: no service-role key anywhere in the repo or in `dist/`
+(run `npm run build` first so the bundle is scanned), `.env.example`
+holds only URL + anon key, the local `.env` key is client-safe, the
+supabase client is imported only by `lib/supabase.ts` + `*/api.ts`, no
+HTML sink exists in `src/`, and a markup-laden business name renders
+as literal text. `docs/SECURITY.md` documents the threat model and
+this mapping.
