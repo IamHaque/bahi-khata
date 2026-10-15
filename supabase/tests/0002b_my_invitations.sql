@@ -150,7 +150,12 @@ begin
 end;
 $$;
 
--- A declined invitation disappears the same way.
+-- A declined invitation disappears the same way. The INSERT is
+-- owner-only under RLS, so the fixture sets it up with admin eyes
+-- (Vic — still the active user from the accept above — is only a
+-- viewer member and would be refused).
+select pg_temp.as_admin();
+
 insert into public.business_invitations (business_id, email, role, invited_by)
 values (
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -180,7 +185,10 @@ end;
 $$;
 
 -- The membership check needs admin eyes: as Zed (a non-member) RLS
--- shows zero member rows, which would prove nothing. The next
+-- shows zero member rows, which would prove nothing. Scoped to Zed,
+-- the assertion is exact: declining must leave no membership row
+-- behind (an unscoped admin count would also see Olivia's
+-- trigger-created owner row and Vic's accepted membership). The next
 -- section's invitation INSERT is owner-only, so it stays admin too.
 select pg_temp.as_admin();
 
@@ -188,8 +196,9 @@ do $$
 declare
   v_count int;
 begin
-  select count(*) into v_count from public.business_members;
-  perform pg_temp.expect_eq('Declining does not create a membership', v_count, 1);
+  select count(*) into v_count from public.business_members
+   where user_id = '44444444-4444-4444-4444-444444444444';
+  perform pg_temp.expect_eq('Declining does not create a membership', v_count, 0);
 end;
 $$;
 
@@ -212,8 +221,13 @@ declare
   v_invite public.business_invitations;
   v_count int;
 begin
+  -- Both of Vic's invitations are visible to Vic under the invitee
+  -- policy (it does not filter by status), so the subquery must pin
+  -- the pending one — otherwise the scalar subquery returns two rows
+  -- and the accept would target the wrong invitation.
   select * into v_invite from public.respond_to_invitation(
-    (select id from public.business_invitations where email = 'vic@example.com'),
+    (select id from public.business_invitations
+      where email = 'vic@example.com' and status = 'pending'),
     true
   );
   if v_invite.status <> 'accepted' then
