@@ -48,7 +48,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | S-38 CSV import, business scoped and role gated | Done | (see below) | feature-path `import-export/`: the four-step Upload→Review→Import→Done flow with template download, whole-file validation before any write, per-customer preview (existing balance + file delta), invalid rows with number and reason, archived matches as errors, explicit partial choice; one atomic **import_history** RPC (migration **0008**); sidebar Import link role-gated (hidden for viewers) |
 | S-39 Exports and printable statements | Done | (see below) | feature-path `import-export/`: paged CSV exports (500-row chunks, progress) for Customers/Transactions lists, Settings backup (customers.csv + transactions.csv), safe-CSV cell escaping (`= + - @` prefixed); printable statement route `/b/:bid/customers/:cid/statement` with period selector + print stylesheet (no new deps) |
 | S-40 Accessibility and keyboard pass | Done | (see below) | touch zone "any file": skip link + main landmark, DataTable sort/count announcement, balance live region, `pointer-coarse` custom variant (44px touch targets on coarse pointers), axe-core + `src/test/a11y.ts` helper, `scripts/contrast-audit.cjs` (all token pairs AA both themes), 3 new test suites (axe per page, keyboard journeys, focus) — no new runtime deps (axe-core is a devDependency, PRD-sanctioned) |
-| S-41 Responsive pass | Pending | | |
+| S-41 Responsive pass | Done | (see below) | touch zone "any file": safe areas (`viewport-fit=cover` + `env(safe-area-inset-*)` on Topbar/main), headless-Chrome responsive audit `scripts/responsive-audit.cjs` (real layout: routes × 360/768/1024/1440, scroll + truncated-amount checks), structural `responsive.test.tsx` (drawer/bottom-sheet/cards/safe-area/fixed-width guard) — no new deps |
 | S-42 Security and RLS verification | Pending | | |
 | S-43 Documentation and release readiness | Pending | | |
 
@@ -67,6 +67,33 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 - `src/test/setup.ts` — jsdom shims (`matchMedia`, `scrollIntoView`).
 - `vitest.config.ts` — jsdom environment, `globals: true` (enables RTL auto-cleanup), setup file, `@` alias.
 - Existing pure-logic tests keep working unchanged.
+
+## S-41 scenarios (checklist)
+
+- [x] **Every screen at common widths (360/768/1024/1440)** — no horizontal page scroll and no truncated amount — verified by real-browser audit: `scripts/responsive-audit.cjs` drives headless Chrome over CDP (no npm dependency — Node's built-in WebSocket) against the running dev server, loads every route with an authenticated session and network-level Supabase fixtures, and measures the real layout at each width (`document.documentElement.scrollWidth` vs `innerWidth`, plus a clipped-₹-amount detector); the full routes × widths evidence table is recorded in the notes below; jsdom cannot measure layout, so this is deliberately NOT faked in unit tests — the unit-test layer pins the structural patterns instead
+- [x] **Pattern consistency** — tables become cards under 768px — tested (transactions list + customer-detail ledger narrow-card tests pre-exist from S-31/S-35 via `__setMatchMedia`; `responsive.test.tsx` pins the customers list card mode + non-truncated amounts too); **sheets open from the bottom on mobile** — tested (EntityDialog sheet mode and the customer picker sheet render `side="bottom"`); **the sidebar becomes a drawer** — tested (sidebar `hidden lg:block`, Topbar hamburger `lg:hidden`, drawer Sheet `side="left"`); **safe areas are respected** — implemented (index.html `viewport-fit=cover`; Topbar `pt-[env(safe-area-inset-top)]`; main `pb-[calc(2rem+env(safe-area-inset-bottom))]`) + tested (rendered-markup and index.html assertions in `responsive.test.tsx`)
+- [x] **Width guard** — no fixed layout wider than a 360px phone — tested (source-scan test: no `w-[…px]`/`min-w-[…px]` class above 360px anywhere in `src/`, a lasting regression guard; current max is 150px)
+- [x] **Evidence** — docs/PROGRESS.md records which screens and widths were checked and any issue fixed — this section + the evidence table below; the human on-device pass (real notches, touch scrolling, screen rotation) is in docs/MANUAL_STEPS.md "S-41"
+
+**S-41 notes / evidence:** run `2026-10-15T15:19:40Z` by `scripts/responsive-audit.cjs` — headless Chrome over the DevTools Protocol (Node 22's built-in WebSocket; **zero npm dependencies**), against the running dev server with a seeded session and 327 network-level Supabase fixtures (**0 unmatched requests, 0 console errors**). PASS = `documentElement.scrollWidth ≤ innerWidth + 1`, no ₹-amount with clipped `scrollWidth > clientWidth`, and a per-route content marker present (an error/redirect page can never pass silently):
+
+| Route | 360 px | 768 px | 1024 px | 1440 px |
+| --- | --- | --- | --- | --- |
+| `/login` | PASS | PASS | PASS | PASS |
+| `/__ui` (all shared components) | PASS | PASS | PASS | PASS |
+| `/businesses` | PASS | PASS | PASS | PASS |
+| `/onboarding/business` | PASS | PASS | PASS | PASS |
+| `/b/b1` (dashboard) | PASS | PASS | PASS | PASS |
+| `/b/b1/customers` | PASS | PASS | PASS | PASS |
+| `/b/b1/customers/c1` | PASS | PASS | PASS | PASS |
+| `/b/b1/customers/import` | PASS | PASS | PASS | PASS |
+| `/b/b1/customers/c1/statement` | PASS | PASS | PASS | PASS |
+| `/b/b1/transactions` | PASS | PASS | PASS | PASS |
+| `/b/b1/transactions/t1` | PASS | PASS | PASS | PASS |
+| `/b/b1/members` | PASS | PASS | PASS | PASS |
+| `/b/b1/settings` | PASS | PASS | PASS | PASS |
+
+All 13 screens × 4 widths verified in one final run (**52/52 PASS**) — no route needed a fallback. Issues found and fixed before that run (all class-only): `PageHeader` actions now `flex-wrap` (header buttons no longer squeeze/overflow under the title), `BusinessesPage` list items `min-w-0` (long business names truncate instead of widening the grid), `CustomerDetailPage` header actions `flex-wrap`, `StatementPage` period controls `flex-wrap` + its table wrapped in `overflow-x-auto` (scrolls inside the card), `TransactionsPage` customer link `min-w-0` + mobile-card type badge `shrink-0`. Plus this story's safe-area work: `viewport-fit=cover`, topbar `env(safe-area-inset-top)`, main `env(safe-area-inset-bottom)`. Audit artefacts (report.json + 13 screenshots at 360px) live in temp, deliberately not committed; re-run: dev server up → `node scripts/responsive-audit.cjs` (env overrides `AUDIT_ROUTES`/`AUDIT_WIDTHS`). Honest caveats: (1) fixtures stand in for the real database — the audit proves the LAYOUT, not the data path; (2) `TransactionsPage` sends one customer probe with an empty id on first visit (answered like PostgREST's 406, harmless, pre-existing — noted for a future polish); (3) the topbar title ellipsizes at 360px — deliberate `truncate`, not overflow. Structural jsdom coverage: `responsive.test.tsx` **6 tests** → **456/52** total.
 
 ## S-40 scenarios (checklist)
 

@@ -10,7 +10,9 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, children, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4", className)}>
+    // S-41: the action buttons wrap onto their own line under the title
+    // on narrow screens instead of squeezing (and overflowing) the page.
+    <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           {title}
@@ -19,7 +21,9 @@ export function PageHeader({ title, description, children, className }: PageHead
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+      {children && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>
+      )}
     </div>
   );
 }

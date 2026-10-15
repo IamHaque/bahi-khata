@@ -437,7 +437,8 @@ export function CustomerDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* S-41: the actions wrap under the name on narrow screens. */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* S-39: every member — Viewers included — may open and print
               a statement. */}
           <Button

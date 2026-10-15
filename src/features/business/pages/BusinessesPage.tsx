@@ -89,7 +89,9 @@ export function BusinessesPage() {
             {owned.length > 0 ? (
               <ul className="grid gap-3 md:grid-cols-2">
                 {owned.map((business) => (
-                  <li key={business.id}>
+                  // S-41: min-w-0 keeps this grid item from forcing the
+                  // track to its content's width on narrow screens.
+                  <li key={business.id} className="min-w-0">
                     <BusinessCard
                       business={business}
                       onOpen={() => openBusiness(business.id)}
@@ -126,7 +128,7 @@ export function BusinessesPage() {
             {shared.length > 0 ? (
               <ul className="grid gap-3 md:grid-cols-2">
                 {shared.map((business) => (
-                  <li key={business.id}>
+                  <li key={business.id} className="min-w-0">
                     <BusinessCard
                       business={business}
                       onOpen={() => openBusiness(business.id)}
@@ -151,7 +153,7 @@ export function BusinessesPage() {
             {(invitations?.length ?? 0) > 0 ? (
               <ul className="grid gap-3 md:grid-cols-2">
                 {invitations?.map((invitation) => (
-                  <li key={invitation.id}>
+                  <li key={invitation.id} className="min-w-0">
                     <InvitationCard invitation={invitation} />
                   </li>
                 ))}

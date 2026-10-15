@@ -124,7 +124,9 @@ export function StatementPage() {
           <ArrowLeft className="size-4" aria-hidden />
           Back to customer
         </Link>
-        <div className="flex items-center gap-2">
+        {/* S-41: the period controls wrap on narrow screens instead of
+            pushing the page wider than the viewport. */}
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm text-muted-foreground" htmlFor="from">
             From
           </label>
@@ -172,6 +174,7 @@ export function StatementPage() {
             No entries in this period.
           </p>
         ) : (
+          <div className="-mx-1 overflow-x-auto px-1">
           <table className="mt-4 w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground print:border-black">
@@ -230,6 +233,7 @@ export function StatementPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 print:border-black">

@@ -811,3 +811,28 @@ Prerequisites: any signed-in state with at least one business.
    ("Owes you"/"You owe"), voided rows say "(voided)".
 8. Reduced motion: enable "reduce motion" in the OS - page
    transitions and the balance flash collapse to near-instant.
+
+## S-41 - Responsive pass (no migration)
+
+**Status: code done; no database changes** (frontend only).
+Prerequisites: any signed-in state with one business. The automated
+evidence (headless Chrome, routes x widths) is in PROGRESS.md "S-41
+notes" - these steps cover what only a real device can show.
+
+1. Real phone (or devtools device mode + touch): open the app at
+   ~360px - rotate through Dashboard, Customers, customer detail,
+   Import, Statement, Transactions, Members, Settings: no sideways
+   page scrolling, every rupee amount fully visible (never cut off).
+2. Below 768px both lists (Customers, Transactions) and the customer
+   ledger render as CARDS, not squeezed tables; row actions stay
+   reachable.
+3. Sheets (Add transaction, the customer picker) rise from the BOTTOM
+   on a phone; the navigation hamburger (visible under 1024px) opens
+   the drawer from the left; the desktop sidebar returns at >=1024px.
+4. Notch/home-indicator devices: with viewport-fit=cover active, the
+   topbar content clears the notch (safe-area-inset-top) and the last
+   content row sits above the home indicator
+   (safe-area-inset-bottom) - both are 0 on devices without insets.
+5. Wide screens (1024 and 1440): content stays centred at max-w-5xl,
+   tables get breathing room, nothing stretches edge to edge.
+6. Rotation test on a tablet: no layout breaks in landscape.

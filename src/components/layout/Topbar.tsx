@@ -85,7 +85,7 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background print:hidden">
-      <div className="flex h-14 items-center gap-3 px-4">
+      <div className="flex min-h-14 items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
         {/* Hamburger — mobile only */}
         <button
           type="button"

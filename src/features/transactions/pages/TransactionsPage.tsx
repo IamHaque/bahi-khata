@@ -469,7 +469,7 @@ export function TransactionsPage() {
     <Link
       to={paths.customerDetail(businessId, row.customer_id)}
       onClick={(event) => event.stopPropagation()}
-      className="inline-flex items-center gap-2 font-medium text-foreground hover:underline"
+      className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline"
     >
       <Avatar name={row.customer.name} size="sm" />
       <span className="truncate">{row.customer.name}</span>
@@ -921,7 +921,7 @@ export function TransactionsPage() {
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   {customerCell(row)}
-                  {typeBadge(row)}
+                  <span className="shrink-0">{typeBadge(row)}</span>
                 </div>
                 {/* Amounts are never truncated on mobile (S-35). */}
                 <div className="mt-2 flex items-baseline justify-between gap-3">
