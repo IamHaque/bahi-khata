@@ -97,7 +97,7 @@ values (
 -- ------------------------------------------------------------
 -- 3. Assertion helpers
 -- ------------------------------------------------------------
-create or replace function pg_temp.expect_eq(p_what text, p_actual int, p_expected int)
+create or replace function pg_temp.expect_eq(p_what text, p_actual bigint, p_expected bigint)
 returns void
 language plpgsql
 as $$

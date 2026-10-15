@@ -144,7 +144,8 @@ begin
   select count(*) into v_count from public.my_invitations();
   perform pg_temp.expect_eq('Accepted invitation leaves the list', v_count, 0);
 
-  select count(*) into v_count from public.business_members;
+  select count(*) into v_count from public.business_members
+   where user_id = '33333333-3333-3333-3333-333333333333';
   perform pg_temp.expect_eq('Vic is now a member', v_count, 1);
 end;
 $$;
@@ -175,6 +176,18 @@ begin
   select count(*) into v_count from public.my_invitations();
   perform pg_temp.expect_eq('Declined invitation leaves the list', v_count, 0);
 
+end;
+$$;
+
+-- The membership check needs admin eyes: as Zed (a non-member) RLS
+-- shows zero member rows, which would prove nothing. The next
+-- section's invitation INSERT is owner-only, so it stays admin too.
+select pg_temp.as_admin();
+
+do $$
+declare
+  v_count int;
+begin
   select count(*) into v_count from public.business_members;
   perform pg_temp.expect_eq('Declining does not create a membership', v_count, 1);
 end;
@@ -208,7 +221,8 @@ begin
   end if;
 
   -- No duplicate membership row appeared.
-  select count(*) into v_count from public.business_members;
+  select count(*) into v_count from public.business_members
+   where user_id = '33333333-3333-3333-3333-333333333333';
   perform pg_temp.expect_eq('Re-accepting adds no duplicate membership', v_count, 1);
 end;
 $$;
