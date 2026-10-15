@@ -360,8 +360,8 @@ begin
   perform pg_temp.expect_eq('Olivia updated the business', v_count, 1);
 
   select * into v_summary from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001');
-  perform pg_temp.expect_eq('dashboard_summary open accounts', v_summary.open_accounts, 1);
-  perform pg_temp.expect_eq('dashboard_summary today count', v_summary.today_count, 1);
+  perform pg_temp.expect_eq('dashboard_summary open accounts — unsettled in BOTH directions (a paid-ahead -100 is open; only 0 is closed)', v_summary.open_accounts, 2);
+  perform pg_temp.expect_eq('dashboard_summary today count — the fixture charge AND Eli''s section-6 payment', v_summary.today_count, 2);
   if v_summary.total_receivable <> 500 then
     raise exception 'TEST FAILED: dashboard_summary receivable — expected 500, got %', v_summary.total_receivable;
   end if;
