@@ -31,6 +31,7 @@ must be applied:
 | `0006_*.sql` | S-31 | customer_ledger RPC |
 | `0007_*.sql` | S-37 | daily_activity RPC |
 | `0008_*.sql` | S-38 | import RPC |
+| `0009_void_reason_column.sql` | bugfix (DEV-15) | the `transactions.void_reason` column 0005 always assumed — found on first execution, added here |
 
 **To apply a migration:**
 
@@ -76,6 +77,7 @@ procedure, in order; each step names what success looks like.
    9. `0006b_transaction_rollup.sql`
    10. `0007_daily_activity.sql`
    11. `0008_import_history.sql`
+   12. `0009_void_reason_column.sql` (bugfix found during this sync — see PROGRESS DEV-15)
 
    *Success per file:* the run finishes without an error (`DO` blocks
    may raise `NOTICE`s — that is normal). With the wipe done first,
