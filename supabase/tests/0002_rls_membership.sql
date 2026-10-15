@@ -9,7 +9,10 @@
 -- AFTER migration 0003, which removes the v1 policies for good.
 --
 -- Fixture: business 'Acme' owned by Olivia, Eli = Editor,
--- Vic = Viewer, Zed = outsider. Business 'Beta' — owned by Bea,
+-- Vic = Viewer (a member from the start — an invitee, unlike a
+-- member, correctly reads nothing; in section 8 Vic answers his
+-- invitation anyway, taking the already-a-member path 0002b pins),
+-- Zed = outsider. Business 'Beta' — owned by Bea,
 -- a fifth fixture user, because D-01 (locked) allows at most one
 -- OWNED business per user — exists so Eli can attempt a
 -- cross-business transaction.
@@ -70,6 +73,7 @@ insert into public.businesses (id, owner_id, name) values
 
 insert into public.business_members (business_id, user_id, role) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'viewer'),
   ('bbbbbbbb-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'editor');
 
 insert into public.customers (business_id, name) values
@@ -140,7 +144,7 @@ begin
   perform pg_temp.expect_eq('Olivia reads Acme business', v_count, 1);
 
   select count(*) into v_count from public.business_members;
-  perform pg_temp.expect_eq('Olivia reads Acme members', v_count, 2);
+  perform pg_temp.expect_eq('Olivia reads Acme members', v_count, 3);
 
   select count(*) into v_count from public.business_invitations;
   perform pg_temp.expect_eq('Olivia reads Acme invitations', v_count, 1);
