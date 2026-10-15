@@ -5,6 +5,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* S-40: touch-target sizing. Tailwind 4.3 has no built-in pointer
+   granularity variant, so name one; used as pointer-coarse:min-h-11
+   on interactive components (44px targets on touch devices only). */
+@custom-variant pointer-coarse (@media (pointer: coarse));
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Public Sans Variable", system-ui, sans-serif;

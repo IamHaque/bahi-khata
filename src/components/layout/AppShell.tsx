@@ -31,6 +31,14 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      {/* S-40: keyboard users reach the page content without tabbing
+          through the whole sidebar. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium"
+      >
+        Skip to content
+      </a>
       {/* Desktop sidebar — collapses to icon rail */}
       <aside
         className={cn(
@@ -51,7 +59,11 @@ export function AppShell() {
           onToggleSidebar={() => setCollapsed((c) => !c)}
           onOpenMenu={() => setDrawerOpen(true)}
         />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 print:max-w-none print:px-0 print:py-0">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 outline-none print:max-w-none print:px-0 print:py-0"
+        >
           <Outlet />
         </main>
       </div>

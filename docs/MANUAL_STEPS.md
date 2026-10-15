@@ -769,3 +769,45 @@ ame,phone,balance,last_activity,created, and any
 7. Failure drill: start an export and stop the network - a toast
    explains the failure and the button returns to "Export CSV"
    (nothing half-downloaded).
+
+## S-40 - Accessibility and keyboard pass (no migration)
+
+**Status: code done; no database changes** (frontend only).
+Prerequisites: any signed-in state with at least one business.
+
+1. Automated axe: with the dev server running, open each page
+   (Dashboard, Customers, a customer's detail, Import, Statement,
+   Transactions, Members, Settings, My businesses, /__ui gallery)
+   with axe DevTools enabled in the browser - zero serious or
+   critical violations on every page (the same checks run in CI
+   via src/features/__tests__/axePages.test.tsx).
+2. Keyboard only, no mouse at all: tab order reaches - and Enter
+   activates - every journey: sign in, create business, invite a
+   member, add customer, add transaction, void a transaction,
+   archive AND restore a customer, switch business via the topbar
+   switcher. Focus must always be visible (ring) on the focused
+   control.
+3. Skip link: on any app page, press Tab once from the top - a
+   "Skip to content" link appears; Enter jumps focus past the
+   sidebar to the main content.
+4. Dialogs and sheets: open the Add customer dialog (or the
+   transaction sheet) with Enter - focus moves inside; Tab cycles
+   WITHIN the overlay (not to the page behind it); Escape closes
+   it and focus returns to the button that opened it.
+5. Screen reader pass (VoiceOver/NVDA spot check): toasts announce
+   on appear; a table announces "Showing N of M" and, when sorted,
+   "sorted by <column>, ascending/descending"; after voiding a
+   transaction the customer's balance change is announced (the
+   balance element is a live region), not just flashed.
+6. Touch (real device or devtools device mode with touch): every
+   button, input, select, menu item and sidebar link is at least
+   44x44 px (the pointer-coarse: rules inflate them only on touch
+   devices - desktop sizes are unchanged).
+7. Contrast: both themes (toggle light/dark) - body text, muted
+   text, balance colours (receivable/credit/settled), badges and
+   primary buttons all pass WCAG AA; automated evidence in
+   scripts/contrast-audit.cjs (run: node scripts/contrast-audit.cjs).
+   Meaning is never colour alone: balance badges carry words
+   ("Owes you"/"You owe"), voided rows say "(voided)".
+8. Reduced motion: enable "reduce motion" in the OS - page
+   transitions and the balance flash collapse to near-instant.

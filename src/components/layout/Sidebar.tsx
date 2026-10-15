@@ -40,7 +40,7 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors pointer-coarse:min-h-11",
                   collapsed && "justify-center px-0",
                   isActive
                     ? "bg-primary/10 font-medium text-primary"

@@ -182,9 +182,17 @@ export function CustomerCombobox({
   }, [open]);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (!open) return;
+    // The sheet/popover often focuses the first field itself. Never yank
+    // focus back after the user has already moved it (e.g. arrowed into
+    // the list) — that would strand keyboard users mid-selection (S-40).
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      if (active === inputRef.current) return;
+      if (listRef.current?.contains(active)) return;
+      inputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
   }, [open]);
 
   const selected = customers.find((c) => c.id === value);

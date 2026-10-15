@@ -110,7 +110,7 @@ export function RowActionsMenu({
                 role="menuitem"
                 disabled={item.disabled}
                 className={cn(
-                  "flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted disabled:opacity-50",
+                  "flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted disabled:opacity-50 pointer-coarse:min-h-11",
                   item.variant === "destructive" && "text-destructive",
                 )}
                 onClick={() => {
@@ -284,8 +284,15 @@ export function DataTable<T>({
 
   return (
     <div className="space-y-2">
+      {/* S-40: result counts AND sort changes reach screen readers. */}
       <p className="sr-only" role="status">
         Showing {rows.length} of {showingCount}
+        {sortBy && onSortChange
+          ? `, sorted by ${
+              columns.find((column) => column.key === sortBy)?.header ??
+              sortBy
+            }, ${sortDir === "asc" ? "ascending" : "descending"}`
+          : ""}
       </p>
 
       {loading ? (

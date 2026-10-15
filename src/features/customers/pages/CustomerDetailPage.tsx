@@ -473,8 +473,10 @@ export function CustomerDetailPage() {
       <section className="rounded-xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground">Current Balance</p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
+          {/* S-40: a changed balance is announced, not just flashed. */}
           <p
             ref={balanceRef}
+            role="status"
             className={`text-5xl font-bold tabular-nums tracking-tight ${balanceClass}`}
             style={{ letterSpacing: "-0.02em" }}
           >
