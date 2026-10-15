@@ -1,3 +1,10 @@
+> **⚠ SUPERSEDED IN PART —** this v1 PRD is superseded in part by the v2
+> PRD (`docs/PRD-v2.md`), which adds multi-business support, teams and
+> roles, permissions, the customer/transaction workflows v2 changed, and
+> the quality bars (tests, accessibility, security). Where the two
+> documents disagree, the v2 PRD wins; anything v2 does not cover still
+> follows this document. Current build status: `docs/PROGRESS.md`.
+
 # BahiKhata — Product Requirements Document
 
 **Status:** Ready for build — confirmed decisions locked, remaining opens flagged below

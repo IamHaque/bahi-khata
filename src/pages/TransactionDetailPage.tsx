@@ -1,39 +1,41 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { EditTransactionSheet } from "@/components/EditTransactionSheet";
-import { getTransactionById } from "@/lib/transactions";
-import type { TransactionWithCustomer } from "@/types";
+import {
+  useRestoreTransaction,
+  useTransaction,
+} from "@/features/transactions/hooks";
+import {
+  VoidTransactionDialog,
+  type VoidableTransaction,
+} from "@/features/transactions/components/VoidTransactionDialog";
+import { openTransactionEdit } from "@/features/transactions/sheetStore";
+import { usePermissions } from "@/features/business/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { formatDate, formatTime } from "@/lib/format";
+import { paths } from "@/lib/paths";
+import { toast } from "sonner";
 
 export function TransactionDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { transactionId } = useParams<{ transactionId: string }>();
   const navigate = useNavigate();
-  const [transaction, setTransaction] = useState<TransactionWithCustomer | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editTx, setEditTx] = useState<TransactionWithCustomer | null>(null);
+  // "" only happens in tests that render the page outside /b/:businessId;
+  // falsy businessId behaves unscoped (v1 transitional), same as undefined.
+  const businessId = useScopedBusinessId() ?? "";
+  const {
+    data: transaction,
+    isLoading,
+    error,
+    refetch,
+  } = useTransaction(transactionId ?? "", businessId);
+  // S-33/S-34: edit happens in the shared sheet; void confirms with an
+  // optional reason; restore only ever adds history back, so it goes
+  // straight through. Viewers have no actions at all.
+  const [voidTx, setVoidTx] = useState<VoidableTransaction | null>(null);
+  const { can } = usePermissions();
+  const restore = useRestoreTransaction(businessId);
 
-  const fetchTransaction = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const tx = await getTransactionById(id);
-      setTransaction(tx);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load transaction",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void fetchTransaction();
-  }, [fetchTransaction]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4" role="status" aria-label="Loading transaction">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
@@ -46,10 +48,10 @@ export function TransactionDetailPage() {
   if (error) {
     return (
       <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-        {error}
+        {error.message}
         <button
           type="button"
-          onClick={() => void fetchTransaction()}
+          onClick={() => refetch()}
           className="ml-3 underline hover:no-underline"
         >
           Retry
@@ -63,7 +65,7 @@ export function TransactionDetailPage() {
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => navigate("/transactions")}
+          onClick={() => navigate(paths.transactions(businessId))}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Transactions
@@ -73,7 +75,7 @@ export function TransactionDetailPage() {
             Transaction not found. It may have been deleted.
           </p>
           <Link
-            to="/transactions"
+            to={paths.transactions(businessId)}
             className="mt-2 inline-block text-sm text-primary hover:underline"
           >
             Back to Transactions
@@ -83,16 +85,8 @@ export function TransactionDetailPage() {
     );
   }
 
-  const txDate = new Date(transaction.occurred_at);
-  const formattedDate = txDate.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const formattedTime = txDate.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = formatDate(transaction.occurred_at);
+  const formattedTime = formatTime(transaction.occurred_at);
 
   const statusLabel =
     transaction.status === "voided"
@@ -114,7 +108,7 @@ export function TransactionDetailPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/transactions")}
+            onClick={() => navigate(paths.transactions(businessId))}
             className="mb-2 text-sm text-muted-foreground hover:text-foreground"
           >
             &larr; Transactions
@@ -123,14 +117,51 @@ export function TransactionDetailPage() {
             Transaction Detail
           </h2>
         </div>
-        {transaction.status !== "voided" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditTx(transaction)}
-          >
-            Edit
-          </Button>
+        {can("manageTransactions") && (
+          <div className="flex items-center gap-2">
+            {transaction.status !== "voided" ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    openTransactionEdit(transaction, {
+                      id: transaction.customer_id,
+                      name: transaction.customer_name,
+                    })
+                  }
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVoidTx(transaction)}
+                >
+                  Void
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  restore.mutate(
+                    { id: transaction.id },
+                    {
+                      onSuccess: () => toast.success("Transaction restored."),
+                      onError: () =>
+                        toast.error(
+                          "Could not restore the transaction. Try again.",
+                        ),
+                    },
+                  )
+                }
+              >
+                Restore
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -138,7 +169,7 @@ export function TransactionDetailPage() {
         <div>
           <p className="text-xs text-muted-foreground/70">Customer</p>
           <Link
-            to={`/customers/${transaction.customer_id}`}
+            to={paths.customerDetail(businessId, transaction.customer_id)}
             className="text-sm font-medium text-foreground hover:underline"
           >
             {transaction.customer_name}
@@ -192,16 +223,28 @@ export function TransactionDetailPage() {
           <p className="text-xs text-muted-foreground/70">Status</p>
           <p className={`text-sm font-medium ${statusClass}`}>{statusLabel}</p>
         </div>
+
+        {/* S-34: a voided row keeps its reason as part of the audit
+            trail (FR-9a); voids without one say so plainly. */}
+        {transaction.status === "voided" && (
+          <div>
+            <p className="text-xs text-muted-foreground/70">Void reason</p>
+            <p className="text-sm text-foreground">
+              {transaction.void_reason || "No reason given"}
+            </p>
+          </div>
+        )}
       </div>
 
-      {editTx && (
-        <EditTransactionSheet
-          open={!!editTx}
-          onOpenChange={(open) => { if (!open) setEditTx(null); }}
-          transaction={editTx}
-          onTransactionUpdated={() => { setEditTx(null); void fetchTransaction(); }}
-        />
-      )}
+      {/* S-34: the void confirmation; its own toast carries Undo. */}
+      <VoidTransactionDialog
+        open={!!voidTx}
+        onOpenChange={(open) => {
+          if (!open) setVoidTx(null);
+        }}
+        businessId={businessId}
+        transaction={voidTx}
+      />
     </div>
   );
 }

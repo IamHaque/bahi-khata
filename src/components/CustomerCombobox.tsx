@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { listCustomers } from "@/lib/customers";
+import { useCustomers } from "@/features/customers/hooks";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import type { Customer } from "@/types";
 
 interface CustomerComboboxProps {
@@ -165,35 +166,40 @@ export function CustomerCombobox({
   disabled,
 }: CustomerComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    setSearch("");
-    listCustomers()
-      .then(setCustomers)
-      .catch(() => setCustomers([]))
-      .finally(() => setLoading(false));
-  }, [open]);
+  const businessId = useScopedBusinessId() ?? "";
+  const { data: customers = [], isLoading } = useCustomers(businessId);
 
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setSearch("");
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    // The sheet/popover often focuses the first field itself. Never yank
+    // focus back after the user has already moved it (e.g. arrowed into
+    // the list) — that would strand keyboard users mid-selection (S-40).
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      if (active === inputRef.current) return;
+      if (listRef.current?.contains(active)) return;
+      inputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
   }, [open]);
 
   const selected = customers.find((c) => c.id === value);
 
   const pickerProps = {
     customers,
-    loading,
+    loading: isLoading,
     search,
     setSearch,
     value,

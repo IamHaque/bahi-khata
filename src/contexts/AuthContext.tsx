@@ -7,7 +7,12 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import {
+  getSession,
+  onAuthStateChange,
+  signInWithGoogle,
+  signOut,
+} from "@/features/auth/api";
 
 interface AuthContextValue {
   session: Session | null;
@@ -24,38 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    getSession().then((s) => {
       setSession(s);
       setLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    return onAuthStateChange((s) => {
       setSession(s);
       setLoading(false);
     });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) {
-      throw error;
-    }
+  const signIn = useCallback(async () => {
+    await signInWithGoogle();
   }, []);
 
-  const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
-    }
+  const signOutUser = useCallback(async () => {
+    await signOut();
   }, []);
 
   return (
@@ -64,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         loading,
-        signInWithGoogle,
-        signOut,
+        signInWithGoogle: signIn,
+        signOut: signOutUser,
       }}
     >
       {children}
