@@ -206,7 +206,11 @@ end;
 $$;
 
 -- ------------------------------------------------------------
--- 5. Viewer is read-only
+-- 5. Viewer is read-only. Inserts raise 42501 (WITH CHECK on the
+--    new row); row-scoped UPDATE/DELETE are filtered by RLS
+--    instead — they match zero rows, which is why the assertions
+--    below check that nothing changed rather than expecting an
+--    error. Same semantics as tests 0004/0005.
 -- ------------------------------------------------------------
 select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'vic@example.com');
 
@@ -215,15 +219,29 @@ select pg_temp.expect_denied(
   $$insert into public.customers (business_id, name) values ('aaaaaaaa-0000-0000-0000-000000000001', 'Nope')$$
 );
 
-select pg_temp.expect_denied(
-  'Vic cannot update a customer',
-  $$update public.customers set name = 'Nope' where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.customers set name = 'Nope'
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and name = 'Nope';
+  perform pg_temp.expect_eq('Vic''s customer update changed zero rows', v_count, 0);
+end;
+$$;
 
-select pg_temp.expect_denied(
-  'Vic cannot delete a customer',
-  $$delete from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Vic''s customer delete removed zero rows', v_count, 1);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Vic cannot insert a transaction',
@@ -231,10 +249,17 @@ select pg_temp.expect_denied(
    values ((select id from public.customers where name = 'Customer One'), 'aaaaaaaa-0000-0000-0000-000000000001', 'charge', 10, now(), '33333333-3333-3333-3333-333333333333')$$
 );
 
-select pg_temp.expect_denied(
-  'Vic cannot update a transaction',
-  $$update public.transactions set amount = 1 where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.transactions set amount = 1
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.transactions
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and amount = 1;
+  perform pg_temp.expect_eq('Vic''s transaction update changed zero rows', v_count, 0);
+end;
+$$;
 
 -- ------------------------------------------------------------
 -- 6. Editor can write but not destroy
@@ -271,15 +296,28 @@ select pg_temp.expect_denied(
    values ((select id from public.customers where name = 'Customer One'), 'bbbbbbbb-0000-0000-0000-000000000002', 'charge', 10, now(), '22222222-2222-2222-2222-222222222222')$$
 );
 
-select pg_temp.expect_denied(
-  'Eli cannot permanently delete a customer',
-  $$delete from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Eli''s direct delete removed zero customers', v_count, 2);
+end;
+$$;
 
-select pg_temp.expect_denied(
-  'Eli cannot delete the business',
-  $$delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.businesses
+   where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Eli''s business delete removed zero rows', v_count, 1);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Eli cannot change a member role',
@@ -291,10 +329,16 @@ select pg_temp.expect_denied(
   $$select public.remove_member('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$$
 );
 
-select pg_temp.expect_denied(
-  'Eli cannot update the business details',
-  $$update public.businesses set name = 'Hijacked' where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.businesses set name = 'Hijacked'
+   where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.businesses where name = 'Hijacked';
+  perform pg_temp.expect_eq('Eli''s business update changed zero rows', v_count, 0);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Eli cannot insert an invitation',
