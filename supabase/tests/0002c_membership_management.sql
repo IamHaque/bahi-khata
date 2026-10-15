@@ -143,13 +143,13 @@ do $$
 declare
   v_count int;
 begin
-  select public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'::business_role);
+  perform public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'::business_role);
   select count(*) into v_count from public.business_members
    where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'
      and user_id = '22222222-2222-2222-2222-222222222222' and role = 'viewer';
   perform pg_temp.expect_eq('Olivia changed Eli to viewer', v_count, 1);
 
-  select public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'::business_role);
+  perform public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'::business_role);
   select count(*) into v_count from public.business_members
    where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'
      and user_id = '22222222-2222-2222-2222-222222222222' and role = 'editor';
