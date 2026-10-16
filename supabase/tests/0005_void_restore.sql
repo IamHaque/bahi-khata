@@ -92,6 +92,18 @@ begin
 end;
 $$;
 
+-- Overload to support transaction_status enum
+create or replace function pg_temp.expect_text(p_what text, p_actual public.transaction_status, p_expected text)
+returns void
+language plpgsql
+as $$
+begin
+  if p_actual::text is distinct from p_expected then
+    raise exception 'TEST FAILED: % — expected %, got %', p_what, p_expected, p_actual;
+  end if;
+end;
+$$;
+
 -- ------------------------------------------------------------
 -- 2. Fixtures: Ollie owns Acme; Evan is an editor, Vic a viewer and
 --    Zed a complete outsider. Asha owes 4500 (charge 5000, payment
@@ -141,7 +153,7 @@ update public.transactions
 select pg_temp.as_admin();
 select pg_temp.expect_text(
   'viewer void attempt left the payment active',
-  (select status from public.transactions
+  (select status::text from public.transactions
     where id = 'dddddddd-0000-0000-0000-000000000002'),
   'active');
 
@@ -198,7 +210,7 @@ select public.restore_transaction(
 select pg_temp.as_admin();
 select pg_temp.expect_text(
   'never-edited row restores as active',
-  (select status from public.transactions
+  (select status::text from public.transactions
     where id = 'dddddddd-0000-0000-0000-000000000002'),
   'active');
 select pg_temp.expect_bool(
@@ -229,7 +241,7 @@ select public.restore_transaction(
 select pg_temp.as_admin();
 select pg_temp.expect_text(
   'edited-before row restores as edited',
-  (select status from public.transactions
+  (select status::text from public.transactions
     where id = 'dddddddd-0000-0000-0000-000000000001'),
   'edited');
 
@@ -247,7 +259,7 @@ begin
   exception
     when others then
       if sqlerrm like 'TEST FAILED%' then raise; end if;
-      select pg_temp.expect_text(
+      perform pg_temp.expect_text(
         'not-voided restore reason',
         sqlerrm,
         'Void transaction not found.');
@@ -264,7 +276,7 @@ begin
   exception
     when others then
       if sqlerrm like 'TEST FAILED%' then raise; end if;
-      select pg_temp.expect_text(
+      perform pg_temp.expect_text(
         'wrong-business restore reason',
         sqlerrm,
         'Void transaction not found.');
@@ -284,7 +296,7 @@ begin
   exception
     when others then
       if sqlerrm like 'TEST FAILED%' then raise; end if;
-      select pg_temp.expect_text(
+      perform pg_temp.expect_text(
         'outsider restore reason',
         sqlerrm,
         'Void transaction not found.');

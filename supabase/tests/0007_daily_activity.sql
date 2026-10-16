@@ -19,6 +19,7 @@
 -- applied. Any "TEST FAILED" exception means a regression.
 
 begin;
+set local timezone = 'UTC';
 
 -- ------------------------------------------------------------
 -- 1. Helpers (transaction-local, same pattern as 0002..0006b)
@@ -85,7 +86,7 @@ $$;
 --    NOW() because the function's window is now()-relative.
 --    today-2 carries the mixed day (charge + payment + voided +
 --    archived), today-1 a lone charge, today the edited payment and
---    the late-evening charge used for the timezone check.
+--    today-5 the evening charge used for the timezone check.
 -- ------------------------------------------------------------
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'ollie@example.com', '{"full_name":"Ollie"}'),
@@ -112,8 +113,8 @@ insert into public.transactions (id, business_id, customer_id, type, amount, sta
   ('dddddddd-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge',   700, 'active', null,         (date_trunc('day', now()) - interval '1 day') + interval '9 hours', '11111111-1111-1111-1111-111111111111'),
   -- today: an EDITED payment still counts.
   ('dddddddd-0000-0000-0000-000000000006', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'payment',  200, 'edited', null,         (date_trunc('day', now()) + interval '8 hours'), '11111111-1111-1111-1111-111111111111'),
-  -- today, 19:30 UTC: the timezone probe (unique amount).
-  ('dddddddd-0000-0000-0000-000000000007', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 12345, 'active', null,         (date_trunc('day', now()) + interval '19 hours 30 minutes'), '11111111-1111-1111-1111-111111111111'),
+  -- today-5, 19:30 UTC: the timezone probe (unique amount).
+  ('dddddddd-0000-0000-0000-000000000007', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 12345, 'active', null,         (date_trunc('day', now()) - interval '5 days' + interval '19 hours 30 minutes'), '11111111-1111-1111-1111-111111111111'),
   -- Another business's money: RLS's problem, not the filter's.
   ('dddddddd-0000-0000-0000-000000000008', 'aaaaaaaa-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000003', 'charge',  4444, 'active', null,         (date_trunc('day', now()) - interval '2 days') + interval '10 hours', '44444444-4444-4444-4444-444444444444');
 
@@ -175,7 +176,7 @@ select pg_temp.expect_num(
   'a quiet day is exactly zero, not null',
   (select charges from public.daily_activity(
     'aaaaaaaa-0000-0000-0000-000000000001', 7, 'UTC')
-   where activity_date = (now() - interval '5 days')::date),
+   where activity_date = (now() - interval '4 days')::date),
   0);
 
 select pg_temp.expect_num(
@@ -206,23 +207,22 @@ select pg_temp.expect_bigint(
   90);
 
 -- ------------------------------------------------------------
--- 6. Timezone: 19:30 UTC today is 01:30 TOMORROW in Asia/Dhaka, so
---    the probe charge (12345) buckets one day later in the caller's
---    zone. p_days=90 keeps the window wide enough in both zones.
+-- 6. Timezone: 19:30 UTC on day-5 is 01:30 on day-4 in Asia/Dhaka,
+--    so the probe charge (12345) buckets one day later in Dhaka.
 -- ------------------------------------------------------------
 select pg_temp.expect_day(
-  'UTC buckets the 19:30 probe on today',
+  'UTC buckets the 19:30 probe on day-5',
   (select activity_date from public.daily_activity(
     'aaaaaaaa-0000-0000-0000-000000000001', 90, 'UTC')
    where charges = 12345),
-  now()::date);
+  (now() - interval '5 days')::date);
 
 select pg_temp.expect_day(
-  'Dhaka buckets the same probe on tomorrow',
+  'Dhaka buckets the same probe on day-4',
   (select activity_date from public.daily_activity(
     'aaaaaaaa-0000-0000-0000-000000000001', 90, 'Asia/Dhaka')
    where charges = 12345),
-  (now() + interval '1 day')::date);
+  (now() - interval '4 days')::date);
 
 -- ------------------------------------------------------------
 -- 7. A complete outsider gets all-zero days (RLS scopes the read).

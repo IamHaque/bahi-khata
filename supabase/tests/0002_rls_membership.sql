@@ -9,8 +9,13 @@
 -- AFTER migration 0003, which removes the v1 policies for good.
 --
 -- Fixture: business 'Acme' owned by Olivia, Eli = Editor,
--- Vic = Viewer, Zed = outsider. Business 'Beta' (also Olivia's)
--- exists so Eli can attempt a cross-business transaction.
+-- Vic = Viewer (a member from the start — an invitee, unlike a
+-- member, correctly reads nothing; in section 8 Vic answers his
+-- invitation anyway, taking the already-a-member path 0002b pins),
+-- Zed = outsider. Business 'Beta' — owned by Bea,
+-- a fifth fixture user, because D-01 (locked) allows at most one
+-- OWNED business per user — exists so Eli can attempt a
+-- cross-business transaction.
 --
 -- Run: Supabase SQL Editor (as postgres) or
 --   psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/0002_rls_membership.sql
@@ -59,14 +64,16 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
   ('22222222-2222-2222-2222-222222222222', 'eli@example.com',     '{"full_name":"Eli"}'),
   ('33333333-3333-3333-3333-333333333333', 'vic@example.com',     '{"full_name":"Vic"}'),
-  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',     '{"full_name":"Zed"}');
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',     '{"full_name":"Zed"}'),
+  ('55555555-5555-5555-5555-555555555555', 'bea@example.com',    '{"full_name":"Bea"}');
 
 insert into public.businesses (id, owner_id, name) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
-  ('bbbbbbbb-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Beta');
+  ('bbbbbbbb-0000-0000-0000-000000000002', '55555555-5555-5555-5555-555555555555', 'Beta');
 
 insert into public.business_members (business_id, user_id, role) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'viewer'),
   ('bbbbbbbb-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'editor');
 
 insert into public.customers (business_id, name) values
@@ -90,7 +97,7 @@ values (
 -- ------------------------------------------------------------
 -- 3. Assertion helpers
 -- ------------------------------------------------------------
-create or replace function pg_temp.expect_eq(p_what text, p_actual int, p_expected int)
+create or replace function pg_temp.expect_eq(p_what text, p_actual bigint, p_expected bigint)
 returns void
 language plpgsql
 as $$
@@ -137,7 +144,7 @@ begin
   perform pg_temp.expect_eq('Olivia reads Acme business', v_count, 1);
 
   select count(*) into v_count from public.business_members;
-  perform pg_temp.expect_eq('Olivia reads Acme members', v_count, 2);
+  perform pg_temp.expect_eq('Olivia reads Acme members', v_count, 3);
 
   select count(*) into v_count from public.business_invitations;
   perform pg_temp.expect_eq('Olivia reads Acme invitations', v_count, 1);
@@ -199,7 +206,11 @@ end;
 $$;
 
 -- ------------------------------------------------------------
--- 5. Viewer is read-only
+-- 5. Viewer is read-only. Inserts raise 42501 (WITH CHECK on the
+--    new row); row-scoped UPDATE/DELETE are filtered by RLS
+--    instead — they match zero rows, which is why the assertions
+--    below check that nothing changed rather than expecting an
+--    error. Same semantics as tests 0004/0005.
 -- ------------------------------------------------------------
 select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'vic@example.com');
 
@@ -208,15 +219,29 @@ select pg_temp.expect_denied(
   $$insert into public.customers (business_id, name) values ('aaaaaaaa-0000-0000-0000-000000000001', 'Nope')$$
 );
 
-select pg_temp.expect_denied(
-  'Vic cannot update a customer',
-  $$update public.customers set name = 'Nope' where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.customers set name = 'Nope'
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and name = 'Nope';
+  perform pg_temp.expect_eq('Vic''s customer update changed zero rows', v_count, 0);
+end;
+$$;
 
-select pg_temp.expect_denied(
-  'Vic cannot delete a customer',
-  $$delete from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Vic''s customer delete removed zero rows', v_count, 1);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Vic cannot insert a transaction',
@@ -224,10 +249,17 @@ select pg_temp.expect_denied(
    values ((select id from public.customers where name = 'Customer One'), 'aaaaaaaa-0000-0000-0000-000000000001', 'charge', 10, now(), '33333333-3333-3333-3333-333333333333')$$
 );
 
-select pg_temp.expect_denied(
-  'Vic cannot update a transaction',
-  $$update public.transactions set amount = 1 where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.transactions set amount = 1
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.transactions
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and amount = 1;
+  perform pg_temp.expect_eq('Vic''s transaction update changed zero rows', v_count, 0);
+end;
+$$;
 
 -- ------------------------------------------------------------
 -- 6. Editor can write but not destroy
@@ -264,15 +296,28 @@ select pg_temp.expect_denied(
    values ((select id from public.customers where name = 'Customer One'), 'bbbbbbbb-0000-0000-0000-000000000002', 'charge', 10, now(), '22222222-2222-2222-2222-222222222222')$$
 );
 
-select pg_temp.expect_denied(
-  'Eli cannot permanently delete a customer',
-  $$delete from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.customers
+   where business_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Eli''s direct delete removed zero customers', v_count, 2);
+end;
+$$;
 
-select pg_temp.expect_denied(
-  'Eli cannot delete the business',
-  $$delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.businesses
+   where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  perform pg_temp.expect_eq('Eli''s business delete removed zero rows', v_count, 1);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Eli cannot change a member role',
@@ -284,10 +329,16 @@ select pg_temp.expect_denied(
   $$select public.remove_member('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$$
 );
 
-select pg_temp.expect_denied(
-  'Eli cannot update the business details',
-  $$update public.businesses set name = 'Hijacked' where id = 'aaaaaaaa-0000-0000-0000-000000000001'$$
-);
+do $$
+declare
+  v_count int;
+begin
+  update public.businesses set name = 'Hijacked'
+   where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+  select count(*) into v_count from public.businesses where name = 'Hijacked';
+  perform pg_temp.expect_eq('Eli''s business update changed zero rows', v_count, 0);
+end;
+$$;
 
 select pg_temp.expect_denied(
   'Eli cannot insert an invitation',
@@ -309,8 +360,8 @@ begin
   perform pg_temp.expect_eq('Olivia updated the business', v_count, 1);
 
   select * into v_summary from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001');
-  perform pg_temp.expect_eq('dashboard_summary open accounts', v_summary.open_accounts, 1);
-  perform pg_temp.expect_eq('dashboard_summary today count', v_summary.today_count, 1);
+  perform pg_temp.expect_eq('dashboard_summary open accounts — unsettled in BOTH directions (a paid-ahead -100 is open; only 0 is closed)', v_summary.open_accounts, 2);
+  perform pg_temp.expect_eq('dashboard_summary today count — the fixture charge AND Eli''s section-6 payment', v_summary.today_count, 2);
   if v_summary.total_receivable <> 500 then
     raise exception 'TEST FAILED: dashboard_summary receivable — expected 500, got %', v_summary.total_receivable;
   end if;
@@ -318,13 +369,13 @@ begin
     raise exception 'TEST FAILED: dashboard_summary top_debtors should have 1 entry';
   end if;
 
-  select public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'::business_role);
+  perform public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'::business_role);
   select count(*) into v_count from public.business_members
    where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'
      and user_id = '22222222-2222-2222-2222-222222222222' and role = 'viewer';
   perform pg_temp.expect_eq('Olivia changed Eli to viewer', v_count, 1);
 
-  select public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'::business_role);
+  perform public.change_member_role('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'editor'::business_role);
 end;
 $$;
 

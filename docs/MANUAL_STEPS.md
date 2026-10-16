@@ -5,10 +5,11 @@ file is the ordered, copy-paste procedure for everything that needs a human
 with dashboard or CLI access. Each entry names the exact files, the order,
 and how to verify success.
 
-**Current state (2026-10-11, branch `feat/v2-multi-business`):** no manual
-steps are required yet. The v1 baseline migrations are already applied to the
-live project (they were exported from it). The first required step arrives
-with **S-05** (migration `0001`).
+**Current state (2026-10-15, branch `feat/v2-multi-business` — 43/43
+stories Done):** the existing project still holds the v1 schema and
+data. The product owner decided on a fresh start (existing business
+data deleted, Google accounts kept). **Run the SYNC section below first
+— it is the entire remaining procedure in one ordered runbook.**
 
 ---
 
@@ -30,6 +31,8 @@ must be applied:
 | `0006_*.sql` | S-31 | customer_ledger RPC |
 | `0007_*.sql` | S-37 | daily_activity RPC |
 | `0008_*.sql` | S-38 | import RPC |
+| `0009_void_reason_column.sql` | bugfix (DEV-15) | the `transactions.void_reason` column 0005 always assumed — found on first execution, added here |
+| `0010_respond_invitation_status_cast.sql` | bugfix (DEV-22) | `respond_to_invitation`'s CASE→text status assignment against the `invitation_status` enum — found by the test suite on first execution, fixed here |
 
 **To apply a migration:**
 
@@ -43,6 +46,77 @@ re-run on the live project, but always run `supabase db diff` (or compare
 the table list in the dashboard with `docs/ARCHITECTURE-BASELINE.md` §5)
 before applying anything to an existing database. Never apply migrations to
 production without a backup (see the backup step in each S-entry below).
+
+---
+
+## SYNC — bring the existing v1 project to v2 (fresh start, decided 2026-10-15)
+
+The Supabase project the v1 app used still has the v1 schema (the two
+baseline migrations were exported from it — never apply those two files
+again) and v1 data. Decision: **start from scratch — wipe business data,
+keep Google accounts, migrate the schema forward.** The app is not live
+anywhere, so no cutover coordination is needed. This is the whole
+procedure, in order; each step names what success looks like.
+
+1. **Backup** — Dashboard → Database → Backups (or `pg_dump`).
+   *Success:* a backup entry dated today.
+2. **Wipe business data** — SQL Editor: paste and run
+   `supabase/manual/fresh_start_wipe.sql`.
+   *Success:* notices show `transactions=0, customers=0` and
+   `auth.users` unchanged (accounts kept on purpose; the script raises
+   an exception if either is wrong). Safe to re-run.
+3. **Apply the v2 migrations in this exact order** — SQL Editor, one
+   file per run:
+   1. `0001_multi_business_schema.sql`
+   2. `0002_membership_rls.sql`
+   3. `0002b_my_invitations.sql`
+   4. `0003_enforce_tenancy.sql`
+   5. `0003b_business_exists.sql`
+   6. `0004_customer_archive_delete.sql`
+   7. `0005_void_reason_restore.sql`
+   8. `0006_customer_ledger.sql`
+   9. `0006b_transaction_rollup.sql`
+   10. `0007_daily_activity.sql`
+   11. `0008_import_history.sql`
+   12. `0009_void_reason_column.sql` (bugfix found during this sync — see PROGRESS DEV-15)
+   13. `0010_respond_invitation_status_cast.sql` (bugfix found during this sync — see PROGRESS DEV-22)
+
+   *Success per file:* the run finishes without an error (`DO` blocks
+   may raise `NOTICE`s — that is normal). With the wipe done first,
+   `0003`'s abort-on-NULL guard finds nothing to abort on.
+   **If any file errors: stop, do not continue — bring the exact error
+   message back to the agent.**
+4. **Verify the contract migration** (the S-20 step-4 checks):
+   - `\d customers` and `\d transactions` show `business_id` as
+     `NOT NULL`;
+   - `select policyname from pg_policies where tablename in
+     ('customers','transactions');` lists only the membership policies
+     created by `0002` (the two v1 "Authenticated users can manage …"
+     policies are gone);
+   - `select proname from pg_proc where proname in
+     ('get_customer_balance','get_all_customer_balances');` returns 0
+     rows.
+5. **Run the SQL test suite** — `supabase/tests/README.md` Option A
+   (paste each file into the SQL Editor) or Option B (`psql -f`).
+   All 11 files must finish without an exception. *This is the first
+   real execution of the suite* — any failure is a genuine find;
+   bring the failure text back to the agent.
+6. **Auth configuration** — Dashboard → Authentication → URL
+   Configuration: Site URL `http://localhost:5173/`, Redirect URLs
+   `http://localhost:5173/*` (add the production origin when there is
+   one). Providers → Google: still enabled; same project, so the
+   Google Cloud Console callback URI needs **no** change.
+7. **App smoke** — `.env` already points at this project (URL +
+   publishable key unchanged): restart `npm run dev`, sign in with
+   Google (the first real OAuth flow — the sign-up trigger fills
+   `profiles`), finish onboarding, add a customer and a charge. Then
+   the five-persona smoke with a second Google account (invite as
+   Editor, invite as Viewer, leave one invitation pending) —
+   evidence expectations in `docs/PROGRESS.md` → S-43.
+
+After step 7 the project is fully synced with the v2 code and the
+`docs/RELEASE-NOTES-v2.md` pre-deploy checklist is satisfied except
+for the production-origin OAuth entries (add when deploying).
 
 ---
 
