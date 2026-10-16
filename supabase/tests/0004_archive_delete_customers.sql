@@ -162,12 +162,12 @@ select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'evan@example.com
 select pg_temp.expect_num(
   'archived customer keeps its balance in the view',
   (select balance from public.customer_balances
-    where customer_id = 'cccccccc-0000-0000-0000-000000000001'),
+    where id = 'cccccccc-0000-0000-0000-000000000001'),
   4500);
 select pg_temp.expect_bool(
   'view exposes archived_at',
   (select archived_at is not null from public.customer_balances
-    where customer_id = 'cccccccc-0000-0000-0000-000000000001'),
+    where id = 'cccccccc-0000-0000-0000-000000000001'),
   true);
 
 -- ------------------------------------------------------------

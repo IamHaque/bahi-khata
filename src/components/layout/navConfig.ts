@@ -41,12 +41,6 @@ export function buildNavItems(
       visible: scoped,
     },
     {
-      path: paths.importCustomers(businessId ?? ""),
-      label: "Import",
-      icon: FileUp,
-      visible: scoped && (options?.canImport ?? false),
-    },
-    {
       path: paths.transactions(businessId ?? ""),
       label: "Transactions",
       icon: ArrowLeftRight,
@@ -57,6 +51,12 @@ export function buildNavItems(
       label: "Members",
       icon: UserCog,
       visible: scoped,
+    },
+    {
+      path: paths.importCustomers(businessId ?? ""),
+      label: "Import",
+      icon: FileUp,
+      visible: scoped && (options?.canImport ?? false),
     },
     {
       path: paths.settings(businessId ?? ""),

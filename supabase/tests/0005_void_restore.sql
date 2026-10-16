@@ -137,7 +137,7 @@ select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'ollie@example.co
 select pg_temp.expect_num(
   'baseline balance',
   (select balance from public.customer_balances
-    where customer_id = 'cccccccc-0000-0000-0000-000000000001'),
+    where id = 'cccccccc-0000-0000-0000-000000000001'),
   4500);
 
 -- ------------------------------------------------------------
@@ -192,7 +192,7 @@ select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'ollie@example.co
 select pg_temp.expect_num(
   'balance stops counting the voided payment',
   (select balance from public.customer_balances
-    where customer_id = 'cccccccc-0000-0000-0000-000000000001'),
+    where id = 'cccccccc-0000-0000-0000-000000000001'),
   5000);
 select pg_temp.expect_num(
   'dashboard receivable drops the voided payment',
@@ -222,7 +222,7 @@ select pg_temp.expect_bool(
 select pg_temp.expect_num(
   'balance counts it again',
   (select balance from public.customer_balances
-    where customer_id = 'cccccccc-0000-0000-0000-000000000001'),
+    where id = 'cccccccc-0000-0000-0000-000000000001'),
   4500);
 
 -- ------------------------------------------------------------

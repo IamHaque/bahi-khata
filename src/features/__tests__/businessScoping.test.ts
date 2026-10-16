@@ -484,6 +484,35 @@ describe("business scoping (required — S-20)", () => {
     ]);
   });
 
+  it("unwraps dashboard_summary's set-of response (one-row array)", async () => {
+    // The SQL function is declared `returns table (...)`, so real
+    // PostgREST responds with an ARRAY of one row — the parser must
+    // not read properties off the array (they'd all fall back to 0).
+    state.rpcValue = [
+      {
+        total_receivable: 900,
+        total_credit: 100,
+        open_accounts: 2,
+        today_count: 3,
+        today_net: 300,
+        customer_count: 7,
+        top_debtors: [{ id: "c9", name: "Top Debtor", balance: 900 }],
+      },
+    ];
+
+    const summary = await getDashboardSummary("b1");
+
+    expect(summary).toEqual({
+      total_receivable: 900,
+      total_credit: 100,
+      open_accounts: 2,
+      today_count: 3,
+      today_net: 300,
+      customer_count: 7,
+      top_debtors: [{ id: "c9", name: "Top Debtor", balance: 900 }],
+    });
+  });
+
   it("reads getDailyActivity from the scoped daily_activity RPC (S-37)", async () => {
     state.rpcValue = [];
 
@@ -520,28 +549,31 @@ describe("business scoping (required — S-20)", () => {
   });
 
   it("reads getCustomerBalance from the scoped customer_balances view (S-20)", async () => {
-    state.resolveValue = { customer_id: "c1", business_id: "b1", balance: 250 };
+    state.resolveValue = { id: "c1", business_id: "b1", balance: 250 };
 
     const balance = await getCustomerBalance("c1", "b1");
 
     expect(balance).toBe(250);
     const calls = state.chains[0]!;
     expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
-    expect(calls).toContainEqual({ method: "eq", args: ["customer_id", "c1"] });
+    // The view exposes the customers PK under its real name (`id`) so
+    // PostgREST can infer the customers ↔ customer_balances embed.
+    expect(calls).toContainEqual({ method: "eq", args: ["id", "c1"] });
     // The unscoped v1 RPCs are gone for good (DEV-8 resolved).
     expect(state.rpcCalls).toEqual([]);
   });
 
   it("reads getAllCustomerBalances from the same scoped view (S-20)", async () => {
     state.resolveValue = [
-      { customer_id: "c1", business_id: "b1", balance: 100 },
-      { customer_id: "c2", business_id: "b1", balance: -40 },
+      { id: "c1", business_id: "b1", balance: 100 },
+      { id: "c2", business_id: "b1", balance: -40 },
     ];
 
     const balances = await getAllCustomerBalances("b1");
 
     expect(balances).toEqual({ c1: 100, c2: -40 });
     const calls = state.chains[0]!;
+    expect(calls).toContainEqual({ method: "select", args: ["id, balance"] });
     expect(calls).toContainEqual({ method: "eq", args: ["business_id", "b1"] });
     expect(state.rpcCalls).toEqual([]);
   });

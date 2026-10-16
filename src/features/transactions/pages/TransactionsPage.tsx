@@ -85,6 +85,12 @@ const RANGE_LABELS: Record<RangePreset, string> = {
   custom: "Custom",
 };
 
+const GROUP_LABELS: Record<GroupBy, string> = {
+  day: "Day",
+  week: "Week",
+  month: "Month",
+};
+
 function startOfDay(date: Date): Date {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
@@ -673,6 +679,9 @@ export function TransactionsPage() {
           </Label>
           <Select
             value={rangePreset}
+            // Base UI's SelectValue renders the raw value unless the
+            // Root knows the labels — RANGE_LABELS is that map.
+            items={RANGE_LABELS}
             onValueChange={(value) => {
               if (!value) return;
               updateParams({
@@ -844,6 +853,7 @@ export function TransactionsPage() {
             </Label>
             <Select
               value={groupBy}
+              items={GROUP_LABELS}
               onValueChange={(value) => {
                 if (!value) return;
                 updateParams({ group: value === "day" ? null : value });
@@ -853,9 +863,11 @@ export function TransactionsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="day">Day</SelectItem>
-                <SelectItem value="week">Week</SelectItem>
-                <SelectItem value="month">Month</SelectItem>
+                {(Object.keys(GROUP_LABELS) as GroupBy[]).map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {GROUP_LABELS[group]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

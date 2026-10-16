@@ -173,10 +173,16 @@ function renderWithTopbar(route: string) {
   );
 }
 
+/** An ISO day in the LOCAL timezone (the form speaks local wall clock). */
 function isoDay(offsetDays: number): string {
-  return new Date(Date.now() + offsetDays * 86400000)
-    .toISOString()
-    .split("T")[0]!;
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** The instant a day-start timestamp stores: local start of day. */
+function atDayStart(offsetDays: number): string {
+  return new Date(`${isoDay(offsetDays)}T00:00`).toISOString();
 }
 
 /** Open a customer's ledger and wait for the rows. */
@@ -212,12 +218,12 @@ beforeEach(() => {
       type: "payment",
       amount: 500,
       status: "active",
-      occurred_at: `${isoDay(-3)}T00:00:00.000Z`,
+      occurred_at: atDayStart(-3),
       note: "partial",
       source: "manual",
       created_by: "user-1",
-      created_at: `${isoDay(-3)}T00:00:00.000Z`,
-      updated_at: `${isoDay(-3)}T00:00:00.000Z`,
+      created_at: atDayStart(-3),
+      updated_at: atDayStart(-3),
       updated_by: null,
     },
     {
@@ -227,12 +233,12 @@ beforeEach(() => {
       type: "charge",
       amount: 5000,
       status: "active",
-      occurred_at: `${isoDay(-6)}T00:00:00.000Z`,
+      occurred_at: atDayStart(-6),
       note: null,
       source: "manual",
       created_by: "user-1",
-      created_at: `${isoDay(-6)}T00:00:00.000Z`,
-      updated_at: `${isoDay(-6)}T00:00:00.000Z`,
+      created_at: atDayStart(-6),
+      updated_at: atDayStart(-6),
       updated_by: null,
     },
   ];
@@ -335,6 +341,11 @@ describe("S-33 edit transaction", () => {
     expect(
       (within(dialog).getByLabelText("Date") as HTMLInputElement).value,
     ).toBe(isoDay(-3));
+    // The stored instant was the local start of that day; the time
+    // field shows it, so an unchanged save preserves the moment.
+    expect(
+      (within(dialog).getByLabelText("Time") as HTMLInputElement).value,
+    ).toBe("00:00");
     expect(
       (within(dialog).getByLabelText("Note") as HTMLInputElement).value,
     ).toBe("partial");
@@ -362,7 +373,7 @@ describe("S-33 edit transaction", () => {
         expect.objectContaining({
           type: "payment",
           amount: 450,
-          occurred_at: `${isoDay(-3)}T00:00:00.000Z`,
+          occurred_at: atDayStart(-3),
           note: "partial",
         }),
         "b1",
@@ -481,12 +492,12 @@ describe("S-33 edit transaction", () => {
       type: "charge",
       amount: 300,
       status: "active",
-      occurred_at: `${isoDay(-2)}T00:00:00.000Z`,
+      occurred_at: atDayStart(-2),
       note: null,
       source: "import",
       created_by: "user-1",
-      created_at: `${isoDay(-2)}T00:00:00.000Z`,
-      updated_at: `${isoDay(-2)}T00:00:00.000Z`,
+      created_at: atDayStart(-2),
+      updated_at: atDayStart(-2),
       updated_by: null,
     });
     server.balances.c2 = 300;

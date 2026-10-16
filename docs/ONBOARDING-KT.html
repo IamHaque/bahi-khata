@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BahiKhata — Knowledge Transfer &amp; Onboarding Guide</title>
+<script>
+  // Apply the saved theme before first paint (default: dark).
+  try { document.documentElement.dataset.theme = localStorage.getItem("kt-theme") || "dark"; } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #0b0e15;
+    --paper: #111520;
+    --paper2: #161b28;
+    --ink: #d9e1ee;
+    --heading: #f3f6fb;
+    --muted: #8b9bb0;
+    --line: #232b3b;
+    --line-soft: #1b2230;
+    --accent: #98a2ff;
+    --accent-strong: #c0c6ff;
+    --accent-soft: rgba(120, 132, 255, .14);
+    --ok-soft: rgba(52, 211, 153, .10);
+    --ok-line: rgba(52, 211, 153, .28);
+    --warn-soft: rgba(251, 191, 36, .09);
+    --warn-line: rgba(251, 191, 36, .26);
+    --ok-ink: #34d399;
+    --no-ink: #f87171;
+    --code-bg: #141a27;
+    --code-ink: #c7d3e6;
+    --row-alt: rgba(255, 255, 255, .025);
+    --toolbar-bg: rgba(11, 14, 21, .85);
+    --scrim: rgba(2, 6, 14, .55);
+    --shadow: 0 12px 34px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+  html[data-theme="light"] {
+    --bg: #f7f8fb;
+    --paper: #ffffff;
+    --paper2: #f6f7f9;
+    --ink: #26303d;
+    --heading: #101828;
+    --muted: #5b6572;
+    --line: #e3e7ec;
+    --line-soft: #edeff3;
+    --accent: #4f46e5;
+    --accent-strong: #3730a3;
+    --accent-soft: #eef2ff;
+    --ok-soft: #ecfdf5;
+    --ok-line: #a7f3d0;
+    --warn-soft: #fff7e6;
+    --warn-line: #f0d9a8;
+    --ok-ink: #047857;
+    --no-ink: #b91c1c;
+    --code-bg: #f4f5f7;
+    --code-ink: #1f2937;
+    --row-alt: rgba(15, 23, 42, .015);
+    --toolbar-bg: rgba(247, 248, 251, .85);
+    --scrim: rgba(15, 23, 42, .35);
+    --shadow: 0 10px 30px rgba(15, 23, 42, .08);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 78px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.62;
+    transition: background .25s ease, color .25s ease;
+  }
+  ::selection { background: var(--accent-soft); color: var(--heading); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ---------- layout ---------- */
+  .layout { display: flex; min-height: 100vh; }
+  nav.toc {
+    width: 268px;
+    flex: 0 0 268px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--paper2) 0%, var(--paper) 240px);
+    padding: 20px 0 44px 0;
+  }
+  body.collapsed nav.toc { display: none; }
+  .toc .brand {
+    font-weight: 800;
+    font-size: 16px;
+    padding: 0 20px 4px;
+    letter-spacing: .3px;
+    background: linear-gradient(92deg, var(--accent-strong), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .toc .brand-sub { padding: 0 20px 16px; color: var(--muted); font-size: 12px; }
+  .toc a {
+    display: block;
+    padding: 6px 18px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13.2px;
+    border-left: 3px solid transparent;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .toc a.sub { padding-left: 34px; color: var(--muted); }
+  .toc a:hover { background: var(--accent-soft); border-left-color: var(--accent); color: var(--heading); }
+  .toc a.active {
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+    color: var(--heading);
+    font-weight: 600;
+  }
+  main { flex: 1; min-width: 0; padding: 26px 48px 120px; }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* ---------- toolbar (sticky, collapsible controls) ---------- */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+    margin: -26px 0 16px;
+    background: var(--toolbar-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    background: var(--paper2);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 7px 13px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .tool-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--heading); }
+  .toolbar-title { color: var(--muted); font-size: 12.5px; letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toolbar .spacer { flex: 1; }
+
+  /* ---------- typography ---------- */
+  h1 { font-size: 30px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -.3px; color: var(--heading); }
+  h2 {
+    font-size: 21px;
+    margin: 56px 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    letter-spacing: -.2px;
+    color: var(--heading);
+    scroll-margin-top: 70px;
+  }
+  h2 .secnum {
+    display: inline-flex;
+    align-items: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 2px 10px;
+    margin-right: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  h3 { font-size: 17px; margin: 34px 0 8px; color: var(--heading); }
+  h3 { scroll-margin-top: 70px; }
+  h4 { font-size: 15px; margin: 22px 0 6px; color: var(--heading); }
+  p { margin: 10px 0; }
+  ul, ol { margin: 10px 0; padding-left: 26px; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  p a { text-underline-offset: 3px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Cascadia Mono", Menlo, monospace;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border: 1px solid var(--line-soft);
+    padding: .08em .38em;
+    border-radius: 5px;
+    font-size: .88em;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    box-shadow: var(--shadow);
+  }
+  pre code { background: transparent; padding: 0; border: none; }
+  strong { font-weight: 650; color: var(--heading); }
+
+  /* ---------- cards & tables ---------- */
+  .card {
+    background: var(--paper2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+  .card.ok { background: var(--ok-soft); border-color: var(--ok-line); }
+  .card.warn { background: var(--warn-soft); border-color: var(--warn-line); }
+  .card h4 { margin-top: 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 13.6px;
+  }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--paper2); color: var(--heading); font-weight: 650; }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  td code, th code { white-space: nowrap; }
+  .yes { color: var(--ok-ink); font-weight: 700; }
+  .no { color: var(--no-ink); font-weight: 700; }
+  .fig-caption {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12.5px;
+    margin: 4px 0 26px;
+  }
+  .mermaid {
+    background: var(--paper2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 18px 0 6px;
+    overflow-x: auto;
+  }
+  .pill {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 2px 11px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .kicker { text-transform: uppercase; letter-spacing: 1.6px; font-size: 11.5px; color: var(--accent); font-weight: 700; }
+  .meta-line { color: var(--muted); font-size: 13.5px; }
+  .hero {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background:
+      radial-gradient(90% 140% at 0% 0%, var(--accent-soft) 0%, transparent 55%),
+      var(--paper);
+    padding: 30px 34px;
+    margin-bottom: 8px;
+    box-shadow: var(--shadow);
+  }
+  details {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    background: var(--paper2);
+  }
+  details summary { cursor: pointer; font-weight: 600; }
+  .muted { color: var(--muted); }
+
+  /* ---------- narrow screens: sidebar becomes an overlay drawer ---------- */
+  @media (max-width: 1000px) {
+    main { padding: 16px 18px 80px; }
+    main .toolbar { margin: -16px 0 12px; }
+    nav.toc {
+      display: none;
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 90;
+      width: 300px;
+      box-shadow: var(--shadow);
+      background: var(--paper2);
+    }
+    body.nav-open nav.toc { display: block; }
+  }
+  #scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  body.nav-open #scrim { opacity: 1; pointer-events: auto; }
+
+  @media print {
+    nav.toc, .toolbar, #scrim { display: none; }
+    main { padding: 0; }
+    .mermaid { border: none; box-shadow: none; page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    table { font-size: 11px; }
+    html, html[data-theme="dark"] {
+      --bg: #ffffff;
+      --paper: #ffffff;
+      --paper2: #fafafa;
+      --ink: #111827;
+      --heading: #111827;
+      --muted: #555f6b;
+      --line: #dddddd;
+      --line-soft: #e5e5e5;
+      --accent: #4338ca;
+      --accent-soft: #eef2ff;
+      --code-bg: #f5f5f5;
+      --code-ink: #111827;
+      --shadow: none;
+      color-scheme: light;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ============================== TOC ============================== -->
+<nav class="toc">
+  <div class="brand">BahiKhata</div>
+  <div class="brand-sub">KT &amp; Onboarding Guide · v2 · 2026-10-16</div>
+  <a href="#s1">1&nbsp;· How to use this document</a>
+  <a href="#s2">2&nbsp;· What BahiKhata is</a>
+  <a href="#s3">3&nbsp;· Architecture overview</a>
+  <a href="#s3a" class="sub">Client architecture</a>
+  <a href="#s3b" class="sub">System context</a>
+  <a href="#s3c" class="sub">Auth &amp; boot flow</a>
+  <a href="#s3d" class="sub">Mutation data flow</a>
+  <a href="#s4">4&nbsp;· Route map &amp; guards</a>
+  <a href="#s5">5&nbsp;· Database reference</a>
+  <a href="#s5a" class="sub">Entity–relationship diagram</a>
+  <a href="#s5b" class="sub">Tables &amp; columns</a>
+  <a href="#s5c" class="sub">RPC catalog</a>
+  <a href="#s5d" class="sub">RLS policy matrix</a>
+  <a href="#s5e" class="sub">Migrations &amp; triggers</a>
+  <a href="#s6">6&nbsp;· Roles &amp; permissions</a>
+  <a href="#s7">7&nbsp;· Feature deep-dives</a>
+  <a href="#s7a" class="sub">Auth &amp; session</a>
+  <a href="#s7b" class="sub">Business lifecycle</a>
+  <a href="#s7c" class="sub">Customers</a>
+  <a href="#s7d" class="sub">Transactions</a>
+  <a href="#s7e" class="sub">Dashboard</a>
+  <a href="#s7f" class="sub">Members &amp; invitations</a>
+  <a href="#s7g" class="sub">Import / export / backup</a>
+  <a href="#s8">8&nbsp;· Shared patterns &amp; conventions</a>
+  <a href="#s8a" class="sub">The API-layer rule</a>
+  <a href="#s8b" class="sub">Error model</a>
+  <a href="#s8c" class="sub">Query keys &amp; cache</a>
+  <a href="#s8d" class="sub">Form kit &amp; dialogs</a>
+  <a href="#s8e" class="sub">Transaction lifecycle</a>
+  <a href="#s9">9&nbsp;· Quality: tests, CI, audits</a>
+  <a href="#s10">10&nbsp;· Security model</a>
+  <a href="#s11">11&nbsp;· Getting set up (runbook)</a>
+  <a href="#s12">12&nbsp;· Project history &amp; state</a>
+  <a href="#s13">13&nbsp;· Glossary &amp; copy rules</a>
+  <a href="#s14">14&nbsp;· Reference index</a>
+</nav>
+
+<!-- ============================== MAIN ============================== -->
+<main>
+<div class="toolbar">
+  <button id="menuBtn" class="tool-btn" aria-label="Toggle navigation sidebar">☰ Menu</button>
+  <span class="toolbar-title">Knowledge Transfer · BahiKhata v2</span>
+  <span class="spacer"></span>
+  <button id="printBtn" class="tool-btn" aria-label="Print or save this document as PDF">⎙ Print</button>
+  <button id="themeBtn" class="tool-btn" aria-label="Toggle between dark and light theme">☾ Dark</button>
+</div>
+<div id="scrim" aria-hidden="true"></div>
+<div class="container">
+
+<!-- ============ COVER ============ -->
+<div class="hero">
+  <div class="kicker">Knowledge Transfer / Onboarding</div>
+  <h1>BahiKhata — a credit-ledger web app for small businesses</h1>
+  <p class="meta-line">
+    Audience: engineers joining the project ·
+    Branch <code>feat/v2-multi-business</code> · Version v2 (43/43 stories done) ·
+    Generated 16 October 2026 · Single-source review of this repository
+  </p>
+  <p style="margin-top:14px">
+    BahiKhata replaces a shopkeeper's paper <em>khata</em> (credit notebook) with a
+    customer directory, a per-customer ledger of <strong>charges</strong> (goods given
+    on credit) and <strong>payments</strong> (installments received), dashboard
+    roll-ups, CSV import/export, printable statements, and multi-user access with
+    <strong>Owner / Editor / Viewer</strong> roles. Auth is Google sign-in via
+    Supabase; all data lives in Postgres guarded by row-level security.
+  </p>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1"><span class="secnum">1</span>How to use this document</h2>
+
+<p>This is a self-contained HTML onboarding document: every fact below was reviewed
+against the code in this repository (full paths given for verification). Diagrams
+are rendered with <a href="https://mermaid.js.org">Mermaid.js</a> and load from a CDN
+— <strong>you need internet on first open</strong>; a text summary sits next to each diagram.</p>
+
+<h4>Suggested 60-minute onboarding path</h4>
+<ol>
+  <li><strong>(5 min)</strong> §2 — what the product does and the domain language (charge, payment, void, archive, role).</li>
+  <li><strong>(10 min)</strong> §3–§4 — one architecture diagram, one auth flow, one route map. You now know how the app is wired.</li>
+  <li><strong>(15 min)</strong> §5–§6 — the database: tables, RPCs, RLS. <em>The database is the security boundary; learn it before the UI.</em></li>
+  <li><strong>(20 min)</strong> §7–§8 — feature deep-dives plus the repo's hard conventions (especially the API-layer rule).</li>
+  <li><strong>(10 min)</strong> <a href="#s11">§11</a> — run the setup runbook and get <code>npm run dev</code> working against a scratch Supabase project.</li>
+</ol>
+
+<div class="card warn">
+  <h4>Two warnings that will save you a bad first week</h4>
+  <ul>
+    <li><strong>Never open the app against a production Supabase project while experimenting.</strong> Use a scratch project; the runbook in §11 covers how.</li>
+    <li><strong>The SQL migrations must be applied in a strict order</strong> (§11 step 3). The app shows a broken/degraded state if the database is behind the code — that is expected mid-sync, not a bug you introduced.</li>
+  </ul>
+</div>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2"><span class="secnum">2</span>What BahiKhata is</h2>
+
+<table>
+  <tr><th style="width:180px">Aspect</th><th>Detail</th></tr>
+  <tr><td>Product</td><td>A web app for small businesses that extend <strong>informal credit</strong> to customers — goods go out, payment comes later, often in partial installments.</td></tr>
+  <tr><td>Domain model</td><td>A <strong>Business</strong> (workspace) holds <strong>Customers</strong>; each customer has a <strong>ledger</strong> of <strong>Transactions</strong> of type <code>charge</code> (they owe you more) or <code>payment</code> (they owe you less). The running difference is the customer's <strong>balance</strong>: positive = "Owes you", negative = "You owe", zero = "Settled".</td></tr>
+  <tr><td>Who uses it</td><td>Internal operational tool. One <strong>Owner</strong> per business; Owners invite people as <strong>Editor</strong> (read + write ledger) or <strong>Viewer</strong> (read-only). Everything else is enforced server-side.</td></tr>
+  <tr><td>Key capabilities</td><td>Customer directory with search/filter/sort/paging · shared transaction sheet (add/edit) with live balance preview · void with optional reason &amp; restore · archive/restore customer, owner-only permanent delete · dashboard KPIs + 7/30/90-day trends + activity feed · 4-step CSV import · CSV exports, printable statement, whole-business backup · members &amp; email invitations · light/dark theme · full a11y &amp; responsive pass.</td></tr>
+  <tr><td>Backend</td><td>Supabase: Google OAuth (GoTrue), PostgREST data endpoints, RPC functions, Postgres with Row-Level Security. The client only ever ships the anon/publishable key.</td></tr>
+  <tr><td>Current state</td><td>v2 multi-business rewrite complete: <strong>43/43</strong> PRD stories done on <code>feat/v2-multi-business</code>. Product decision (2026-10-15): <strong>fresh start</strong> — v1 business data wiped, Google accounts kept; see §12.</td></tr>
+</table>
+
+<div class="card">
+  <h4>The one mental model to internalise</h4>
+  <p><strong>The database decides who may touch what; the UI only mirrors it.</strong>
+  Every read/write is filtered by Postgres RLS derived from the caller's
+  <code>business_members</code> row (resolved from the browser's JWT — the caller never
+  passes "my user id", and never passes a user id at all for scoped queries). The
+  UI's role matrix hides controls viewers would fail anyway — that is experience
+  design ("viewers never see a control that would fail"), <em>not</em> security.</p>
+</div>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3"><span class="secnum">3</span>Architecture overview</h2>
+
+<h3 id="s3a">3.1 Client architecture</h3>
+<pre><code>main.tsx → App.tsx (provider stack, see below)
+QueryClientProvider → ThemeProvider (custom, light/dark/system) → AuthProvider → BusinessProvider
+  → BrowserRouter → ErrorBoundary → Routes
+Every domain lives in src/features/&lt;domain&gt;/: api.ts (only Supabase caller) · hooks.ts
+(TanStack Query) · schemas.ts (zod) · components/ · pages/ · __tests__/
+Shared layer: src/components (ui/ primitives on Base UI, app/ app-level kit, layout/ shell),
+src/lib (paths · queryKeys · format · permissions · supabase client · AppError · csv-import),
+src/contexts (Auth, Business, Theme), src/test (harness).</code></pre>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+  Owner["Small-business owner<br/>+ Editors / Viewers"] -->|"Google sign-in"| SPA
+  subgraph SPA["BahiKhata SPA — Vite 7 static build"]
+    UI["React 19 + TypeScript 5.8 screens<br/>(features/* pages, AppShell)"] --> Q["TanStack Query 5 cache<br/>(queryKeys, business-scoped)"]
+    F["react-hook-form + zod<br/>(EntityDialog form kit)"] --> UI
+    Q --> API["features/*/api.ts<br/>THE ONLY supabase callers"]
+  end
+  API -->|"PostgREST + RPC<br/>anon key only"| SUPA
+  subgraph SUPA["Supabase project"]
+    AUTH["GoTrue Auth<br/>Google OAuth provider"] --- PG[("Postgres<br/>RLS on every table")]
+    REST["PostgREST<br/>table + RPC endpoints"] --- PG
+  end
+  GoogleLL["Google Identity Platform"] --- AUTH
+</div>
+<figcaption class="fig-caption">Fig 1 — System context: one browser client, one Supabase backend, Google as the identity provider.</figcaption>
+</figure>
+
+<p>Notable build facts: Tailwind CSS 4 (semantic OKLCH tokens in <code>src/index.css</code>),
+shadcn-style components on <strong>Base UI</strong> (<code>components.json</code> →
+<code>"style": "base-nova"</code>, composition via render prop), lucide icons, sonner
+toasts, recharts for the trend chart, Public Sans Variable font. The type checker is
+strict with <code>noUncheckedIndexedAccess</code>.</p>
+
+<h3 id="s3b">3.2 System context (words)</h3>
+<p>There is no custom backend server: the SPA talks directly to two Supabase
+surfaces — <strong>GoTrue</strong> (<code>supabase.auth.*</code>: session, Google OAuth,
+sign-out) and <strong>PostgREST</strong> (<code>supabase.from(...)</code> for tables/views,
+<code>supabase.rpc(...)</code> for functions). Security is <em>declarative</em>: Postgres
+RLS policies + security-definer RPCs check the caller's identity via
+<code>auth.uid()</code>/JWT. The app authorizes requests only by <em>asking Postgres</em>;
+there are no server-side endpoints to lock down beyond the policies (§5).</p>
+
+<h3 id="s3c">3.3 Auth &amp; boot flow</h3>
+<p>Text: <code>AuthProvider</code> restores the session (<code>getSession</code> +
+<code>onAuthStateChange</code>); sign-in is Google OAuth with
+<code>redirectTo: window.location.origin + "/"</code>. Signed-out visitors are bounced
+to <code>/login</code> by <code>ProtectedRoute</code> (the deep link is remembered in the
+<code>from</code> state and restored after consent). While the memberships query loads,
+signed-in users see one <code>BusinessBootSkeleton</code>. The <code>LandingResolver</code>
+at <code>/</code> then routes: own business → that business's dashboard; member/invited
+elsewhere → <code>/businesses</code>; nothing at all → <code>/onboarding/business</code>.</p>
+
+<figure>
+<div class="mermaid">
+sequenceDiagram
+  participant B as Browser
+  participant A as React app (AuthProvider)
+  participant S as Supabase (GoTrue + PostgREST)
+  participant R as Router (LandingResolver)
+  B->>A: load /
+  A->>S: getSession()
+  S-->>A: session or null
+  alt not signed in
+    A-->>B: ProtectedRoute → /login (deep link saved in state)
+  else signed in
+    A->>S: getUser() + business_members join (RLS-filtered)
+    S-->>A: my businesses + my pending invitations
+    A-->>R: LandingResolver at /
+    alt owns a business
+      R-->>B: /b/:businessId (dashboard)
+    else member or invited elsewhere
+      R-->>B: /businesses (three sections)
+    else nothing at all
+      R-->>B: /onboarding/business (create your business)
+    end
+  end
+</div>
+<figcaption class="fig-caption">Fig 2 — Boot, sign-in and landing decision. Source: <code>src/contexts/AuthContext.tsx</code>, <code>src/features/auth/api.ts</code>, <code>src/features/business/pages/LandingResolver.tsx</code>.</figcaption>
+</figure>
+
+<p>A Google sign-up also creates the user's <code>profiles</code> row via the
+<code>handle_new_user</code> trigger on <code>auth.users</code> (migration 0001) —
+that profile is what members lists, "Recorded by" names and avatars read.</p>
+
+<h3 id="s3d">3.4 Mutation data flow (the "how does a write actually work" path)</h3>
+<p>Every write in the app follows the same five hops. Learn this once and every
+feature behaves the same way.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+  A["User clicks a write action<br/>rendered inside a Can gate"] --> B["useMutation mutationFn from features/*/hooks.ts"]
+  B --> C["assertCan(role, action) from lib/permissions.ts"]
+  C -->|"known role, denied"| E["throw AppError 'forbidden'<br/>NO network call — fails fast"]
+  C -->|"allowed, or role unknown"| D["api.ts function → supabase-js"]
+  D --> F["Postgres RLS / security RPC<br/>(business_members from the JWT)"]
+  F -->|"refused (42501)"| G["toAppError maps SQLSTATE → AppError → error toast"]
+  F -->|"allowed"| H["mutation success"]
+  H --> I["invalidate business-scoped queryKeys<br/>(prefix 'business'/:businessId) → UI refetches"]
+</div>
+<figcaption class="fig-caption">Fig 3 — The universal write path. Anti-diagram: a Viewer never even reaches the network; the database would still refuse them if they did.</figcaption>
+</figure>
+
+<div class="card">
+  <strong>Lost-access wiring (S-27):</strong> a global
+  <code>QueryCache/MutationCache onError</code> in <code>src/lib/queryClient.ts</code>
+  refetches <code>businessKeys.memberships()</code> whenever <em>any</em> query or
+  mutation fails with <code>forbidden</code> (excluding the memberships query itself).
+  The <code>BusinessGuard</code> (§4) then notices the vanished membership and routes
+  the user out with "You no longer have access …" — or "This business no longer
+  exists" if the <code>business_exists</code> probe (RPC, migration 0003b) says the
+  row is gone. Defaults: <code>retry: false</code>, <code>staleTime: 0</code>,
+  <code>refetchOnWindowFocus: false</code>.
+</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4"><span class="secnum">4</span>Route map &amp; guards</h2>
+<p>All routes are declared in <code>src/App.tsx</code>; every path string is produced
+by <code>src/lib/paths.ts</code> (a hygiene test forbids hardcoded paths elsewhere).
+The URL is the single source of truth: the active business is the
+<code>:businessId</code> segment of <code>/b/:businessId/…</code>.</p>
+
+<table>
+  <tr><th style="width:250px">Path</th><th>Page / component</th><th>Guard &amp; notes</th></tr>
+  <tr><td><code>/login</code></td><td><code>src/pages/Login.tsx</code></td><td>Google sign-in button; signed-in users redirect away.</td></tr>
+  <tr><td><code>/</code></td><td><code>LandingResolver</code></td><td>Picks destination (Fig 2); never renders the shell.</td></tr>
+  <tr><td><code>/businesses</code></td><td><code>BusinessesPage</code></td><td>Inside <code>AppShell</code>. Three sections: My business · Shared with me · Invitations (accept/decline, count badge).</td></tr>
+  <tr><td><code>/onboarding/business</code></td><td><code>CreateBusinessPage</code></td><td>Inside <code>ProtectedRoute</code> but outside the shell; calls the <code>create_business</code> RPC (one owned business per user, DB-enforced).</td></tr>
+  <tr><td><code>/__ui</code></td><td><code>UiGallery</code></td><td><strong>Dev-only</strong> (<code>import.meta.env.DEV</code>); every shared component in every state; not in production builds.</td></tr>
+  <tr><td><code>/customers…</code>, <code>/transactions…</code></td><td><code>LegacyBusinessRedirect</code></td><td>V1 URLs redirect to the same page under the active business (S-17).</td></tr>
+  <tr><td><code>/b/:businessId</code> (index)</td><td><code>DashboardPage</code></td><td>BusinessGuard + AppShell. KPIs, top outstanding, Today link, trends, feed.</td></tr>
+  <tr><td><code>/b/:id/customers</code></td><td><code>CustomersPage</code></td><td>Server-side list; URL state <code>q, status, sort, dir, page</code>; Ctrl/Cmd+K palette in topbar.</td></tr>
+  <tr><td><code>/b/:id/customers/import</code></td><td><code>ImportPage</code></td><td>Import flows Owner/Editor only (sidebar link hidden for Viewers).</td></tr>
+  <tr><td><code>/b/:id/customers/:cid</code></td><td><code>CustomerDetailPage</code></td><td>Balance hero + running-balance ledger (RPC <code>customer_ledger</code>) + details tab.</td></tr>
+  <tr><td><code>/b/:id/customers/:cid/statement</code></td><td><code>StatementPage</code></td><td>Printable statement; period selector; print stylesheet strips the shell.</td></tr>
+  <tr><td><code>/b/:id/transactions</code></td><td><code>TransactionsPage</code></td><td>Detailed + summarized views; all filter state in the URL; totals footer.</td></tr>
+  <tr><td><code>/b/:id/transactions/:tid</code></td><td><code>TransactionDetailPage</code></td><td>Single entry; edit sheet; void dialog with reason; restore.</td></tr>
+  <tr><td><code>/b/:id/members</code></td><td><code>MembersPage</code></td><td>Owner sees invite/manage; everyone sees members; non-owners see Leave business.</td></tr>
+  <tr><td><code>/b/:id/settings</code></td><td><code>SettingsPage</code></td><td>Business details (owner-edit), read-only for others; Backup section for all; DangerZone (owner-only delete).</td></tr>
+</table>
+
+<h3>The <code>BusinessGuard</code> (S-17, S-27) — worth reading in full</h3>
+<p><code>src/features/business/components/BusinessGuard.tsx</code> wraps the whole
+<code>/b/:businessId</code> tree. The businessId must be one of the user's
+memberships; blocked children never mount, so no data call is ever made for a
+business the user cannot see. Crucially it distinguishes two vanishings:</p>
+<ul>
+  <li><strong>Removed by the owner</strong> → toast "You no longer have access to &lt;name&gt;" → to <code>/businesses</code>.</li>
+  <li><strong>Business deleted</strong> → toast "This business no longer exists" → to the landing resolver. Only the <code>business_exists(uuid)</code> security-definer RPC can tell these apart (RLS makes them identical); it deliberately exposes nothing else.</li>
+</ul>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5"><span class="secnum">5</span>Database reference</h2>
+
+<h3 id="s5a">5.1 Entity–relationship diagram</h3>
+
+<figure>
+<div class="mermaid">
+erDiagram
+    BUSINESSES ||--o{ BUSINESS_MEMBERS : "members (trigger: owner row on create)"
+    BUSINESSES ||--o{ CUSTOMERS : "tenant of"
+    BUSINESSES ||--o{ BUSINESS_INVITATIONS : "invited into"
+    CUSTOMERS ||--o{ TRANSACTIONS : "ledger"
+    PROFILES ||--o{ BUSINESS_MEMBERS : "same id as auth.users"
+    BUSINESS_INVITATIONS }o--|| BUSINESSES : "business_id"
+    TRANSACTIONS }o--|| CUSTOMERS : "customer_id"
+
+    BUSINESSES {
+        uuid id PK "gen_random_uuid"
+        uuid owner_id "refs auth.users, UNIQUE = one owned business per user"
+        text name "CHECK length 2..80"
+        text business_type
+        text phone
+        text email
+        text address
+        text notes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    PROFILES {
+        uuid id PK "refs auth.users ON DELETE CASCADE"
+        text email "NOT NULL"
+        text full_name
+        text avatar_url
+        timestamptz created_at
+    }
+    BUSINESS_MEMBERS {
+        uuid business_id PK "refs businesses CASCADE"
+        uuid user_id PK "refs auth.users CASCADE"
+        business_role role "owner | editor | viewer"
+        timestamptz joined_at
+    }
+    BUSINESS_INVITATIONS {
+        uuid id PK
+        uuid business_id "refs businesses CASCADE"
+        text email "CHECK lower; UNIQUE pending per business+email"
+        business_role role "editor | viewer only"
+        invitation_status status "pending | accepted | declined | revoked"
+        uuid invited_by "refs auth.users"
+        timestamptz created_at
+        timestamptz responded_at
+    }
+    CUSTOMERS {
+        uuid id PK
+        uuid business_id "NOT NULL (0003), refs businesses CASCADE"
+        text name
+        text phone
+        text email
+        text address
+        text alternate_contact_name
+        text alternate_contact_phone
+        text_array tags
+        text notes
+        uuid created_by "refs auth.users"
+        timestamptz deleted_at "permanent delete only"
+        uuid deleted_by
+        timestamptz archived_at "0004 archive/restore"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    TRANSACTIONS {
+        uuid id PK
+        uuid customer_id "refs customers"
+        uuid business_id "NOT NULL (0003), must match customer's (trigger)"
+        transaction_type type "charge | payment"
+        numeric amount "positive"
+        timestamptz occurred_at "historical entry date"
+        text note
+        transaction_status status "active | edited | voided"
+        transaction_source source "manual | import"
+        uuid created_by "NOT NULL, refs auth.users"
+        uuid updated_by "0001 last content-editor"
+        timestamptz voided_at "0001"
+        uuid voided_by "0001"
+        text void_reason "0009 optional ≤200 chars"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+</div>
+<figcaption class="fig-caption">Fig 4 — Data model. <code>profiles</code> mirrors <code>auth.users</code> 1:1 (kept in sync by the <code>on_auth_user_created</code> trigger). All FK cascades descend from <code>businesses</code>, so a business delete removes everything atomically.</figcaption>
+</figure>
+
+<h4>Enums (created idempotently)</h4>
+<ul>
+  <li><code>transaction_type</code>: <code>charge</code>, <code>payment</code></li>
+  <li><code>transaction_status</code>: <code>active</code>, <code>edited</code>, <code>voided</code> (see §8.5 lifecycle)</li>
+  <li><code>transaction_source</code>: <code>manual</code>, <code>import</code></li>
+  <li><code>business_role</code>: <code>owner</code>, <code>editor</code>, <code>viewer</code></li>
+  <li><code>invitation_status</code>: <code>pending</code>, <code>accepted</code>, <code>declined</code>, <code>revoked</code></li>
+</ul>
+
+<h3 id="s5b">5.2 Key integrity rules worth remembering</h3>
+<ul>
+  <li><strong>One owned business per user</strong>: unique index <code>businesses_one_per_owner(owner_id)</code> + a check inside <code>create_business</code>.</li>
+  <li><strong>One owner row per business</strong>: partial unique index on <code>business_members(business_id) WHERE role='owner'</code>; owner rows never change or get removed except by deleting the business.</li>
+  <li><strong>Tenant match trigger</strong>: <code>transactions_business_match</code> refuses a transaction whose <code>business_id</code> differs from its customer's (SQLSTATE 23503).</li>
+  <li><strong>Invitation hygiene</strong>: emails stored lowercased (CHECK <code>email = lower(email)</code>); invites only ever offered as <code>editor|viewer</code>; one <em>pending</em> invitation per business+email (client surfaces error 23505 as "An invitation is already pending for this email.").</li>
+  <li><strong>Never hard-delete transactions</strong>: there is deliberately NO delete policy on <code>transactions</code>. Rows are <em>voided</em> (§8.5) and remain as history. Customers are the only thing that can truly vanish, and only via the owner-only RPC below.</li>
+</ul>
+
+<h3 id="s5c">5.3 RPC catalog (functions the client calls)</h3>
+<p><code>security definer</code> functions run as the DB owner and must do their own
+authorization (they do — every one validates via <code>is_member/has_role</code> or the
+JWT email); <code>security invoker</code> functions run with the caller's rights, so the
+same RLS that governs table reads scopes them automatically.</p>
+
+<table>
+  <tr><th style="width:250px">Function (migration)</th><th>Mode</th><th>Purpose &amp; authorization</th></tr>
+  <tr><td><code>is_member(uuid)</code> · <code>has_role(uuid, role)</code> (0002)</td><td>definer</td><td>Policy helpers: does <code>auth.uid()</code> belong to / hold at least this role in the business.</td></tr>
+  <tr><td><code>create_business(...)</code> (0002)</td><td>definer</td><td>Insert business for <code>auth.uid()</code>; refuses a second owned business (42501 "You already own a business."). The 0001 trigger then adds the owner membership row.</td></tr>
+  <tr><td><code>respond_to_invitation(id, accept)</code> (0002)</td><td>definer</td><td>Accept/decline. Matches the invitation's email against the caller's JWT email, pending-only, one response; accepting while already a member is a silent success; otherwise "This invitation is no longer available." (42501).</td></tr>
+  <tr><td><code>leave_business(uuid)</code> (0002)</td><td>definer</td><td>Delete own membership; refuses owners with "Owners cannot leave. Delete the business instead."</td></tr>
+  <tr><td><code>change_member_role(bid, uid, role)</code> (0002)</td><td>definer</td><td>Owner-only; refuses promote-to-owner ("Ownership cannot be transferred this way.") and changing the owner row.</td></tr>
+  <tr><td><code>remove_member(bid, uid)</code> (0002)</td><td>definer</td><td>Owner-only; owner row protected. Only the membership row goes — history stays readable.</td></tr>
+  <tr><td><code>dashboard_summary(bid)</code> (0002; 0004 rewrote it to exclude archived)</td><td>definer</td><td>KPI row: total receivable / credit / open accounts / today count+net / customer count / top 8 debtors (jsonb). Members only (42501 otherwise). Excludes voided rows and archived customers. Note DEV-14: "today" is cut in DB UTC midnight (backlog B-09 proposes a timezone parameter).</td></tr>
+  <tr><td><code>my_invitations()</code> (0002b)</td><td>definer</td><td>Pending invitations addressed to the caller's JWT email, joined with business + inviter display names (an invitee isn't a member yet — RLS would otherwise hide both).</td></tr>
+  <tr><td><code>business_exists(uuid)</code> (0003b)</td><td>definer</td><td>One-bit probe for the lost-access flow (§4). Anon cannot execute.</td></tr>
+  <tr><td><code>delete_customer_permanently(cid, bid)</code> (0004)</td><td>definer</td><td><strong>Owner-only</strong> (42501 for editor/viewer/outsider). Atomically removes the customer and every one of their transactions — the only destructive path for history.</td></tr>
+  <tr><td><code>restore_transaction(tid, bid)</code> (0005)</td><td>invoker</td><td>Brings a voided row back: status recomputed by the ROW ("edited" if <code>updated_by</code> set, else "active"); clears the void stamps. Voided rows refuse client-side edits.</td></tr>
+  <tr><td><code>customer_ledger(cid, bid)</code> (0006)</td><td>invoker, stable</td><td>Newest-first ledger rows each carrying <code>balance_after</code> — a windowed running sum (charge − payment over active+edited), computed as NUMERIC in the database.</td></tr>
+  <tr><td><code>transaction_rollup(bid, from, to, type, customer, search, include_voided, granularity, timezone)</code> (0006b)</td><td>invoker, stable</td><td>The same filter set as the detailed transactions list, grouped by day/week/month <em>in the caller's timezone</em>; <code>granularity: null</code> returns one totals row (the footer's "everything matching, not only this page"). Weeks start Monday. Archived customers always excluded; voided only when requested.</td></tr>
+  <tr><td><code>daily_activity(bid, days, timezone)</code> (0007)</td><td>invoker, stable</td><td>Zero-filled day rows (7/30/90) of charges/payments for the trend chart; caller's timezone; voided out, edited in, archived customers out.</td></tr>
+  <tr><td><code>import_history(bid, customers, transactions)</code> (0008)</td><td>invoker</td><td>The whole CSV import in ONE database transaction (§7.7): re-does name+phone matching inside the business, refuses archived matches with a pinned reason, tags rows <code>source='import'</code> with historical dates, and any error rolls everything back.</td></tr>
+</table>
+
+<h3 id="s5d">5.4 The one view: <code>customer_balances</code></h3>
+<p><code>create view customer_balances with (security_invoker = true)</code>:</p>
+<pre><code>balance per customer = sum(charge ? +amount : −amount)
+                       filtered WHERE status IN ('active','edited')
+included: every non-deleted customer (archived ones too — the Archived filter needs them)
+</code></pre>
+<p>It is the <em>single source</em> of every balance the UI shows — list rows, ledger
+hero, picker previews, totals. The old v1 security-definer balance RPCs were dropped
+by migration 0003 precisely because they ignored tenancy (they bypassed RLS). The
+transactions list additionally embeds it as <code>customer_balances!inner(balance)</code>.</p>
+
+<h3 id="s5d2">5.5 RLS policy matrix (final state, after migration 0003 dropped the v1 wide-open policies)</h3>
+<table>
+  <tr><th>Table</th><th>SELECT</th><th>INSERT</th><th>UPDATE</th><th>DELETE</th></tr>
+  <tr><td><code>profiles</code></td><td colspan="4">Co-members can read (someone sharing a business sees co-members' profiles). No direct writes — profiles are created/updated by the auth trigger and Google identity.</td></tr>
+  <tr><td><code>businesses</code></td><td>members</td><td>only with <code>owner_id = auth.uid()</code></td><td>owner</td><td>owner</td></tr>
+  <tr><td><code>business_members</code></td><td>co-members</td><td colspan="3" class="muted">None — all member writes go through the security-definer RPCs (<code>respond_to_invitation</code>, <code>change_member_role</code>, <code>remove_member</code>, <code>leave_business</code>) so every rule is in one audited place.</td></tr>
+  <tr><td><code>business_invitations</code></td><td>owner; invitee reads rows matching their own JWT email</td><td>owner</td><td>owner (revoke)</td><td>owner</td></tr>
+  <tr><td><code>customers</code></td><td>member of the business</td><td>editor or owner</td><td>editor or owner (archive is an update)</td><td>owner (also mirrored by <code>delete_customer_permanently</code>)</td></tr>
+  <tr><td><code>transactions</code></td><td>member of the business</td><td>editor or owner</td><td>editor or owner (edit stamps, void is an update)</td><td><strong>no policy — deletes are impossible by design</strong></td></tr>
+</table>
+<p class="muted">"Member" = <code>is_member(business_id)</code>; "editor/owner" =
+<code>has_role(business_id, 'editor')</code> etc., all resolved from the caller's JWT.
+Every claim is asserted by the SQL test files in <code>supabase/tests/</code> (§9).</p>
+
+<h3 id="s5e">5.6 Migration map &amp; database triggers</h3>
+<table>
+  <tr><th style="width:290px">Migration file</th><th>Story</th><th>What it establishes</th></tr>
+  <tr><td><code>20260913152312_remote_schema.sql</code></td><td>v1 baseline</td><td><code>customers</code>, <code>transactions</code>, enums; RLS enabled but wide-open permissive policies.</td></tr>
+  <tr><td><code>20260913170000_add_balance_rpc_functions.sql</code></td><td>v1 baseline</td><td>Unscoped balance RPCs (later dropped by 0003 — tenancy hole DEV-8).</td></tr>
+  <tr><td><code>0001_multi_business_schema.sql</code></td><td>S-05</td><td>profiles / businesses / business_members / business_invitations; additive columns on customers &amp; transactions; the three triggers + profiles backfill.</td></tr>
+  <tr><td><code>0002_membership_rls.sql</code></td><td>S-06</td><td><code>is_member/has_role</code>, membership policies + core RPCs (create/leave/role/remove/respond/summary) + <code>customer_balances</code> view.</td></tr>
+  <tr><td><code>0002b_my_invitations.sql</code></td><td>S-24</td><td>Invitee's invitation list RPC.</td></tr>
+  <tr><td><code>0003_enforce_tenancy.sql</code></td><td>S-20</td><td><strong>The only destructive migration:</strong> refuses on NULL business ids (backfill script exists), makes tenancy NOT NULL, drops the v1 broad policies and the unscoped RPCs.</td></tr>
+  <tr><td><code>0003b_business_exists.sql</code></td><td>S-27</td><td>Lost-access probe RPC.</td></tr>
+  <tr><td><code>0004_customer_archive_delete.sql</code></td><td>S-30</td><td><code>archived_at</code> + index; rewrites <code>customer_balances</code>; dashboard_summary excludes archived; owner-only permanent-delete RPC.</td></tr>
+  <tr><td><code>0005_void_reason_restore.sql</code></td><td>S-34</td><td><code>restore_transaction</code> RPC (0009 later added the <code>void_reason</code> column this always assumed — bugfix DEV-15).</td></tr>
+  <tr><td><code>0006_customer_ledger.sql</code> / <code>0006b_transaction_rollup.sql</code></td><td>S-31 / S-35</td><td>Running-balance ledger RPC / filtered rollup RPC (lettered siblings because C-5 pins 0007/0008 to their stories).</td></tr>
+  <tr><td><code>0007_daily_activity.sql</code></td><td>S-37</td><td>Trend-chart aggregation RPC.</td></tr>
+  <tr><td><code>0008_import_history.sql</code></td><td>S-38</td><td>Atomic import RPC.</td></tr>
+  <tr><td><code>0009_void_reason_column.sql</code>, <code>0010_respond_invitation_status_cast.sql</code></td><td>bugfixes</td><td>Found the first time the SQL test suite was actually executed (DEV-15, DEV-22). Good precedent: tests found real schema gaps.</td></tr>
+</table>
+
+<h4>Triggers (from 0001)</h4>
+<ul>
+  <li><code>on_auth_user_created → handle_new_user()</code>: every new <code>auth.users</code> row gets an upserted <code>profiles</code> row from the Google identity (name/avatar/email).</li>
+  <li><code>businesses_add_owner → add_owner_membership()</code>: creating a business auto-inserts the owner's <code>business_members</code> row.</li>
+  <li><code>transactions_business_match → assert_transaction_business_match()</code>: a transaction's business must match its customer's business.</li>
+</ul>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6"><span class="secnum">6</span>Roles &amp; permissions</h2>
+<p>Two layers, in order of truth:</p>
+<ol>
+  <li><strong>Database (source of truth):</strong> RLS policies + security-definer RPCs (§5).</li>
+  <li><strong>UI mirror:</strong> <code>src/lib/permissions.ts</code> — an 11-action matrix; <code>can(role, action)</code> is a pure read; <code>assertCan()</code> throws <code>AppError("forbidden")</code> in every write mutation <em>before</em> the network; the <code>&lt;Can&gt;</code> component (plus <code>usePermissions</code>) hides or disables affordances (hide for Sidebar/nav items, disable for otherwise-visible controls).</li>
+</ol>
+
+<table>
+  <tr><th style="width:210px">Action (<code>permissionMatrix</code> key)</th><th>Owner</th><th>Editor</th><th>Viewer</th><th>DB proof (SQL test)</th></tr>
+  <tr><td><code>view</code> / <code>export</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td><code>0002</code> §4 reads; SELECT policies back both</td></tr>
+  <tr><td><code>manageCustomers</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td><code>0002</code> §5/§6 insert-update customer</td></tr>
+  <tr><td><code>archiveCustomers</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td>same UPDATE policies; <code>0004</code></td></tr>
+  <tr><td><code>deleteCustomer</code></td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td><code>0004</code> §8 — editor/viewer/outsider all get 42501</td></tr>
+  <tr><td><code>manageTransactions</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td><code>0002</code> §5 insert/update, <code>0005</code> void</td></tr>
+  <tr><td><code>importTransactions</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td>same INSERT as transactions; client gates the page</td></tr>
+  <tr><td><code>manageBusiness</code></td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td><code>0002</code> §6/§7 business update</td></tr>
+  <tr><td><code>manageMembers</code></td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td><code>0002</code> membership RPCs + <code>0002c</code></td></tr>
+  <tr><td><code>deleteBusiness</code></td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td><code>0002</code> §6 vs §10 business delete</td></tr>
+  <tr><td><code>leaveBusiness</code></td><td class="no">✗ (must delete instead)</td><td class="yes">✓</td><td class="yes">✓</td><td><code>0002</code> §7 + <code>0002c</code> §5</td></tr>
+</table>
+
+<p>Two guard rails keep the layers honest: <em>UI → DB</em> — every write mutation calls
+<code>assertCan</code> inside <code>mutationFn</code>, so a known-denied role fails with
+<code>forbidden</code> without touching the network; <em>DB → UI</em> — an unknown role
+(membership not loaded) falls through to the database, which refuses the write anyway.
+Ownership transfer is out of scope: the UI only ever offers Editor/Viewer.</p>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7"><span class="secnum">7</span>Feature deep-dives</h2>
+
+<h3 id="s7a">7.1 Auth &amp; session (<code>src/features/auth/</code>, <code>src/contexts/AuthContext.tsx</code>)</h3>
+<ul>
+  <li>Google OAuth only; flow started by <code>signInWithGoogle()</code> with <code>redirectTo: window.location.origin + "/"</code> — consent returns through Supabase to the app root, where the landing resolver decides.</li>
+  <li><code>AuthProvider</code> exposes <code>{ session, user, loading, signInWithGoogle, signOut }</code>.</li>
+  <li>Sign-out clears the entire TanStack cache (<code>queryClient.clear()</code> in <code>BusinessProvider</code>) so nothing from the previous session survives.</li>
+  <li><code>ProtectedRoute</code> (<code>src/components/</code>) guards everything else; the attempted deep link is restored after sign-in.</li>
+</ul>
+
+<h3 id="s7b">7.2 Business lifecycle (<code>src/features/business/</code>)</h3>
+<ul>
+  <li><strong>Boot:</strong> <code>BusinessProvider</code> loads <code>useMemberships</code> → one <code>getMemberships()</code> read joins <code>business_members</code> → <code>businesses</code> (with owner profile name) and my pending invitations, all RLS-derived. Result statuses: <code>loading | ready | none | forbidden</code>; a loading signed-in user renders <code>BusinessBootSkeleton</code> exactly once.</li>
+  <li><strong>Create:</strong> <code>createBusiness</code> RPC; the DB enforces one owned business per user and auto-adds the owner membership (trigger).</li>
+  <li><strong>My businesses page:</strong> own business, shared-with-me businesses (role + owner name), invitations with accept/decline; sidebar <code>BusinessSwitcher</code> (own first, shared, All businesses, Create business when I own none — keyboard + <code>aria-checked</code>).</li>
+  <li><strong>Settings:</strong> owner edits details (zod-validated form); non-owners see read-only details. Backup section (everyone). <code>DangerZone</code> (owner): typed-exact-name delete dialog — with a "Keep a copy first" backup link — showing counts of customers/transactions/members/invitations gathered by <code>getBusinessImpact</code>; cascade FKs make the DB delete atomic.</li>
+  <li><strong>Lost access:</strong> described in §4.</li>
+</ul>
+
+<h3 id="s7c">7.3 Customers (<code>src/features/customers/</code>)</h3>
+<ul>
+  <li><strong>List (server-side, S-28):</strong> a single PostgREST query in <code>queryCustomers</code> — <code>ilike</code> search over name/phone (wildcards escaped; punctuation blanked so "(0171)" still matches), balance status filter (<code>owes</code> / <code>credit</code> / <code>settled</code> / <code>archived</code> — archived is the one view that includes archived rows, with real balances), sort via <code>customer_balances.balance</code>/name/created, paging with exact counts, embedded last activity, plus an unfiltered count for the summary strip. Page state lives in the URL (<code>q, status, sort, dir, page</code>) and survives reload/back-button.</li>
+  <li><strong>Form (S-29):</strong> <code>CustomerFormDialog</code> on the shared form kit; zod schema in <code>schemas.ts</code> (name 1–100, phone/email plausibility, tag limits); name-first layout with "Additional details" disclosure; duplicate name+phone hint with an "Open existing customer" link; success toast offers "Add transaction".</li>
+  <li><strong>Archiving (S-30):</strong> <code>setCustomerArchived</code> stamps <code>archived_at</code>; archived customers step out of lists, search, pickers and totals (but keep history on their own detail page); Undo toast for 8 s; the <code>Archived</code> status filter is how you find + <strong>Restore</strong> them.</li>
+  <li><strong>Permanent delete:</strong> the owner-only atomic RPC (§5.3); confirm requires typing the exact name; the dialog first states the exact transaction count that will go.</li>
+  <li><strong>Detail page (S-31):</strong> header (avatar, tags, <code>tel:</code>/<code>mailto:</code> contacts, address, Edit, actions menu), balance hero with BalanceBadge + Total charged/Paid/Last activity stats, Add charge/Add payment buttons that preset the entity sheet's type, and the ledger from <code>customer_ledger</code>: Date / Type / Note / Amount / <strong>Balance after</strong>, newest first, All/Charges/Payments filter, Show-voided toggle (on by default), mobile card layout, archived banner with Restore, empty/error states. Statement opens the printable page (§7.7).</li>
+</ul>
+
+<h3 id="s7d">7.4 Transactions (<code>src/features/transactions/</code>)</h3>
+<ul>
+  <li><strong>One shared sheet (S-32/33):</strong> <code>TransactionSheet</code> handles both add and edit. Because it's opened programmatically from anywhere (topbar, row menus, ledger, dashboard buttons, even a toast-inside-a-dialog that is unrelated to the Topbar's tree), it's exposed through a tiny module store (<code>sheetStore.ts</code>, <code>useSyncExternalStore</code>): <code>openTransactionSheet(customer?, presetType?)</code>, <code>openTransactionEdit(tx, customer)</code>, plus focus-return-to-trigger tracking. Exactly one instance is mounted (in the Topbar).</li>
+  <li><strong>Add mode:</strong> Charge/Payment segmented control, searchable customer picker (template dropdown + inline "Add ... as a new customer"), live <strong>current → resulting balance</strong> preview off the <code>customer_balances</code> view, inline validation (amount &gt; 0, ≤2dp, no future dates, ≤500-char note), failure keeps your input, viewers see no add actions anywhere.</li>
+  <li><strong>Edit mode:</strong> same sheet, customer shown not picked, preview recomputes <em>honestly</em> (removes the old entry's effect first), saves with <code>status='edited'</code> + <code>updated_by/at</code> stamps; a voided row can't be edited (<code>.neq('status','voided')</code>); provenance (<code>source/created_by/customer</code>) is never editable.</li>
+  <li><strong>Ledger badges:</strong> rows keep an <code>EditedBadge</code> ("Edited by &lt;name&gt; on …"; creator/editor who left → "Former member"), and voided rows stay visible, muted and struck-through with a <strong>Voided</strong> badge.</li>
+  <li><strong>Void &amp; restore (S-34):</strong> <code>VoidTransactionDialog</code> ("Void this payment of ₹500?" + optional ≤200-char reason, verb-exact <em>Void transaction</em> button); toast offers <strong>Undo</strong> for 8 s; <strong>Restore</strong> goes through the server-side RPC so the row decides its own restored status (§5.3). Balance + all totals exclude voided rows (they always did server-side; the UI now proves it).</li>
+  <li><strong>Transactions page (S-35):</strong> detailed view (Date, linked Customer, Type, Note, Amount, <em>Recorded by</em>, status/source badges) with server-side filters — date presets (Today/This week/This month/Last 30 days/Custom; default This month), type pills, customer picker, debounced text search over customer name/phone/note, Include-voided — every filter in the URL as removable chips. Summarized view groups by day/week/month through <code>transaction_rollup</code>. The totals footer shows Charges/Payments/Net for the <em>whole filter</em> (the ungrouped rollup row), independent of paging.</li>
+</ul>
+
+<h3 id="s7e">7.5 Dashboard (<code>src/features/dashboard/</code>)</h3>
+<ul>
+  <li><strong>KPIs (S-36):</strong> four StatCards from <code>dashboard_summary</code> — "Total owes you" is the headline receivable, plus "Total you owe", "Open accounts", "Today's activity" (count + net). The figures are server-computed: voided excluded, archived customers excluded.</li>
+  <li><strong>Top outstanding</strong> (≤8, avatar + link; "All settled" when empty) and a <strong>Today</strong> card that links to <code>?range=today</code> — the transactions page footer shows the identical count/net (one timezone caveat, DEV-14 / backlog B-09).</li>
+  <li><strong>Trends (S-37):</strong> <code>TrendChart</code> (recharts, tokens <code>--chart-1/2</code>) from <code>daily_activity</code>, 7/30/90 selector; a visible text summary + an <code>sr-only</code> data table equivalents (zero days are rows, not gaps).</li>
+  <li><strong>Activity feed:</strong> last 10 entries as full sentences with links; voided rows and archived customers never appear; departed creators degrade to "Former member".</li>
+  <li><strong>First-run card</strong> lists: add first customer → record first transaction → invite a teammate (Owner-only step). Quick actions are Owner/Editor-only; every section has its own skeleton/error/retry.</li>
+</ul>
+
+<h3 id="s7f">7.6 Members &amp; invitations (<code>src/features/members/</code>)</h3>
+<ul>
+  <li><strong>Members page (S-22):</strong> all members with role badges (owner-first); owners see the Invite dialog + a pending-invitations section; editors/viewers see a <strong>Leave business</strong> button, owners see the note "Owners cannot leave. Delete the business instead."</li>
+  <li><strong>Invite (S-23):</strong> email lowercased + validated (zod), role Editor/Viewer (default Viewer), inline rejections (your own email, existing member, already-invited) with the DB's unique-pending index as backstop (error 23505 mapped). "Copy app link" for the invitee.</li>
+  <li><strong>Manage (S-25):</strong> row actions — change role / remove — via the change/remove RPCs with named confirmations. Only the membership row goes: the person's transactions stay, their name resolves to <em>Former member</em> once their profile is unreachable (SQL test 0002c pins this data contract — the UI degrade is by design, not a bug).</li>
+  <li><strong>Being invited (S-24):</strong> invitation count badge in the top bar; accept/decline from <code>/businesses</code>; a stale/revoked invitation surfaces "This invitation is no longer available." and the card disappears.</li>
+</ul>
+
+<h3 id="s7g">7.7 Import, export, backup, statement (<code>src/features/import-export/</code>)</h3>
+<p><strong>CSV import (S-38)</strong> — flow below; the parser in
+<code>src/lib/csv-import.ts</code> is shared legacy code (kept, well-tested), the new
+<code>import-export</code> feature owns the page and the atomic RPC.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+  U["1 Upload<br/>file ≤ 5 MB and ≤ 10,000 rows<br/>(rejected before parsing)"] --> V["2 Review<br/>whole file validated: headers<br/>customer_name,customer_phone,<br/>type,amount,date,note<br/>positive amount, date not future"]
+  V --> P["Preview<br/>template CSV downloadable<br/>per-customer summary (New/Existing,<br/>resulting balance = current + delta)<br/>error rows with number + reason<br/>archived match = error, never a skip"]
+  P -->|"one forward button:<br/>Import N valid transactions"| R["3 Import<br/>import_history RPC (0008)<br/>ONE database transaction:<br/>creates new customers, re-matches<br/>by name+phone inside THIS business,<br/>tags source='import', historical dates"]
+  R -->|"any error → everything rolls back"| P
+  R --> D["4 Done<br/>counts from the DB<br/>'Partial import complete' if skipped"]
+</div>
+<figcaption class="fig-caption">Fig 5 — Import pipeline. The client validates and previews; the RPC re-does the matching so the commit cannot drift from the preview's scope.</figcaption>
+</figure>
+
+<p><strong>Exports &amp; backup (S-39):</strong> every member, including Viewers, may
+export. Customers/Transactions lists get "Export CSV" buttons that re-run the page's
+current filters with <strong>500-row server-side paging</strong> (progress in the button:
+"Exporting… done/total"); Settings + the delete dialog offer a whole-business
+<strong>backup</strong> (<code>customers.csv</code> then <code>transactions.csv</code>).
+All cells are formula-safe: <code>escapeCsvCell</code> prefixes <code>= + - @</code> with
+an apostrophe <em>before</em> quoting (<code>csv.ts</code>).</p>
+
+<p><strong>Printable statement:</strong> <code>/b/:bid/customers/:cid/statement</code> —
+business + customer header, From/To period selector, every entry with the server's own
+<code>balance_after</code>, recomputed closing balance; print stylesheet hides the shell
+(<code>print:hidden</code> on sidebar/topbar, white-paper body rule) — no new dependencies.</p>
+
+<h3 id="s7dev">7.8 Dev gallery</h3>
+<p><code>src/features/dev/UiGallery.tsx</code> at <code>/__ui</code> (dev builds only)
+renders every shared component in loading/empty/no-results/error/data states in both
+themes, and its test fails on any console error or warning — use it when adding a
+component.</p>
+
+<!-- ============ 8 ============ -->
+<h2 id="s8"><span class="secnum">8</span>Shared patterns &amp; conventions (the repo's laws)</h2>
+
+<h3 id="s8a">8.1 The API-layer rule — <code>features/*/api.ts</code> is the ONLY Supabase caller</h3>
+<ul>
+  <li>The module <code>src/lib/supabase.ts</code> holds the single <code>createClient</code> (URL + anon key from <code>VITE_*</code> env vars).</li>
+  <li>Only <code>src/features/*/api.ts</code> files may import it. <code>src/lib/__tests__/clientHygiene.test.tsx</code> scans imports and <code>createClient</code> occurrences and fails the build on any violation.</li>
+  <li>Each <code>api.ts</code> wraps its reads/writes in <code>guard()</code> → <code>toAppError</code>; each domain's <code>hooks.ts</code> builds TanStack queries/mutations on top, calling <code>assertCan</code> in every write's <code>mutationFn</code>.</li>
+</ul>
+
+<h3 id="s8b">8.2 Error model — <code>src/lib/AppError.ts</code></h3>
+<p><code>AppError</code> carries one of four codes — <code>forbidden | network | validation | unknown</code>.
+<code>toAppError</code> normalizes everything: <code>TypeError</code> → network;
+SQLSTATE <code>42501</code> / "row-level security" → forbidden; <code>23505</code> →
+duplicate validation; <code>23503</code> → dangling-reference validation;
+<code>22xxx</code>/<code>23xxx</code> → validation; <code>PGRST*</code> → unknown with retry. Every mutation failure surfaces as a
+toast that says what failed and what to do ("Could not archive customer. Try again."); successes are past tense ("Customer archived.").</p>
+
+<h3 id="s8c">8.3 Query keys &amp; caching — <code>src/lib/queryKeys.ts</code></h3>
+<p>Every key is business-scoped: <code>["business", businessId, ...]</code> (the
+<code>scope()</code> helper). That prefix is load-bearing: losing access purges the
+business with one <code>removeQueries</code>, and deleting the business drops all of its
+caches at once. User-level keys (<code>memberships</code>, <code>myInvitations</code>,
+<code>businessDetail</code>, <code>businessImpact</code>) sit outside the prefix. Hygiene
+tests keep the key catalog in sync with real usage. Compartmental note: <code>pagedList</code>
+and plain <code>list</code> are deliberately <em>separate keys</em> (different query
+shapes must never share a cache entry).</p>
+
+<h3 id="s8d">8.4 UI system</h3>
+<ul>
+  <li><strong>Forms:</strong> <code>EntityDialog</code> — the same component for create and edit, dialog (desktop) / bottom-sheet (<code>side="bottom"</code>) modes; zod schema + shared field components in <code>components/app/fields/</code>; inline errors, spinner on submit, keep inputs on failure.</li>
+  <li><strong>Destructive confirms:</strong> <code>ConfirmDialog</code> with a specific verb ("Archive customer", "Void transaction"); irreversible ones require typing the exact name.</li>
+  <li><strong>Lists:</strong> column-driven <code>DataTable</code> with the five states (loading / empty / no-results / error / data), server-side sort + paging, <code>aria-sort</code>, "Showing N of M" live region, sorted-column announcements, card mode under 768px, embedded <code>RowActionsMenu</code>; list state in the URL.</li>
+  <li><strong>Display primitives:</strong> <code>Money</code>, <code>BalanceBadge</code> ("Owes you"/"You owe"/"Settled" — words + colour, never colour alone), <code>StatusBadge</code>, <code>EmptyState</code>, <code>ErrorState</code> (+ Try again), <code>Skeleton</code>, <code>StatCard</code>, <code>PageHeader</code> (one primary action per screen).</li>
+  <li><strong>Money/dates:</strong> only <code>lib/format.ts</code> (INR, en-IN, tabular numerals; <code>formatRelative</code> for feeds). Amounts right-aligned, never truncated.</li>
+  <li><strong>Theme:</strong> custom <code>ThemeContext</code> light/dark/system, OKLCH semantic tokens, WCAG AA verified both themes by <code>scripts/contrast-audit.cjs</code>; <code>prefers-reduced-motion</code> collapses transitions.</li>
+  <li><strong>Gates &amp; guards:</strong> <code>&lt;Can action=…&gt;</code> for hidden/disabled, <code>assertCan</code> for network-side fail-fast, <code>useScopedBusinessId</code> to resolve <code>:businessId</code> in pages.</li>
+</ul>
+
+<h3 id="s8e">8.5 Transaction lifecycle</h3>
+<figure>
+<div class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> active: created (source: manual or import)
+    active --> edited: content edit; stamps updated_by + updated_at
+    edited --> voided: Void (optional reason, voided_at + voided_by)
+    active --> voided: Void
+    voided --> edited: Restore RPC (the row had been edited)
+    voided --> active: Restore RPC (never edited)
+    note right of voided
+      Voided is a real status, not a delete:
+      the row stays visible-but-muted and is
+      EXCLUDED from every balance, total,
+      rollup and feed (server-side, always).
+      The void stamp is cleared by Restore;
+      updated_by survives it on purpose.
+    end note
+</div>
+<figcaption class="fig-caption">Fig 6 — Transaction status lifecycle. The <code>updated_by</code> stamp deliberately survives voiding — it is how restore distinguishes Edited from Active.</figcaption>
+</figure>
+
+<!-- ============ 9 ============ -->
+<h2 id="s9"><span class="secnum">9</span>Quality: tests, CI, audits</h2>
+
+<h3>Commands</h3>
+<table>
+  <tr><th style="width:250px">Command</th><th>What it does</th></tr>
+  <tr><td><code>npm run dev</code></td><td>Vite dev server at <code>http://localhost:5173</code>.</td></tr>
+  <tr><td><code>npm run build</code></td><td><code>tsc -b</code> typecheck + production build to <code>dist/</code>.</td></tr>
+  <tr><td><code>npm run lint</code></td><td>ESLint 9 flat config over the repo.</td></tr>
+  <tr><td><code>npm run typecheck</code></td><td><code>tsc -b</code>, no emit.</td></tr>
+  <tr><td><code>npm test</code></td><td>Vitest 5 + Testing Library + jsdom (≈463 tests / 53 files).</td></tr>
+  <tr><td><code>node scripts/contrast-audit.cjs</code></td><td>WCAG AA audit of every semantic token pair, both themes.</td></tr>
+  <tr><td><code>node scripts/responsive-audit.cjs</code></td><td>Headless-Chrome (CDP, zero npm deps) audit of 13 routes × 360/768/1024/1440 px against the running dev server; scroll-width + clipped-₹ checks.</td></tr>
+</table>
+
+<h3>CI (`.github/workflows/ci.yml`)</h3>
+<p>Every push: <code>npm ci</code> → lint → typecheck → build → test. Any failing step fails the job.</p>
+
+<h3>Test strategy (where to add your tests)</h3>
+<ul>
+  <li><strong>Harness:</strong> <code>src/test/app-render.tsx</code> — <code>renderApp(ui, { route, session })</code> wraps UI in Theme + Auth + QueryClient (retry off) + MemoryRouter and mocks Supabase auth, so provider trees work offline. <code>expectNoSeriousViolations</code> in <code>src/test/a11y.ts</code> runs axe and fails only on serious/critical violations.</li>
+  <li><strong>Feature suites:</strong> every feature folder has <code>__tests__/</code> covering pages/hooks/flows with role-specific personas (Owner/Editor/Viewer + no-business + pending-invitation — the five personas of the final smoke).</li>
+  <li><strong>Cross-cutting journeys:</strong> <code>src/features/__tests__/axePages.test.tsx</code> (axe on all 13 routes + gallery), <code>keyboardJourneys</code> (sign in → create → invite → add customer/transaction → void → archive/restore → switch — driven without a mouse), <code>focus</code> (trap/Escape/return), <code>responsive</code> (structural drawer/sheet/cards/safe-area pins + no-fixed-width-&gt;360px source guard).</li>
+  <li><strong>Hygiene tests (they run on every commit):</strong> <code>clientHygiene</code> — scans the repo, the built bundle and <code>.env</code> shapes for secret material, enforces the API-layer confinement, proves no HTML sinks (XSS) and that markup-looking business names stay text; <code>pathsHygiene</code> (no hardcoded routes outside <code>paths.ts</code>); <code>dateHygiene</code>; <code>queryKeys</code> catalog sync.</li>
+  <li><strong>Database proofs:</strong> <code>supabase/tests/</code> — plain SQL, one rolled-back transaction per file, no framework; runnable per <code>supabase/tests/README.md</code> (Option A: SQL Editor per file; Option B: psql against <code>supabase start</code>).</li>
+</ul>
+<div class="card warn"><strong>Honest gap:</strong> the SQL suite and real Google click-through are <em>manual</em> — not executed in CI — so their status is "reviewed evidence" until a human runs them; see §11 and the caveat in <code>docs/SECURITY.md</code>.</div>
+
+<h3>Accessibility &amp; responsive standards (enforced, not aspirational)</h3>
+<ul>
+  <li>Skip-to-content link + <code>main</code> landmark; keyboard-complete core journeys; focus traps with return-to-trigger on dialogs/sheets.</li>
+  <li>Announcements: toasts (sonner aria-live), result counts + sorted-by updates (<code>role="status"</code>), balance changes announced, not just flashed.</li>
+  <li>Touch targets ≥44px only on coarse pointers (custom <code>@custom-variant pointer-coarse</code> in <code>index.css</code> — Tailwind 4.3 has no built-in granularity variant).</li>
+  <li>Safe areas (<code>viewport-fit=cover</code> + <code>env(safe-area-inset-*)</code>), tables→cards under 768px, bottom sheets, sidebar→drawer under 1024px.</li>
+</ul>
+
+<!-- ============ 10 ============ -->
+<h2 id="s10"><span class="secnum">10</span>Security model</h2>
+<p>Condensed from <code>docs/SECURITY.md</code> — read that file for the full
+threat→control→proof table. The highlights a new engineer must know:</p>
+<ul>
+  <li><strong>Tenancy:</strong> every table is RLS-filtered by membership resolved from the JWT; an outsider's reads return zero rows and writes are refused. Cross-tenant RPC abuse is refused by membership checks inside the functions.</li>
+  <li><strong>Roles:</strong> Viewer writes are refused at policy level, not merely hidden. Editor escalation (permanent delete, role change, member removal, business delete) → owner-only RPCs/policies with 42501.</li>
+  <li><strong>Invitations:</strong> only the matching JWT email can respond, once; owners can't leave their own business.</li>
+  <li><strong>Secrets:</strong> only the anon/publishable key ever ships. <code>clientHygiene.test.tsx</code> fails the build if a service-role key appears anywhere in the repo or bundle (run <code>npm run build</code> first to include the bundle scan), and pins the exact shape of <code>.env.example</code> / <code>.env</code>.</li>
+  <li><strong>Input safety:</strong> React escaping everywhere (HTML-sink scan + rendered-payload proof); exported CSVs are formula-neutralized (<code>= + - @</code> → prefixed).</li>
+  <li><strong>Auth deep links:</strong> protected routes remember the destination and resume after sign-in.</li>
+</ul>
+
+<!-- ============ 11 ============ -->
+<h2 id="s11"><span class="secnum">11</span>Getting set up (runbook)</h2>
+
+<h3>Step 0 — prerequisites</h3>
+<p>Node 22 with npm. A Supabase account. A Google Cloud project you can edit.</p>
+
+<h3>Step 1 — clone &amp; install</h3>
+<pre><code>git clone &lt;repo&gt; && cd bahi-khata
+npm install
+</code></pre>
+
+<h3>Step 2 — environment variables</h3>
+<pre><code>cp .env.example .env
+</code></pre>
+<p>Set exactly these two values (nothing else is allowed in the file, and a test
+enforces it):</p>
+<table>
+  <tr><th>Variable</th><th>Meaning</th></tr>
+  <tr><td><code>VITE_SUPABASE_URL</code></td><td>Your scratch Supabase project URL.</td></tr>
+  <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td>The <strong>anon/publishable</strong> key only — a service key here fails the hygiene test by design.</td></tr>
+</table>
+
+<h3>Step 3 — apply the migrations, in this exact order</h3>
+<div class="card warn">
+<strong>Order matters</strong> and lettered siblings follow their numbers
+(<code>0002b</code>, <code>0003b</code>, <code>0006b</code>). When syncing an existing v1
+project, run the wipe script first; on a brand-new project the two baseline files apply
+fresh. Full procedure with verification steps:
+<code>docs/MANUAL_STEPS.md</code> (§0 and the SYNC section).
+</div>
+<pre><code>supabase/migrations/20260913152312_remote_schema.sql          # v1 baseline (skip on fresh project already at v1)
+supabase/migrations/20260913170000_add_balance_rpc_functions.sql  # v1 baseline
+supabase/migrations/0001_multi_business_schema.sql
+supabase/migrations/0002_membership_rls.sql
+supabase/migrations/0002b_my_invitations.sql
+supabase/migrations/0003_enforce_tenancy.sql                  # destructive; aborts if unscopped rows exist
+supabase/migrations/0003b_business_exists.sql
+supabase/migrations/0004_customer_archive_delete.sql
+supabase/migrations/0005_void_reason_restore.sql
+supabase/migrations/0006_customer_ledger.sql
+supabase/migrations/0006b_transaction_rollup.sql
+supabase/migrations/0007_daily_activity.sql
+supabase/migrations/0008_import_history.sql
+supabase/migrations/0009_void_reason_column.sql
+supabase/migrations/0010_respond_invitation_status_cast.sql
+</code></pre>
+<p class="muted">Apply via <code>supabase db push</code> (CLI) or by pasting each file
+into the Dashboard's SQL Editor. If a file errors — stop, don't continue; the expected
+post-0003 state is checked inside the file you're applying.</p>
+
+<h3>Step 4 — run the SQL suite</h3>
+<pre><code># Option A: paste each supabase/tests/*.sql into the SQL Editor.
+# Option B: psql -f supabase/tests/0002_rls_membership.sql (against `supabase start`)
+</code></pre>
+<p>11 files; every one must finish without a <code>TEST FAILED</code> exception. Failures
+at this step are genuine finds — this suite found 0000-style gaps before (DEV-15, DEV-22).</p>
+
+<h3>Step 5 — Google OAuth wiring (two consoles)</h3>
+<ol>
+  <li><strong>Google Cloud Console</strong> → APIs &amp; Services → Credentials → OAuth client (Web application); authorized redirect URI:
+      <code>https://&lt;project-ref&gt;.supabase.co/auth/v1/callback</code>.</li>
+  <li><strong>Supabase Dashboard</strong> → Authentication → Providers → Google → paste client ID/secret, enable.</li>
+  <li><strong>Authentication → URL Configuration</strong>: Site URL <code>http://localhost:5173/</code>; Redirect URLs include <code>http://localhost:5173/*</code> (add the production origin the same way when deploying).</li>
+</ol>
+
+<h3>Step 6 — run &amp; smoke</h3>
+<pre><code>npm run dev
+</code></pre>
+<p>Sign in with Google (a first sign-up fills <code>profiles</code> via trigger) →
+create business → add customer → add charge. Then the five-persona smoke (Owner,
+Editor, Viewer, signed-in with no business, pending invitation) — evidence checklist in
+<code>docs/PROGRESS.md</code> → S-43.</p>
+
+<h3>Optional verification passes</h3>
+<pre><code>node scripts/contrast-audit.cjs     # token contrast, both themes
+node scripts/responsive-audit.cjs   # needs dev server running
+npm test && npm run lint && npm run typecheck
+</code></pre>
+
+<!-- ============ 12 ============ -->
+<h2 id="s12"><span class="secnum">12</span>Project history &amp; state</h2>
+
+<h3>From v1 to v2</h3>
+<ul>
+  <li><strong>v1 (master @ cc92edb):</strong> single-business, hand-rolled data layer, wide-open RLS ("every authenticated user sees everything"), no routing/paths discipline, no CI. Baseline audit in <code>docs/ARCHITECTURE-BASELINE.md</code>.</li>
+  <li><strong>v2 (this branch):</strong> executed as stories S-01→S-43 from <code>docs/PRD-v2.md</code> in a strict build order (quality gates first, schema early, then layered features, then hardening). Each story's done-when scenarios, deviations and test counts live in <code>docs/PROGRESS.md</code>. Highlights: TanStack Query + <code>features/*</code> layer (S-04), multi-business schema + RLS (S-05/06), tenancy enforcement (S-20), permission layer (S-21), then customers → transactions → dashboard → import/export → a11y/responsive → security → release-ready docs.</li>
+  <li><strong>Data reset (2026-10-15):</strong> the product owner chose a fresh start — v1 business data wiped (<code>supabase/manual/fresh_start_wipe.sql</code>, keeps auth accounts), the legacy backfill was cancelled. The app is not live anywhere; the migration runbook §11 is the only remaining operational step.</li>
+  <li><strong>Fix-as-found culture:</strong> the first execution of the SQL suite produced migrations <code>0009</code>/<code>0010</code> (real gaps in <code>0005</code>/<code>0002</code> respectively). When you touch a migration, run the tests — that's how the last two migrations got written.</li>
+</ul>
+
+<h3>Open backlog (documented, non-blocking)</h3>
+<p><code>docs/BACKLOG.md</code> holds B-01…B-10 — the notable ones: a timezone-aware
+<code>dashboard_summary</code> (B-09, closes the DEV-14 early-morning window), richer
+transaction revision history (B-08), numeric-exempt safe-CSV cells (B-10), DataTable
+skeleton headers keeping sort affordance (B-02). None block release; each has its exact
+origin story attached.</p>
+
+<h3>Reading order for new members</h3>
+<ol>
+  <li><code>docs/UI-CONTRACT.md</code> — every screen's rules (page frame, lists, forms, destructive confirms, copy glossary).</li>
+  <li><code>docs/SECURITY.md</code> + this document §5–§6 — the database is the product.</li>
+  <li><code>docs/PROGRESS.md</code> — how we got here; grep your feature's story number for exact reasoning.</li>
+  <li><code>docs/MANUAL_STEPS.md</code> — the runbook; the sync section is the only pending ops step.</li>
+  <li><code>docs/PRD-v2.md</code> and the root PRDs — the why.</li>
+</ol>
+
+<!-- ============ 13 ============ -->
+<h2 id="s13"><span class="secnum">13</span>Glossary &amp; copy rules</h2>
+<p>Words are user-facing contracts here (from <code>docs/UI-CONTRACT.md</code>):</p>
+<table>
+  <tr><th>Concept</th><th>Say</th><th>Never say</th></tr>
+  <tr><td>Customer owes the business</td><td><strong>Owes you</strong></td><td>Receivable, Debit, Due</td></tr>
+  <tr><td>Business owes the customer</td><td><strong>You owe</strong></td><td>Payable, Credit balance</td></tr>
+  <tr><td>Zero balance</td><td><strong>Settled</strong></td><td>Zero, Paid up</td></tr>
+  <tr><td>Hide a customer, reversible</td><td><strong>Archive</strong></td><td>Delete</td></tr>
+  <tr><td>Remove a customer forever</td><td><strong>Delete permanently</strong></td><td>Remove</td></tr>
+  <tr><td>Cancel a transaction</td><td><strong>Void</strong></td><td>Delete</td></tr>
+  <tr><td>Workspace</td><td><strong>Business</strong></td><td>Tenant, Workspace, Organization</td></tr>
+  <tr><td>Shared access</td><td><strong>Member, Editor, Viewer, Owner</strong></td><td>Admin, User</td></tr>
+</table>
+<p class="muted">("Tenant" and "receivable" appear in code/docs/SQL — just never in UI copy.)</p>
+
+<!-- ============ 14 ============ -->
+<h2 id="s14"><span class="secnum">14</span>Reference index</h2>
+
+<h3>Documents</h3>
+<table>
+  <tr><th style="width:250px">File</th><th>Content</th></tr>
+  <tr><td><code>README.md</code></td><td>Stack, env, setup, scripts, structure, roles, running tests.</td></tr>
+  <tr><td><code>docs/PRD-v2.md</code></td><td>The v2 specification (stories S-01…S-43, constraints C-1…C-6).</td></tr>
+  <tr><td><code>docs/PROGRESS.md</code></td><td>Story board + every scenario's evidence and deviations.</td></tr>
+  <tr><td><code>docs/ARCHITECTURE-BASELINE.md</code></td><td>The v1 audit this branch started from.</td></tr>
+  <tr><td><code>docs/UI-CONTRACT.md</code></td><td>Visual/interaction rules, permission↔SQL mapping, copy glossary.</td></tr>
+  <tr><td><code>docs/SECURITY.md</code></td><td>Threat model + how to re-run every proof.</td></tr>
+  <tr><td><code>docs/MANUAL_STEPS.md</code></td><td>The ordered human runbook (§0 + SYNC + per-story checks).</td></tr>
+  <tr><td><code>docs/RELEASE-NOTES-v2.md</code></td><td>User-facing changelog + pre-deploy checklist.</td></tr>
+  <tr><td><code>docs/BACKLOG.md</code></td><td>B-01…B-10 with origin and exact pointers.</td></tr>
+  <tr><td><code>docs/PR-DESCRIPTION-v2.md</code></td><td>Prepared pull-request text (nothing merged yet).</td></tr>
+  <tr><td>Root PRDs (<code>BahiKhata-PRD.md</code>, <code>BahiKhata-Enhancement-PRD*.md</code>)</td><td>Original v1-era specs; superseded in part by <code>docs/PRD-v2.md</code>.</td></tr>
+</table>
+
+<h3>Key source files (first stops in the editor)</h3>
+<table>
+  <tr><th style="width:290px">File</th><th>Why it matters</th></tr>
+  <tr><td><code>src/App.tsx</code></td><td>Whole route tree + guard nesting.</td></tr>
+  <tr><td><code>src/lib/paths.ts</code></td><td>Every allowed URL builder.</td></tr>
+  <tr><td><code>src/lib/permissions.ts</code></td><td>The role matrix + <code>can/assertCan</code>.</td></tr>
+  <tr><td><code>src/lib/queryKeys.ts</code> · <code>src/lib/queryClient.ts</code></td><td>Cache topology + forbidden-refetch wiring.</td></tr>
+  <tr><td><code>src/lib/AppError.ts</code></td><td>The four error codes + SQLSTATE mapping.</td></tr>
+  <tr><td><code>src/contexts/AuthContext.tsx</code> · <code>src/contexts/BusinessContext.tsx</code></td><td>Session + membership boot.</td></tr>
+  <tr><td><code>src/features/business/components/BusinessGuard.tsx</code></td><td>Route guard + lost-access routing.</td></tr>
+  <tr><td><code>src/features/*/api.ts</code></td><td>Every Supabase call in existence (read these before any backend work).</td></tr>
+  <tr><td><code>src/features/transactions/sheetStore.ts</code></td><td>How the shared transaction sheet is opened from anywhere.</td></tr>
+  <tr><td><code>supabase/migrations/*.sql</code></td><td>The database, verbatim (see §5.6 map).</td></tr>
+  <tr><td><code>src/lib/__tests__/clientHygiene.test.tsx</code></td><td>The repo's self-policing security test (emulate its discipline).</td></tr>
+  <tr><td><code>src/test/app-render.tsx</code></td><td>The test harness to wrap any new component.</td></tr>
+</table>
+
+<div class="card ok">
+<h4>You are done when…</h4>
+<ul>
+  <li>You can explain why the UI checks permissions but the database still refuses a Viewer's write.</li>
+  <li>You know which migration turns tenancy from optional to mandatory, and what it refuses to do first.</li>
+  <li>You can draw the path from "click Void" to Postgres and back to the toast.</li>
+  <li>You can run <code>npm run dev</code> against a scratch Supabase project and smoke-test all five personas.</li>
+</ul>
+<p class="muted">Generated for internal onboarding from a full repository review;
+nothing in this file changes project code. Verify statements against the cited files
+when in doubt — this document cites its sources so you always can.</p>
+</div>
+
+</div>
+</div>
+</main>
+</div>
+
+<script>
+  // ---------- sidebar ----------
+  const root = document.documentElement;
+  const body = document.body;
+  const menuBtn = document.getElementById("menuBtn");
+  const scrim = document.getElementById("scrim");
+  const isNarrow = () => window.matchMedia("(max-width: 1000px)").matches;
+
+  menuBtn.addEventListener("click", () => {
+    if (isNarrow()) body.classList.toggle("nav-open");   // drawer over the page
+    else body.classList.toggle("collapsed");            // collapsed beside the page
+  });
+  scrim.addEventListener("click", () => {
+    if (isNarrow()) body.classList.remove("nav-open");
+    else body.classList.add("collapsed");               // tapping outside collapses too
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (isNarrow()) body.classList.remove("nav-open");
+  });
+
+  // ---------- theme ----------
+  const themeBtn = document.getElementById("themeBtn");
+  function syncThemeBtn() {
+    themeBtn.textContent = root.dataset.theme === "dark" ? "☾ Dark" : "☀ Light";
+  }
+  syncThemeBtn();
+  themeBtn.addEventListener("click", () => {
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    syncThemeBtn();
+    try { localStorage.setItem("kt-theme", next); } catch (e) {}
+    document.dispatchEvent(new CustomEvent("kt-theme", { detail: next }));
+  });
+
+  // ---------- print ----------
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+  // ---------- scroll-spy: highlight the current section in the TOC ----------
+  const links = Array.from(document.querySelectorAll("nav.toc a"));
+  const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  const targets = Array.from(document.querySelectorAll("main h2[id], main h3[id]"));
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        links.forEach((l) => l.classList.remove("active"));
+        const link = byId.get(entry.target.id);
+        if (link) link.classList.add("active");
+      });
+    }, { rootMargin: "-12% 0px -78% 0px" });
+    targets.forEach((t) => io.observe(t));
+  }
+</script>
+<script type="module">
+  // ---------- Mermaid: re-renderable diagrams that follow the theme ----------
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  const diagrams = Array.from(document.querySelectorAll(".mermaid"));
+  diagrams.forEach((el) => { el.dataset.src = el.innerHTML; });
+
+  function renderDiagrams() {
+    const light = document.documentElement.dataset.theme === "light";
+    diagrams.forEach((el) => {
+      el.removeAttribute("data-processed");
+      el.innerHTML = el.dataset.src;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: light ? "neutral" : "dark",
+      securityLevel: "loose",
+      flowchart: { curve: "basis", htmlLabels: true },
+      er: { fontSize: 12 },
+      sequence: { actorMargin: 60 }
+    });
+    mermaid.run({ querySelector: ".mermaid" });
+  }
+
+  renderDiagrams();
+  document.addEventListener("kt-theme", renderDiagrams);
+</script>
+</body>
+</html>

@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { customerKeys, transactionKeys } from "@/lib/queryKeys";
+import {
+  customerKeys,
+  dashboardKeys,
+  transactionKeys,
+} from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
   createTransaction,
@@ -21,11 +25,17 @@ import type { Transaction, TransactionWithCustomer } from "@/types";
 // S-20 contract: every query and mutation carries a businessId. Omitting
 // it is a TypeScript error, not a silent unscoped fallback.
 
+// One invalidation rule for every money-changing mutation: the
+// transaction caches (list, paged, rollup, ledger AND the dashboard
+// summary key, which nests under transactionKeys.all), the customer
+// caches (balances move with transactions) and the dashboard's own
+// surfaces (trend chart + activity feed, keyed under dashboardKeys).
 function useTransactionInvalidation(businessId: string) {
   const queryClient = useQueryClient();
   return () => {
     queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
     queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.all(businessId) });
   };
 }
 
@@ -96,6 +106,8 @@ export function useDashboardSummary(businessId: string) {
   return useQuery({
     queryKey: transactionKeys.summary(businessId),
     queryFn: () => getDashboardSummary(businessId),
+    // No business in the URL (My businesses page) → no scoped read.
+    enabled: Boolean(businessId),
   });
 }
 

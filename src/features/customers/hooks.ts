@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { customerKeys, transactionKeys } from "@/lib/queryKeys";
+import {
+  customerKeys,
+  dashboardKeys,
+  transactionKeys,
+} from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
   countCustomerTransactions,
@@ -17,6 +21,20 @@ import type { Customer } from "@/types";
 
 // S-20 contract: every query and mutation carries a businessId. Omitting
 // it is a TypeScript error, not a silent unscoped fallback.
+
+// One invalidation rule for every customer-changing mutation: the
+// customer caches (lists, detail, balances strip), the transaction
+// caches (the summary's customer_count and top_debtors live under
+// transactionKeys.all) and the dashboard's own surfaces (trend chart
+// + activity feed, keyed under dashboardKeys).
+function useCustomerInvalidation(businessId: string) {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
+    queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.all(businessId) });
+  };
+}
 
 export function useCustomers(businessId: string) {
   return useQuery({
@@ -52,7 +70,7 @@ export function useCustomer(id: string, businessId: string) {
 }
 
 export function useCreateCustomer(businessId: string) {
-  const queryClient = useQueryClient();
+  const invalidate = useCustomerInvalidation(businessId);
   const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: (input: CustomerInput) => {
@@ -60,14 +78,12 @@ export function useCreateCustomer(businessId: string) {
       assertCan("manageCustomers");
       return createCustomer(input, businessId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
-    },
+    onSuccess: invalidate,
   });
 }
 
 export function useUpdateCustomer(businessId: string) {
-  const queryClient = useQueryClient();
+  const invalidate = useCustomerInvalidation(businessId);
   const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({
@@ -81,9 +97,7 @@ export function useUpdateCustomer(businessId: string) {
       assertCan("manageCustomers");
       return updateCustomer(id, input, businessId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
-    },
+    onSuccess: invalidate,
   });
 }
 
@@ -91,11 +105,12 @@ export function useUpdateCustomer(businessId: string) {
  * S-30 — archive and restore are one mutation (the difference is a
  * timestamp or its absence). Both roles that may archive may restore;
  * a viewer fails on assertCan before the network. Success refreshes
- * every customer cache (lists, detail, the balances strip) and the
- * dashboard summary, whose SQL now excludes archived customers.
+ * every customer cache (lists, detail, the balances strip) plus the
+ * transaction and dashboard caches — the summary's SQL excludes
+ * archived customers, and so do the trend chart and activity feed.
  */
 export function useSetCustomerArchived(businessId: string) {
-  const queryClient = useQueryClient();
+  const invalidate = useCustomerInvalidation(businessId);
   const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) => {
@@ -103,20 +118,17 @@ export function useSetCustomerArchived(businessId: string) {
       assertCan("archiveCustomers");
       return setCustomerArchived(id, archived, businessId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
-      queryClient.invalidateQueries({ queryKey: transactionKeys.summary(businessId) });
-    },
+    onSuccess: invalidate,
   });
 }
 
 /**
  * S-30 — the owner's atomic destroy. Keyed like the other customer
- * mutations; success also drops every transaction cache, because the
- * customer's transactions are gone with them.
+ * mutations; success also drops every transaction and dashboard
+ * cache, because the customer's transactions are gone with them.
  */
 export function useDeleteCustomerPermanently(businessId: string) {
-  const queryClient = useQueryClient();
+  const invalidate = useCustomerInvalidation(businessId);
   const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({ id }: { id: string }) => {
@@ -124,10 +136,7 @@ export function useDeleteCustomerPermanently(businessId: string) {
       assertCan("deleteCustomer");
       return deleteCustomerPermanently(id, businessId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.all(businessId) });
-      queryClient.invalidateQueries({ queryKey: transactionKeys.all(businessId) });
-    },
+    onSuccess: invalidate,
   });
 }
 

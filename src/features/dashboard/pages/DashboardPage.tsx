@@ -37,14 +37,14 @@ export function DashboardPage() {
   const [customerFormOpen, setCustomerFormOpen] = useState(false);
 
   const data = summary.data;
+  const userEmail = user?.email ? `, ${user.email.split("@")[0]}` : "";
+  const userName = user?.user_metadata?.name ? `, ${user?.user_metadata?.name}` : "";
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={`Welcome${
-          user?.email ? `, ${user.email.split("@")[0]}` : ""
-        }`}
+        description={`Welcome${userName || userEmail}`}
       >
         {/* S-36 quick actions: Owners and Editors only — a Viewer
             reads the numbers, never the writes (S-21). */}

@@ -444,19 +444,23 @@ const LEDGER_C1 = [
   },
 ];
 
-const DASHBOARD_SUMMARY = {
-  total_receivable: 258000.65,
-  total_credit: 4451.15,
-  open_accounts: 5,
-  today_count: 2,
-  today_net: 4120.9,
-  customer_count: 6,
-  top_debtors: [
-    { id: "c1", name: "Rahim Traders and Sons Wholesale Emporium", balance: 125000.5 },
-    { id: "c6", name: "Sattar Bakery and Confectionery House", balance: 88000.15 },
-    { id: "c4", name: "Nadia Rahman", balance: 45000 },
-  ],
-};
+// Real PostgREST returns a `returns table (...)` function's rows as a
+// one-element ARRAY — the dashboard api layer unwraps it.
+const DASHBOARD_SUMMARY = [
+  {
+    total_receivable: 258000.65,
+    total_credit: 4451.15,
+    open_accounts: 5,
+    today_count: 2,
+    today_net: 4120.9,
+    customer_count: 6,
+    top_debtors: [
+      { id: "c1", name: "Rahim Traders and Sons Wholesale Emporium", balance: 125000.5 },
+      { id: "c6", name: "Sattar Bakery and Confectionery House", balance: 88000.15 },
+      { id: "c4", name: "Nadia Rahman", balance: 45000 },
+    ],
+  },
+];
 
 const DAILY_ACTIVITY = [
   { activity_date: "2026-10-09", charges: 126200.5, payments: 700 },

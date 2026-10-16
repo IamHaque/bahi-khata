@@ -18,9 +18,22 @@ interface SelectFieldProps {
   label: string;
   options: SelectFieldOption[];
   placeholder?: string;
+  /**
+   * Short labels for the closed trigger, when the option labels are
+   * long (the invite dialog's "Viewer — can only see the data" belongs
+   * in the dropdown, not in the chosen-value display). Defaults to the
+   * option labels themselves.
+   */
+  triggerLabels?: Record<string, string>;
 }
 
-export function SelectField({ name, label, options, placeholder }: SelectFieldProps) {
+export function SelectField({
+  name,
+  label,
+  options,
+  placeholder,
+  triggerLabels,
+}: SelectFieldProps) {
   const {
     control,
     formState: { errors },
@@ -34,7 +47,18 @@ export function SelectField({ name, label, options, placeholder }: SelectFieldPr
       render={({ field }) => (
         <div className="space-y-1.5">
           <Label id={`${name}-label`}>{label}</Label>
-          <Select value={field.value} onValueChange={field.onChange}>
+          <Select
+            value={field.value}
+            // Base UI's SelectValue renders the raw value unless the
+            // Root knows the labels — that map is this.
+            items={
+              triggerLabels ??
+              Object.fromEntries(
+                options.map((option) => [option.value, option.label]),
+              )
+            }
+            onValueChange={field.onChange}
+          >
             <SelectTrigger
               id={`${name}-select`}
               aria-labelledby={`${name}-label`}

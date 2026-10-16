@@ -201,10 +201,22 @@ async function openLedgerSheet(customerId = "c1") {
   return screen.findByRole("dialog");
 }
 
+/** An ISO day in the LOCAL timezone (the form speaks local wall clock). */
 function isoDay(offsetDays: number): string {
-  return new Date(Date.now() + offsetDays * 86400000)
-    .toISOString()
-    .split("T")[0]!;
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** The instant a no-time entry on that day stores: local start of day. */
+function atDayStart(offsetDays: number): string {
+  return new Date(`${isoDay(offsetDays)}T00:00`).toISOString();
+}
+
+/** The local ISO day an instant falls on. */
+function localDay(when: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
 }
 
 beforeEach(() => {
@@ -368,7 +380,11 @@ describe("S-32 transaction sheet", () => {
     });
     expect(input.note).toBeUndefined();
     expect(firstCall[1]).toBe("b1");
-    expect(input.occurred_at.split("T")[0]).toBe(isoDay(0));
+    // The entry defaults to now: today's local day, within a minute
+    // of the moment the sheet opened.
+    const when = new Date(input.occurred_at);
+    expect(localDay(when)).toBe(isoDay(0));
+    expect(Math.abs(when.getTime() - Date.now())).toBeLessThan(60_000);
 
     // The sheet closed, the balance recalculated and highlights…
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -499,12 +515,16 @@ describe("S-32 transaction sheet", () => {
     ).toBeTruthy();
     expect(transactionsApi.createTransaction).not.toHaveBeenCalled();
 
-    // Fix everything, back-date to yesterday: it saves.
+    // Fix everything, back-date to yesterday with the time cleared:
+    // it saves at the start of that day.
     fireEvent.change(amount, { target: { value: "500" } });
     fireEvent.change(within(dialog).getByLabelText("Note"), {
       target: { value: "" },
     });
     fireEvent.change(dateInput, { target: { value: isoDay(-1) } });
+    fireEvent.change(within(dialog).getByLabelText("Time"), {
+      target: { value: "" },
+    });
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add charge" }),
     );
@@ -512,7 +532,31 @@ describe("S-32 transaction sheet", () => {
       expect(transactionsApi.createTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           amount: 500,
-          occurred_at: `${isoDay(-1)}T00:00:00.000Z`,
+          occurred_at: atDayStart(-1),
+        }),
+        "b1",
+      ),
+    );
+  });
+
+  it("stores a picked time as the user's local wall clock", async () => {
+    const dialog = await openLedgerSheet();
+
+    fireEvent.change(within(dialog).getByLabelText("Amount"), {
+      target: { value: "250" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Time"), {
+      target: { value: "14:30" },
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Add charge" }),
+    );
+
+    await waitFor(() =>
+      expect(transactionsApi.createTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 250,
+          occurred_at: new Date(`${isoDay(0)}T14:30`).toISOString(),
         }),
         "b1",
       ),

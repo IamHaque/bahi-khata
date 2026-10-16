@@ -121,6 +121,11 @@ export function InviteMemberDialog({
               ? "Editor — can record customers and transactions"
               : "Viewer — can only see the data",
         }))}
+        // The closed trigger shows the short role; the one-line
+        // descriptions live in the dropdown, where they help choosing.
+        triggerLabels={Object.fromEntries(
+          inviteRoleOptions.map((option) => [option.value, option.label]),
+        )}
       />
 
       <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">

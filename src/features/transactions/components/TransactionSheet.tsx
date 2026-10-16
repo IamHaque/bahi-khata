@@ -1,29 +1,30 @@
-import { useEffect, useRef, useState } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
-import { EntityDialog } from "@/components/app/EntityDialog";
-import { BalanceBadge } from "@/components/app/BalanceBadge";
-import { SegmentedField } from "@/components/app/fields/SegmentedField";
-import { MoneyField } from "@/components/app/fields/MoneyField";
-import { DateField } from "@/components/app/fields/DateField";
-import { TextAreaField } from "@/components/app/fields/TextAreaField";
-import { Label } from "@/components/ui/label";
-import { CustomerCombobox } from "@/components/CustomerCombobox";
-import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
-import { toastSuccess } from "@/lib/toast";
+import { useEffect, useRef, useState } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
+import { EntityDialog } from '@/components/app/EntityDialog';
+import { BalanceBadge } from '@/components/app/BalanceBadge';
+import { SegmentedField } from '@/components/app/fields/SegmentedField';
+import { MoneyField } from '@/components/app/fields/MoneyField';
+import { DateField } from '@/components/app/fields/DateField';
+import { TextField } from '@/components/app/fields/TextField';
+import { TextAreaField } from '@/components/app/fields/TextAreaField';
+import { Label } from '@/components/ui/label';
+import { CustomerCombobox } from '@/components/CustomerCombobox';
+import { CustomerFormDialog } from '@/features/customers/components/CustomerFormDialog';
+import { toastSuccess } from '@/lib/toast';
 import {
   useCreateTransaction,
   useCustomerBalance,
   useUpdateTransaction,
-} from "../hooks";
+} from '../hooks';
 import {
   transactionEditFormValues,
   transactionFormValues,
   transactionSchema,
   type TransactionForm,
-} from "../schemas";
-import type { SheetCustomer } from "../sheetStore";
-import { getTransactionSheetState } from "../sheetStore";
-import type { Transaction } from "@/types";
+} from '../schemas';
+import type { SheetCustomer } from '../sheetStore';
+import { getTransactionSheetState } from '../sheetStore';
+import type { Transaction } from '@/types';
 
 interface TransactionSheetProps {
   open: boolean;
@@ -38,13 +39,13 @@ interface TransactionSheetProps {
    * S-33: "edit" corrects `transaction` in this same sheet — the
    * customer is shown but cannot change. Defaults to add.
    */
-  mode?: "add" | "edit";
+  mode?: 'add' | 'edit';
   transaction?: Transaction | null;
   /**
    * S-31: Add charge / Add payment both open this sheet with the type
    * already selected. Ignored in edit mode (the row's own type wins).
    */
-  presetType?: "charge" | "payment" | null;
+  presetType?: 'charge' | 'payment' | null;
 }
 
 /**
@@ -62,16 +63,16 @@ export function TransactionSheet({
   onOpenChange,
   businessId,
   customer,
-  mode = "add",
+  mode = 'add',
   transaction = null,
   presetType = null,
 }: TransactionSheetProps) {
   const create = useCreateTransaction(businessId);
   const update = useUpdateTransaction(businessId);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
-  const [newCustomerQuery, setNewCustomerQuery] = useState("");
+  const [newCustomerQuery, setNewCustomerQuery] = useState('');
 
-  const isEdit = mode === "edit" && transaction != null;
+  const isEdit = mode === 'edit' && transaction != null;
   const edited = isEdit ? transaction : null;
 
   // S-32 keyboard flow: focus returns to whatever opened the sheet.
@@ -88,9 +89,12 @@ export function TransactionSheet({
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     const form = values as unknown as TransactionForm;
-    // The date is an ISO day; the ledger stores the moment that day
-    // began — exactly what the v1 sheets stored.
-    const occurredAt = new Date(form.occurred_on).toISOString();
+    // Date and Time are the user's local wall clock — parsed WITHOUT a
+    // timezone marker, so JS builds the local instant. An empty time
+    // means the start of the picked day.
+    const occurredAt = new Date(
+      `${form.occurred_on}T${form.occurred_at_time || '00:00'}`,
+    ).toISOString();
 
     if (edited) {
       // S-33 — same sheet, same rules; the row keeps its provenance
@@ -105,7 +109,7 @@ export function TransactionSheet({
           note: form.note.trim() || null,
         },
       });
-      toastSuccess("Transaction updated.");
+      toastSuccess('Transaction updated.');
       return;
     }
 
@@ -118,7 +122,7 @@ export function TransactionSheet({
     });
     // EntityDialog closes itself once this resolves; a throw lands as
     // the sheet's root error with every value intact.
-    toastSuccess(form.type === "charge" ? "Charge added" : "Payment recorded");
+    toastSuccess(form.type === 'charge' ? 'Charge added' : 'Payment recorded');
   };
 
   return (
@@ -126,14 +130,14 @@ export function TransactionSheet({
       <EntityDialog
         open={open}
         onOpenChange={onOpenChange}
-        title={edited ? "Edit transaction" : "Add transaction"}
+        title={edited ? 'Edit transaction' : 'Add transaction'}
         schema={transactionSchema}
         defaultValues={
           edited
             ? transactionEditFormValues(edited)
             : transactionFormValues(customer?.id, presetType)
         }
-        submitLabel={edited ? "Save changes" : <SubmitLabel />}
+        submitLabel={edited ? 'Save changes' : <SubmitLabel />}
         onSubmit={handleSubmit}
       >
         {edited ? (
@@ -157,12 +161,15 @@ export function TransactionSheet({
           name="type"
           label="Type"
           options={[
-            { value: "charge", label: "Charge" },
-            { value: "payment", label: "Payment" },
+            { value: 'charge', label: 'Charge' },
+            { value: 'payment', label: 'Payment' },
           ]}
         />
         <MoneyField name="amount" label="Amount" autoFocus />
-        <DateField name="occurred_on" label="Date" />
+        <div className="grid grid-cols-2 gap-3">
+          <DateField name="occurred_on" label="Date" />
+          <TextField name="occurred_at_time" label="Time" type="time" />
+        </div>
         <TextAreaField
           name="note"
           label="Note"
@@ -188,7 +195,7 @@ export function TransactionSheet({
 /** The footer button speaks in the selected type: Add charge / Add payment. */
 function SubmitLabel() {
   const { watch } = useFormContext();
-  return <>{watch("type") === "payment" ? "Add payment" : "Add charge"}</>;
+  return <>{watch('type') === 'payment' ? 'Add payment' : 'Add charge'}</>;
 }
 
 /**
@@ -200,7 +207,7 @@ function FixedCustomer({ customer }: { customer: SheetCustomer | null }) {
     <div className="space-y-1.5">
       <Label>Customer</Label>
       <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
-        {customer?.name ?? "—"}
+        {customer?.name ?? '—'}
       </p>
     </div>
   );
@@ -214,14 +221,14 @@ function CustomerField({
   onAddNew: (query: string) => void;
 }) {
   const { control, setValue, formState } = useFormContext();
-  const customerId = String(useWatch({ control, name: "customer_id" }) ?? "");
+  const customerId = String(useWatch({ control, name: 'customer_id' }) ?? '');
   const error = formState.errors.customer_id?.message as string | undefined;
 
   // The sheet can be handed a customer while it is already open (the
   // "Customer added" toast action) — the form value follows the prop.
   useEffect(() => {
     if (customer && customer.id !== customerId) {
-      setValue("customer_id", customer.id);
+      setValue('customer_id', customer.id);
     }
   }, [customer, customerId, setValue]);
 
@@ -230,7 +237,7 @@ function CustomerField({
       <Label>Customer</Label>
       <CustomerCombobox
         value={customerId || null}
-        onSelect={(selected) => setValue("customer_id", selected.id)}
+        onSelect={(selected) => setValue('customer_id', selected.id)}
         onAddNew={onAddNew}
       />
       {error && (
@@ -255,13 +262,13 @@ function BalancePreview({
   replaceOf = null,
 }: {
   businessId: string;
-  replaceOf?: { type: "charge" | "payment"; amount: number } | null;
+  replaceOf?: { type: 'charge' | 'payment'; amount: number } | null;
 }) {
   const { control } = useFormContext();
-  const customerId = String(useWatch({ control, name: "customer_id" }) ?? "");
-  const type = useWatch({ control, name: "type" }) as "charge" | "payment";
-  const rawAmount = useWatch({ control, name: "amount" });
-  const amount = typeof rawAmount === "number" ? rawAmount : 0;
+  const customerId = String(useWatch({ control, name: 'customer_id' }) ?? '');
+  const type = useWatch({ control, name: 'type' }) as 'charge' | 'payment';
+  const rawAmount = useWatch({ control, name: 'amount' });
+  const amount = typeof rawAmount === 'number' ? rawAmount : 0;
 
   if (!customerId) return null;
   return (
@@ -284,9 +291,9 @@ function LoadedPreview({
 }: {
   businessId: string;
   customerId: string;
-  type: "charge" | "payment";
+  type: 'charge' | 'payment';
   amount: number;
-  replaceOf: { type: "charge" | "payment"; amount: number } | null;
+  replaceOf: { type: 'charge' | 'payment'; amount: number } | null;
 }) {
   const { data: current, isSuccess } = useCustomerBalance(
     customerId,
@@ -296,12 +303,11 @@ function LoadedPreview({
 
   const balance = current ?? 0;
   const oldEffect = replaceOf
-    ? replaceOf.type === "charge"
+    ? replaceOf.type === 'charge'
       ? replaceOf.amount
       : -replaceOf.amount
     : 0;
-  const after =
-    balance - oldEffect + (type === "charge" ? amount : -amount);
+  const after = balance - oldEffect + (type === 'charge' ? amount : -amount);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">

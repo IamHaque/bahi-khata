@@ -153,8 +153,10 @@ export async function queryCustomers(
     }
 
     const sortColumn =
+      // To-one embedded columns use the documented parenthesized
+      // order form — `order=customer_balances(balance)`.
       sort === "balance"
-        ? "customer_balances.balance"
+        ? "customer_balances(balance)"
         : sort === "created"
           ? "created_at"
           : "name";

@@ -1,0 +1,109 @@
+customer_name,customer_phone,type,amount,date,note
+Rahim Uddin,01711 222333,charge,6283,2026-05-09,
+Rahim Uddin,01711 222333,charge,5526,2026-05-10,Rice 25kg
+Rahim Uddin,01711 222333,charge,32541,2026-05-11,Festive supplies
+Rahim Uddin,01711 222333,payment,28482,2026-05-16,Cash
+Rahim Uddin,01711 222333,charge,7789,2026-05-26,Festive supplies
+Rahim Uddin,01711 222333,charge,28913,2026-05-31,Lentils and sugar
+Rahim Uddin,01711 222333,payment,27126,2026-06-04,bKash
+Rahim Uddin,01711 222333,charge,26723,2026-06-05,Medicine
+Rahim Uddin,01711 222333,payment,41289,2026-06-06,
+Rahim Uddin,01711 222333,charge,13559,2026-06-10,"Vegetables, weekly"
+Rahim Uddin,01711 222333,charge,34331,2026-06-20,Lentils and sugar
+Rahim Uddin,01711 222333,payment,26928,2026-08-08,bKash
+Rahim Uddin,01711 222333,charge,20501,2026-08-13,"Vegetables, weekly"
+Rahim Uddin,01711 222333,payment,7082,2026-08-14,
+Rahim Uddin,01711 222333,payment,11054,2026-08-19,
+Rahim Uddin,01711 222333,charge,6850,2026-08-25,Festive supplies
+Rahim Uddin,01711 222333,payment,39452,2026-08-30,
+Rahim Uddin,01711 222333,charge,15599,2026-09-01,Monthly groceries
+Rahim Uddin,01711 222333,charge,34002,2026-09-04,
+Rahim Uddin,01711 222333,charge,15327,2026-09-04,Rice 25kg
+Rahim Uddin,01711 222333,charge,7557,2026-09-10,
+Rahim Uddin,01711 222333,charge,26612,2026-09-13,Fabric
+Rahim Uddin,01711 222333,charge,30073,2026-09-16,Fabric
+Rahim Uddin,01711 222333,charge,36882,2026-09-26,Monthly groceries
+Rahim Uddin,01711 222333,charge,36608,2026-10-16,
+Rahim Uddin,01711 222333,charge,41676,2026-10-17,Fabric
+Rahim Uddin,01711 222333,payment,8500,2026-10-17,"bKash, Ref 8891"
+Fatema Begum,01812 444555,charge,4793,2026-06-12,Repair work
+Fatema Begum,01812 444555,payment,3280,2026-06-13,
+Fatema Begum,01812 444555,charge,1236,2026-06-14,Monthly groceries
+Fatema Begum,01812 444555,payment,2554,2026-07-02,"Cheque, cleared"
+Fatema Begum,01812 444555,charge,3843,2026-07-24,
+Fatema Begum,01812 444555,charge,2149,2026-07-29,
+Fatema Begum,01812 444555,charge,1202,2026-08-02,Rice 25kg
+Fatema Begum,01812 444555,charge,3879,2026-08-05,Rice 25kg
+Fatema Begum,01812 444555,payment,2267,2026-08-08,bKash
+Fatema Begum,01812 444555,charge,4613,2026-08-12,
+Fatema Begum,01812 444555,charge,2774,2026-08-14,Repair work
+Fatema Begum,01812 444555,charge,2814,2026-08-21,Fabric
+Fatema Begum,01812 444555,charge,7394,2026-09-07,Rice 25kg
+Fatema Begum,01812 444555,charge,6623,2026-10-09,Repair work
+Fatema Begum,01812 444555,payment,3072,2026-10-16,bKash
+Fatema Begum,01812 444555,charge,1200,2026-10-17,"Vegetables, weekly"
+Karim Chowdhury,01913 666777,charge,516,2026-08-10,Medicine
+Karim Chowdhury,01913 666777,payment,1243,2026-08-14,UPI transfer
+Karim Chowdhury,01913 666777,charge,384,2026-08-21,
+Karim Chowdhury,01913 666777,payment,952.93,2026-08-26,"bKash, Ref 8891"
+Karim Chowdhury,01913 666777,payment,543,2026-09-21,
+Karim Chowdhury,01913 666777,payment,1164,2026-09-26,
+Karim Chowdhury,01913 666777,charge,988,2026-10-03,
+Karim Chowdhury,01913 666777,charge,755,2026-10-08,"Vegetables, weekly"
+Karim Chowdhury,01913 666777,charge,249.50,2026-10-17,Tea and snacks
+Nasir Hossain,01715 889900,charge,1075,2026-08-24,Fabric
+Nasir Hossain,01715 889900,charge,1691.02,2026-09-05,Lentils and sugar
+Nasir Hossain,01715 889900,charge,2090,2026-09-06,Monthly groceries
+Nasir Hossain,01715 889900,charge,2155,2026-09-19,Medicine
+Nasir Hossain,01715 889900,charge,2703,2026-09-24,Medicine
+Nasir Hossain,01715 889900,charge,2707,2026-09-29,
+Salma Akter,01816 112233,payment,2863,2026-06-03,
+Salma Akter,01816 112233,charge,2817.80,2026-08-02,"Vegetables, weekly"
+Salma Akter,01816 112233,charge,1866,2026-09-01,
+Salma Akter,01816 112233,payment,792.62,2026-10-09,UPI transfer
+Salma Akter,01816 112233,charge,824,2026-10-13,Stationery
+Salma Akter,01816 112233,payment,956,2026-10-15,bKash
+Salma Akter,01816 112233,charge,1441,2026-10-17,
+Jahangir Alam,01917 445566,payment,1175,2026-09-12,Cash
+Jahangir Alam,01917 445566,payment,1016.90,2026-10-17,Advance
+Rokeya Khatun,,charge,2850,2026-05-12,Lentils and sugar
+Rokeya Khatun,,payment,2850,2026-05-21,
+Rokeya Khatun,,charge,2293.95,2026-06-18,Medicine
+Rokeya Khatun,,payment,2293.95,2026-06-29,UPI transfer
+Rokeya Khatun,,charge,1569,2026-07-12,Repair work
+Rokeya Khatun,,payment,1569,2026-07-27,Cash
+Rokeya Khatun,,charge,2587.58,2026-08-07,Rice 25kg
+Rokeya Khatun,,payment,2587.58,2026-08-14,
+Rokeya Khatun,,charge,2546,2026-09-29,Cooking oil
+Rokeya Khatun,,payment,2546,2026-10-11,"bKash, Ref 8891"
+Abdul Malek,,charge,965,2026-06-24,Stationery
+Abdul Malek,,charge,531,2026-06-28,"Vegetables, weekly"
+Abdul Malek,,payment,965,2026-07-16,Cash
+Abdul Malek,,payment,531,2026-07-18,Cash
+Abdul Malek,,charge,702,2026-07-26,Festive supplies
+Abdul Malek,,payment,702,2026-08-11,Cash
+Abdul Malek,,charge,515,2026-09-12,Stationery
+Abdul Malek,,payment,515,2026-09-20,"Cheque, cleared"
+Shirin Sultana,01718 778899,payment,1539,2026-09-06,
+Shirin Sultana,01718 778899,charge,2152.97,2026-09-13,Rice 25kg
+Shirin Sultana,01718 778899,charge,327,2026-09-14,Rice 25kg
+Shirin Sultana,01718 778899,charge,1481.39,2026-09-19,Stationery
+Shirin Sultana,01718 778899,charge,707,2026-09-20,Fabric
+Shirin Sultana,01718 778899,charge,2052,2026-09-27,Medicine
+Shirin Sultana,01718 778899,payment,1284,2026-10-07,bKash
+Shirin Sultana,01718 778899,payment,1016,2026-10-09,Cash
+Shirin Sultana,01718 778899,charge,1348,2026-10-13,"Vegetables, weekly"
+Mizanur Rahman,01819 001122,charge,1721,2026-07-03,Lentils and sugar
+Mizanur Rahman,01819 001122,charge,1295,2026-07-11,Monthly groceries
+Mizanur Rahman,01819 001122,payment,1487,2026-07-17,bKash
+Mizanur Rahman,01819 001122,charge,4918,2026-07-22,Fabric
+Mizanur Rahman,01819 001122,payment,7154,2026-08-04,"bKash, Ref 8891"
+Mizanur Rahman,01819 001122,charge,6483,2026-08-08,Fabric
+Mizanur Rahman,01819 001122,charge,3243,2026-08-17,Cooking oil
+Mizanur Rahman,01819 001122,charge,6277,2026-08-19,
+Mizanur Rahman,01819 001122,charge,5630,2026-08-20,"Vegetables, weekly"
+Mizanur Rahman,01819 001122,charge,6179,2026-09-09,Monthly groceries
+Mizanur Rahman,01819 001122,charge,1383,2026-09-13,Festive supplies
+Mizanur Rahman,01819 001122,payment,6883,2026-09-17,
+Mizanur Rahman,01819 001122,charge,1926,2026-10-10,Fabric
+Mizanur Rahman,01819 001122,payment,4000,2026-10-17,bKash

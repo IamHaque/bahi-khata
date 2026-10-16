@@ -314,7 +314,7 @@ export async function getCustomerBalance(
     const { data, error } = await supabase
       .from("customer_balances")
       .select("balance")
-      .eq("customer_id", customerId)
+      .eq("id", customerId)
       .eq("business_id", businessId)
       .maybeSingle();
 
@@ -334,7 +334,7 @@ export async function getAllCustomerBalances(
   return guard(async () => {
     const { data, error } = await supabase
       .from("customer_balances")
-      .select("customer_id, balance")
+      .select("id, balance")
       .eq("business_id", businessId)
       // S-30 (documented touch-zone stretch): archived customers are
       // left out of totals — the customers-page strip and the dashboard
@@ -347,10 +347,10 @@ export async function getAllCustomerBalances(
 
     const balances: Record<string, number> = {};
     for (const row of (data ?? []) as Array<{
-      customer_id: string;
+      id: string;
       balance: number;
     }>) {
-      balances[row.customer_id] = row.balance;
+      balances[row.id] = row.balance;
     }
 
     return balances;
@@ -367,15 +367,20 @@ export async function getDashboardSummary(
 
     if (error) throw error;
 
-    const row = (data ?? {}) as Record<string, unknown>;
+    // `dashboard_summary` is declared `returns table (...)`, so
+    // PostgREST hands back a one-row ARRAY, not an object. Accept
+    // both shapes: the array from a real backend, the bare object
+    // from mocks that predate the discovery.
+    const row = (Array.isArray(data) ? data[0] : data) ?? {};
+    const summary = row as Record<string, unknown>;
     return {
-      total_receivable: Number(row.total_receivable ?? 0),
-      total_credit: Number(row.total_credit ?? 0),
-      open_accounts: Number(row.open_accounts ?? 0),
-      today_count: Number(row.today_count ?? 0),
-      today_net: Number(row.today_net ?? 0),
-      customer_count: Number(row.customer_count ?? 0),
-      top_debtors: (row.top_debtors as DashboardTopDebtor[] | null) ?? [],
+      total_receivable: Number(summary.total_receivable ?? 0),
+      total_credit: Number(summary.total_credit ?? 0),
+      open_accounts: Number(summary.open_accounts ?? 0),
+      today_count: Number(summary.today_count ?? 0),
+      today_net: Number(summary.today_net ?? 0),
+      customer_count: Number(summary.customer_count ?? 0),
+      top_debtors: (summary.top_debtors as DashboardTopDebtor[] | null) ?? [],
     };
   });
 }

@@ -73,12 +73,15 @@ export const businessKeys = {
 };
 
 // S-37: the dashboard's own reads beyond dashboard_summary — the trend
-// chart's per-day aggregation and the recent-activity feed.
+// chart's per-day aggregation and the recent-activity feed. `all` is
+// the shared prefix, so any mutation that changes money (a transaction
+// or a customer) refetches every dashboard surface with one call.
 export const dashboardKeys = {
+  all: (businessId: string) => [...scope(businessId), "dashboard"] as const,
   daily: (businessId: string, days: number) =>
-    [...scope(businessId), "dashboard", "daily", days] as const,
+    [...dashboardKeys.all(businessId), "daily", days] as const,
   feed: (businessId: string) =>
-    [...scope(businessId), "dashboard", "feed"] as const,
+    [...dashboardKeys.all(businessId), "feed"] as const,
 };
 
 // S-38: the CSV import page's read — the customers the preview matches
