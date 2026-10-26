@@ -614,7 +614,7 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 | S-46 CI and SQL test runner | done | (this commit) | bundle files copied byte-for-byte (7 files verified by hash); scripts added; ci.yml runs on pull_request; sql job `if: false` pending S-50; audit:tokens/audit:bundle steps commented pending L-01/S-48; run-sql-tests.sh mode 100755 in index. Verify: contrast audit 41+41 checks pass, npm run verify green. **Push/CI-on-GitHub deferred: deviation V-01** |
 | S-47 Environment validation | done | (this commit) | env.ts (zod schema), ConfigError.tsx, main.tsx dynamic-imports App after readEnv, .env.example comments; 7 new tests. Verified: verify green (56 files, 477 tests); headless Chrome with .env renamed shows ConfigError naming both variables; with .env the app renders. Deviations V-02, V-02b, V-02c |
 | S-48 Route-level code splitting and bundle guard | done | (this commit) | 14 pages lazy-loaded with Suspense + RouteFallback; route chunk names via manualChunks (login, dashboard, ...); vendors split (supabase, react-query, zod, react-router); audit:bundle step enabled in ci.yml. Verified: build + audit:bundle pass (largest chunk 319.6 kB, total 1,379 kB across 21 chunks); verify green (57 files, 481 tests). Deviations V-03, V-03b |
-| S-49 Faster unit tests | todo | | |
+| S-49 Faster unit tests | done | (this commit) | Baseline median 28.1 s (27.3/28.1/28.6) - already far under the 100 s target on this machine. Lever 1 css:false = no-op (median 28.5 s), reverted. Lever 2 pool:threads = no hang here but median 27.7 s (1.4%), below the 15% keep-bar, reverted. Stop rule (median <= 100 s) met at baseline; levers 3-4 not tried. Config byte-identical to before. Deviation V-04 |
 | S-50 Adopt the tested migrations and SQL tests | todo | | |
 | S-51 Permissions, errors, paths, nav, query keys | todo | | |
 | S-52 API layer and hooks for delete, restore, log, timezone | todo | | |
@@ -652,6 +652,7 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 | V-02c | S-47 | ConfigError is "a full-page centered Card (section 5.2 classes)" | Rendered on a `div` with exactly the 5.2 panel classes (`rounded-lg border border-border bg-card`), no shadow/ring | There is no `components/ui/card.tsx` in the repo; the Card component is introduced by L-04. Smallest adaptation now, full component when the PRD actually specifies it |
 | V-03 | S-48 | "Convert the 12 page imports" with a list naming 12 pages incl. OnboardingPage and RecentlyDeletedPage | All 14 pages that exist today are lazy: the PRD's list plus LandingResolver, ImportPage, StatementPage, TransactionDetailPage, CreateBusinessPage (the "onboarding" chunk); no RecentlyDeletedPage yet | grep is the truth over PRD counts: the router has 14 page elements at this point in the build. S-56 adds RecentlyDeletedPage and it must join as the `recently-deleted` named chunk |
 | V-03b | S-48 | Route chunks named with `/* webpackChunkName: "login" */` style comments (PRD: "route names ... appear as chunk names") | Rollup ignores webpackChunkName; the same names are produced by the `manualChunks` map in `vite.config.ts` (page path needle -> route name). The test asserts the map in vite.config.ts; the built names are proven by `npm run audit:bundle` output | Vite's Rollup build honours manualChunks, not webpack magic comments. Behaviour identical: stable, readable route chunk names |
+| V-04 | S-49 | Procedure: record baseline, try levers 1-4 in order, keep only >=15% improvements, stop at median <= 100 s; Behaviour wants a median lower than baseline | Baseline median on this machine 28.1 s (three runs: 27.3/28.1/28.6) - already 3.5x under the 100 s target, so the story's stop condition held before any lever. Levers 1 and 2 were still measured for diligence (numbers below); both failed the >=15% keep-rule and were reverted; vitest.config.ts is unchanged. Levers 3-4 (node-environment split, isolate:false) not tried: structural risk for no target benefit. The Behaviour line "median lower than baseline" is therefore not pursued - keeping a lever below its own keep-bar would violate the story's rule |
 
 ## S-44 checklist (Behaviour)
 
@@ -683,3 +684,20 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 - [x] The first load no longer ships every page: `npm run build` -> 21 JS chunks; entry `index` 206.9 kB; route chunks login 2.7 kB, onboarding 3.2 kB, businesses 8.8 kB, business-settings 18.6 kB, members 6.9 kB, customers 8.8 kB, customer-detail 28.8 kB, transactions 15.2 kB, transaction-detail 4.8 kB, dashboard 319.6 kB, import 11.9 kB, statement 5.2 kB, landing 11.2 kB, ui-gallery 265.8 kB (dev only)
 - [x] The chunk guard runs in CI: `npm run audit:bundle` enabled in ci.yml verify job after Build; locally passes - largest chunk 319.6 kB (< 500 kB), total 1,379 kB (< 1,500 kB)
 - [x] Tests: App.lazy.test.tsx - 14 lazy imports, route names mapped in vite.config.ts, app renders across the Suspense boundary to the login page without uncaught errors, RouteFallback is a polite live region with two skeletons. verify green (57 files, 481 tests)
+
+## S-49 measurements (this machine, Node 22, Windows)
+
+| Configuration | Runs (s) | Median | Decision |
+| --- | --- | --- | --- |
+| Baseline (vitest.config.ts as found) | 27.3 / 28.1 / 28.6 | **28.1 s** | Already under the 100 s target (review machine was 169 s) |
+| Lever 1: `test: { css: false }` | 28.1 / 28.5 / 28.7 | 28.5 s | **Reverted** - no gain (it is vitest's default already) |
+| Lever 2: `test: { pool: "threads" }` | 27.6 / 28.1 / 27.7 | 27.7 s | **Reverted** - 1.4% gain, under the 15% keep-bar. Did NOT hang here (unlike the review machine), all 481 tests passed all three times |
+| Levers 3-4 (node split, isolate:false) | - | - | Not tried: stop condition (median <= 100 s) met at baseline |
+
+All runs: 481 passed (481), 0 failures. `vitest.config.ts` ends byte-identical to its pre-story state (verified with `git diff`).
+
+## S-49 checklist (Behaviour)
+
+- [x] Same tests, same results: every measured configuration ran the full suite green - 481 passed each time, nothing skipped or flaky
+- [x] Median duration recorded for baseline and each tried lever (table above); numbers lower than nothing kept: no lever met the keep-rule, and the baseline median (28.1 s) already satisfies F-10's <= 100 s bar on this machine (deviation V-04 explains why "lower than the baseline" was not chased)
+- [x] npm test three times with the final (unchanged) config: all green - see baseline runs 27.3/28.1/28.6 s
