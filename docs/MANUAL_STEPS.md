@@ -964,3 +964,80 @@ supabase client is imported only by `lib/supabase.ts` + `*/api.ts`, no
 HTML sink exists in `src/`, and a markup-laden business name renders
 as literal text. `docs/SECURITY.md` documents the threat model and
 this mapping.
+
+
+---
+
+## v3 database rollout (S-50)
+
+v3 replaces the v1/v2 migration chain with three consolidated migrations.
+They are additive and idempotent, but run them in this order, once.
+
+### (a) Take a backup first
+
+1. In the app: Settings -> Download backup (exports the data as JSON).
+2. In the Supabase dashboard: Database -> Backups, and confirm a
+   same-day backup exists (or create one via "Download snapshot").
+
+### (b) Apply the consolidated schema
+
+In the Supabase SQL editor, run the whole file
+`supabase/migrations/20261017000000_bahikhata_consolidated_schema.sql`.
+It is safe on the live database: idempotent throughout, and it refuses
+to proceed (with a clear error) if any customer or transaction still
+has no `business_id` — fix those rows and re-run.
+
+### (c) Apply the two v3 migrations
+
+In order:
+
+1. `supabase/migrations/20261101000000_v3_deletion_log_and_integrity.sql`
+2. `supabase/migrations/20261108000000_v31_last_payment_at.sql`
+
+### (d) Verify
+
+Run these in the SQL editor; expected results in brackets:
+
+```sql
+select count(*) from pg_policies where schemaname='public';
+-- [19]
+
+select count(*) from pg_proc
+ where pronamespace='public'::regnamespace
+   and proname in ('delete_transaction','restore_deleted');
+-- [2]
+
+select has_function_privilege('anon','public.restore_deleted(uuid)','execute');
+-- [false]
+
+select count(*) from information_schema.columns
+ where table_schema='public' and table_name='customer_balances'
+   and column_name='last_payment_at';
+-- [1]
+```
+
+### (e) Only if the project uses the Supabase CLI migration history
+
+```bash
+supabase migration list
+# For every version shown in the REMOTE column that belongs to the old
+# v1/v2 chain (0001 ... 20260913170000):
+supabase migration repair --status reverted <old version>
+# Then mark the new chain as applied:
+supabase migration repair --status applied 20261017000000
+supabase migration repair --status applied 20261101000000
+supabase migration repair --status applied 20261108000000
+```
+
+### (f) Deploy the new client afterwards
+
+The old client keeps working against the new schema in the meantime, so
+deploy the v3 frontend only after (a)-(e) are done and verified.
+
+Note: do **not** replay the whole chain on an already-migrated database.
+Each migration is idempotent when re-applied after itself, but the
+consolidated schema cannot be re-applied once the v3 migration has
+changed `delete_customer_permanently()` to return the deletion-log id
+(vanilla Postgres rule: a function's return type cannot change in place).
+This is expected and affects nothing in normal operation — every
+migration runs exactly once, in order.

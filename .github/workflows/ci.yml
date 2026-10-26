@@ -37,7 +37,6 @@ jobs:
         run: npm run audit:bundle
 
   sql:
-    if: false # enabled in S-50
     runs-on: ubuntu-latest
     services:
       postgres:
