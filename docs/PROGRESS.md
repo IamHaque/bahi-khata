@@ -610,7 +610,7 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 | Story | Status | Commit | Notes |
 | --- | --- | --- | --- |
 | S-44 Branch, baseline and toolchain pins | in progress | (this commit) | .nvmrc=22, engines>=22, verify script, baseline above |
-| S-45 Dependency hygiene | todo | | |
+| S-45 Dependency hygiene | done | (this commit) | five packages moved to devDependencies (versions unchanged), `npm install --package-lock-only` + `npm audit fix --package-lock-only --omit=dev` bumped transitive `fast-uri` 3.1.7->3.1.9; lockfile also gained standard wasm32-wasi optional-platform entries for @tailwindcss/oxide; `npm audit --omit=dev` = 0 vulnerabilities; `npm run verify` green (470 tests, 27.7s) |
 | S-46 CI and SQL test runner | todo | | |
 | S-47 Environment validation | todo | | |
 | S-48 Route-level code splitting and bundle guard | todo | | |
@@ -651,3 +651,10 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 
 - [x] A fresh clone verifies with one command: clean checkout of feat/v3 + Node 22 -> `npm ci && npm run verify` passed (lint, typecheck, tests, build)
 - [x] The Node version is pinned: `.nvmrc` contains `22`; `package.json` `engines.node` is `>=22`
+
+## S-45 checklist (Behaviour)
+
+- [x] Production dependencies are clean: `npm audit --omit=dev` reports "found 0 vulnerabilities"
+- [x] Nothing broke: `npm run verify` passes (lint 0/7, 470 tests, build ok)
+- Note: `tw-animate-css` and `cn` left in dependencies (build imports them), per step 5.
+- Note for the deploy: Vercel installs devDependencies during build by default; if the Vercel project sets NODE_ENV=production at install time, tell the human in docs/MANUAL_STEPS.md (recorded for S-67's MANUAL_STEPS pass).
