@@ -1,3 +1,4 @@
+import { ArrowDownLeft, ArrowUpRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 
@@ -15,6 +16,12 @@ const statusStyles: Record<BalanceStatus, string> = {
   settled: "bg-muted text-muted-foreground",
 };
 
+const statusIcons: Record<BalanceStatus, typeof ArrowDownLeft> = {
+  owes: ArrowDownLeft,
+  credit: ArrowUpRight,
+  settled: Check,
+};
+
 const statusLabels: Record<BalanceStatus, string> = {
   owes: "Owes you",
   credit: "You owe",
@@ -29,6 +36,7 @@ interface BalanceBadgeProps {
 
 export function BalanceBadge({ balance, size = "sm", className }: BalanceBadgeProps) {
   const status = getBalanceStatus(balance);
+  const Icon = statusIcons[status];
 
   return (
     <span
@@ -39,6 +47,7 @@ export function BalanceBadge({ balance, size = "sm", className }: BalanceBadgePr
         className,
       )}
     >
+      <Icon className="size-3.5" aria-hidden="true" />
       <span aria-hidden="true">{statusLabels[status]}</span>
       <span className="sr-only">{statusLabels[status]}:</span>
       <span className="tabular-nums">{status === "settled" ? "" : formatMoney(Math.abs(balance))}</span>

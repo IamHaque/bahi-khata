@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Money } from "@/components/app/Money";
+import { TypeBadge } from "@/components/app/TypeBadge";
 import { Button } from "@/components/ui/button";
 import {
   useCustomerLedger,
@@ -218,11 +219,7 @@ export function TransactionDetailPage() {
 
         <div>
           <p className="text-xs text-muted-foreground/70">Type</p>
-          <p className={`text-sm font-medium ${
-            transaction.type === "charge" ? "text-receivable" : "text-credit"
-          }`}>
-            {transaction.type === "charge" ? "Charge" : "Payment"}
-          </p>
+          <TypeBadge type={transaction.type} />
         </div>
 
         <div>

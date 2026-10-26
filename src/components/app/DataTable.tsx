@@ -205,7 +205,7 @@ export function DataTable<T>({
   const totalPages = totalCount !== undefined ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const table = (
-    <div className={cn("overflow-x-auto rounded-lg border border-border", className)}>
+    <div className={cn("overflow-hidden rounded-lg border border-border bg-card", className)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -223,7 +223,7 @@ export function DataTable<T>({
                   className={cn(
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
-                    "sticky top-0 z-10 bg-background",
+                    "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
                     col.sortable &&
                       (isActive
                         ? "cursor-pointer bg-accent-wash font-medium text-primary"
@@ -250,7 +250,7 @@ export function DataTable<T>({
                 </TableHead>
               );
             })}
-            {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-background" />}
+            {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-muted/60" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -305,16 +305,19 @@ export function DataTable<T>({
       </p>
 
       {loading ? (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
                 {columns.map((col) => (
-                  <TableHead key={col.key} className="sticky top-0 z-10 bg-background">
+                  <TableHead
+                    key={col.key}
+                    className="sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground"
+                  >
                     {col.header}
                   </TableHead>
                 ))}
-                {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-background" />}
+                {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-muted/60" />}
               </TableRow>
             </TableHeader>
             <TableBody>

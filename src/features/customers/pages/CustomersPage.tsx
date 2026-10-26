@@ -420,10 +420,10 @@ export function CustomersPage() {
                 })
               }
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors",
                 status === option.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:bg-accent-wash hover:text-foreground",
+                  ? "border-foreground text-foreground font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {option.label}

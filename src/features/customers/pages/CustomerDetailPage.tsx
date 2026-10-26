@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { Money } from "@/components/app/Money";
 import { StatCard } from "@/components/app/StatCard";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { TypeBadge } from "@/components/app/TypeBadge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
@@ -296,16 +297,8 @@ export function CustomerDetailPage() {
 
   const typeCell = (row: LedgerRow) => (
     <div className="flex items-center gap-2">
-      <span
-        className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
-          row.type === "charge"
-            ? "bg-receivable/10 text-receivable"
-            : "bg-credit/10 text-credit"
-        }`}
-      >
-        {row.type === "charge" ? "Charge" : "Payment"}
-      </span>
-      {/* S-33: the audit marker — who edited, when, on hover/focus. */}
+      <TypeBadge type={row.type} />
+      {/* S-33: the audit marker - who edited, when, on hover/focus. */}
       {row.status === "edited" && (
         <EditedBadge editorName={row.updated_by_name} updatedAt={row.updated_at} />
       )}

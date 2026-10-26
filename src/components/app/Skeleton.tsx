@@ -5,7 +5,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className }: SkeletonProps) {
-  return <div className={cn("animate-pulse rounded bg-muted", className)} />;
+  return <div className={cn("animate-pulse rounded bg-muted motion-reduce:animate-none", className)} />;
 }
 
 export function SkeletonRows({ count = 5, className }: { count?: number; className?: string }) {

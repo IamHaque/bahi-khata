@@ -13,6 +13,7 @@ import { Money } from "@/components/app/Money";
 import { PageHeader } from "@/components/app/PageHeader";
 import { SearchInput } from "@/components/app/SearchInput";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { TypeBadge } from "@/components/app/TypeBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -452,18 +453,7 @@ export function TransactionsPage() {
     );
   };
 
-  const typeBadge = (row: TransactionListRow) => (
-    <span
-      className={cn(
-        "inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium",
-        row.type === "charge"
-          ? "bg-receivable/10 text-receivable"
-          : "bg-credit/10 text-credit",
-      )}
-    >
-      {row.type === "charge" ? "Charge" : "Payment"}
-    </span>
-  );
+  const typeBadge = (row: TransactionListRow) => <TypeBadge type={row.type} />;
 
   const amountCell = (row: TransactionListRow) => (
     <Money
@@ -778,10 +768,10 @@ export function TransactionsPage() {
                 })
               }
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors",
                 type === option.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:bg-accent-wash hover:text-foreground",
+                  ? "border-foreground text-foreground font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {option.label}

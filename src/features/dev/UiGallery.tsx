@@ -7,6 +7,7 @@ import { toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
+import { AgeFlag } from "@/components/app/AgeFlag";
 import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
@@ -15,6 +16,11 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { EntityDialog } from "@/components/app/EntityDialog";
 import { ErrorState } from "@/components/app/ErrorState";
 import { FilterBar } from "@/components/app/FilterBar";
+import { LeaderRow } from "@/components/app/LeaderRow";
+import { Monogram } from "@/components/app/Monogram";
+import { TallyMark } from "@/components/app/TallyMark";
+import { TotalsRule } from "@/components/app/TotalsRule";
+import { TypeBadge } from "@/components/app/TypeBadge";
 import { Money } from "@/components/app/Money";
 import { PageHeader } from "@/components/app/PageHeader";
 import { SearchInput } from "@/components/app/SearchInput";
@@ -523,6 +529,106 @@ function DialogsSection() {
 /* Gallery page                                                        */
 /* ------------------------------------------------------------------ */
 
+// L-04: every new ledger primitive in one place. The gallery is checked
+// in both themes; all colours come from tokens, so one render covers both.
+function PrimitivesSection() {
+  return (
+    <Section title="Ledger primitives (L-04)">
+      <div className="space-y-5">
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            LeaderRow - three tones, with Monogram and AgeFlag
+          </p>
+          <div role="list" className="divide-t divide-border">
+            <LeaderRow
+              leading={<Monogram name="Rahim Uddin" tone="receivable" />}
+              trailing={<AgeFlag days={41} />}
+              label="Rahim Uddin"
+              sub="paid today"
+              amount={237439}
+              tone="receivable"
+            />
+            <LeaderRow
+              leading={<Monogram name="Asha Verma" tone="credit" />}
+              trailing={<AgeFlag days={30} />}
+              label="Asha Verma"
+              sub="last paid 30 days ago"
+              amount={-1250}
+              tone="credit"
+            />
+            <LeaderRow
+              leading={<Monogram name="Settled Singh" />}
+              label="Settled Singh"
+              sub="nothing due"
+              amount={0}
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            TotalsRule - a single rule above, a double rule below
+          </p>
+          <TotalsRule>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Net position</span>
+              <Money amount={236189} />
+            </div>
+          </TotalsRule>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">TallyMark</p>
+            <TallyMark className="size-8 text-foreground" />
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">TypeBadge</p>
+            <div className="flex gap-2">
+              <TypeBadge type="charge" />
+              <TypeBadge type="payment" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            BalanceBadge - owes you, you owe, settled
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <BalanceBadge balance={237439} />
+            <BalanceBadge balance={-1250} />
+            <BalanceBadge balance={0} />
+            <BalanceBadge balance={237439} size="lg" />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            Avatar - a working photo and a broken URL (falls back to initials)
+          </p>
+          <div className="flex items-center gap-2">
+            <Avatar name="Asha Verma" src="https://example.invalid/a.png" />
+            <Avatar name="Rahim Uddin" src="https://example.invalid/b.png" size="sm" />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">EmptyState - ruled paper</p>
+          <EmptyState
+            title="Nothing deleted"
+            description="Deleted customers and transactions appear here so you can restore them."
+          >
+            <Button variant="outline" size="sm">
+              Reload
+            </Button>
+          </EmptyState>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
 export function UiGallery() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -552,6 +658,7 @@ export function UiGallery() {
 
         <ButtonsSection />
         <DisplaySection />
+        <PrimitivesSection />
         <CardsSection />
         <StatesSection />
         <ControlsSection />
