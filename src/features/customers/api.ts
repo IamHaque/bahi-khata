@@ -328,18 +328,21 @@ export async function countCustomerTransactions(
  * The only operation that destroys history: owner-only on the server
  * (migration 0004's RPC), atomic across the customer and every one of
  * their transactions. businessId rides along per the S-20 contract and
- * is checked against the row inside the function.
+ * is checked against the row inside the function. v3 (S-52): the RPC
+ * returns the deletion_log id, so the UI can offer Undo — hand it to
+ * restoreDeleted.
  */
 export async function deleteCustomerPermanently(
   id: string,
   businessId: string,
-): Promise<void> {
+): Promise<string> {
   return guard(async () => {
-    const { error } = await supabase.rpc("delete_customer_permanently", {
+    const { data, error } = await supabase.rpc("delete_customer_permanently", {
       p_customer_id: id,
       p_business_id: businessId,
     });
 
     if (error) throw error;
+    return data as string;
   });
 }

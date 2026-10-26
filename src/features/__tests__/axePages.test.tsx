@@ -134,6 +134,8 @@ vi.mock("@/features/customers/api", () => ({
 vi.mock("@/features/transactions/api", () => ({
   createTransaction: transactionsApi.createTransaction,
   createTransactionsBatch: transactionsApi.createTransactionsBatch,
+  currentTimeZone: () => "UTC",
+  deleteTransaction: vi.fn(),
   getAllCustomerBalances: transactionsApi.getAllCustomerBalances,
   queryTransactions: transactionsApi.queryTransactions,
   transactionRollup: transactionsApi.transactionRollup,

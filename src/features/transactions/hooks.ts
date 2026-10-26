@@ -2,12 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   customerKeys,
   dashboardKeys,
+  deletionLogKeys,
   transactionKeys,
 } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
   createTransaction,
   createTransactionsBatch,
+  currentTimeZone,
+  deleteTransaction,
   getAllCustomerBalances,
   getCustomerBalance,
   getCustomerLedger,
@@ -104,7 +107,10 @@ export function useAllCustomerBalances(businessId: string) {
 
 export function useDashboardSummary(businessId: string) {
   return useQuery({
-    queryKey: transactionKeys.summary(businessId),
+    // S-52: the zone is part of the key — "today" is computed in the
+    // browser's timezone by the database, so a cached value from one
+    // zone must never be served in another.
+    queryKey: [...transactionKeys.summary(businessId), currentTimeZone()],
     queryFn: () => getDashboardSummary(businessId),
     // No business in the URL (My businesses page) → no scoped read.
     enabled: Boolean(businessId),
@@ -179,6 +185,33 @@ export function useRestoreTransaction(businessId: string) {
       return restoreTransaction(id, businessId);
     },
     onSuccess: invalidate,
+  });
+}
+
+/**
+ * v3 (S-52) — the owner's hard delete. The RPC's uuid return is the
+ * deletion_log id the caller can hand to restoreDeleted for Undo.
+ * Success runs the one money-changing invalidation rule (the row is
+ * gone from lists, rollups, ledgers, balances and the dashboard) plus
+ * the deletion log, which just gained an entry.
+ */
+export function useDeleteTransaction(businessId: string) {
+  const invalidate = useTransactionInvalidation(businessId);
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string | null }) => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("deleteTransaction");
+      return deleteTransaction(id, businessId, reason);
+    },
+    onSuccess: () => {
+      invalidate();
+      // The Recently deleted page must show the new entry at once.
+      queryClient.invalidateQueries({
+        queryKey: deletionLogKeys.all(businessId),
+      });
+    },
   });
 }
 

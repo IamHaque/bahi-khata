@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { toAppError } from "@/lib/AppError";
+import { currentTimeZone } from "@/features/transactions/api";
 
 // S-37 — the dashboard's two reads beyond dashboard_summary: the
 // trend chart's per-day aggregation (migration 0007's daily_activity
@@ -37,7 +38,9 @@ export async function getDailyActivity(
     const { data, error } = await supabase.rpc("daily_activity", {
       p_business_id: businessId,
       p_days: days,
-      p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // S-52: the shared helper, so every zone-carrying RPC sends the
+      // same zone and falls back to UTC in the same way.
+      p_timezone: currentTimeZone(),
     });
 
     if (error) throw error;
