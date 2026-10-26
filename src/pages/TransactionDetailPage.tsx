@@ -123,7 +123,7 @@ export function TransactionDetailPage() {
           >
             &larr; Transactions
           </button>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
             Transaction Detail
           </h2>
         </div>

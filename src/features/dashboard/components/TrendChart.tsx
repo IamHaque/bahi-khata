@@ -50,7 +50,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
       className="rounded-xl border border-border bg-card p-4"
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">Daily activity</h3>
+        <h3 className="font-heading text-sm font-medium text-foreground">Daily activity</h3>
         <div role="group" aria-label="Chart range" className="flex gap-1">
           {WINDOWS.map((option) => (
             <Button

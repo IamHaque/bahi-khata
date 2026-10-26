@@ -14,7 +14,7 @@ export function PageHeader({ title, description, children, className }: PageHead
     // on narrow screens instead of squeezing (and overflowing) the page.
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
           {title}
         </h2>
         {description && (

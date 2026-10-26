@@ -21,7 +21,7 @@ export function ActivityFeed({ businessId }: { businessId: string }) {
       aria-label="Recent activity"
       className="rounded-xl border border-border bg-card p-4"
     >
-      <h3 className="text-sm font-medium text-foreground">Recent activity</h3>
+      <h3 className="font-heading text-sm font-medium text-foreground">Recent activity</h3>
 
       {query.isPending && (
         <div

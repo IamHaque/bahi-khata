@@ -82,7 +82,7 @@ export function BusinessesPage() {
           <section aria-labelledby="my-business-heading" className="space-y-3">
             <h2
               id="my-business-heading"
-              className="text-sm font-semibold text-foreground"
+              className="font-heading text-sm font-semibold text-foreground"
             >
               My business
             </h2>
@@ -121,7 +121,7 @@ export function BusinessesPage() {
           <section aria-labelledby="shared-heading" className="space-y-3">
             <h2
               id="shared-heading"
-              className="text-sm font-semibold text-foreground"
+              className="font-heading text-sm font-semibold text-foreground"
             >
               Shared with me
             </h2>
@@ -146,7 +146,7 @@ export function BusinessesPage() {
           <section aria-labelledby="invitations-heading" className="space-y-3">
             <h2
               id="invitations-heading"
-              className="text-sm font-semibold text-foreground"
+              className="font-heading text-sm font-semibold text-foreground"
             >
               Invitations
             </h2>

@@ -110,7 +110,7 @@ export function Topbar({
           )}
         </button>
 
-        <h1 className="min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-foreground">
+        <h1 className="font-heading min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-foreground">
           {title}
         </h1>
 

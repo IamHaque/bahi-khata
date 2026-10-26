@@ -36,7 +36,7 @@ import { SegmentedField } from "@/components/app/fields/SegmentedField";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="font-heading text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h2>
       <div className="rounded-xl border border-border bg-card p-4">
@@ -532,7 +532,7 @@ export function UiGallery() {
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground">
               UI Gallery
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">

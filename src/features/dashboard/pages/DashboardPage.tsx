@@ -143,7 +143,7 @@ export function DashboardPage() {
 
           <div>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-foreground">
+              <h3 className="font-heading text-sm font-medium text-foreground">
                 Top outstanding balances
               </h3>
               <Link

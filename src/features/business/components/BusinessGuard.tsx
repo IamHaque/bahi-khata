@@ -101,7 +101,7 @@ function BusinessAccessDenied() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center">
       <ShieldAlert className="size-10 text-muted-foreground" aria-hidden />
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground">
           Business not found or you do not have access
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

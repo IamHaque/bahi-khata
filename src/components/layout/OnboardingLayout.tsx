@@ -22,7 +22,7 @@ export function OnboardingLayout({
           BahiKhata
         </p>
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>
           {description && (

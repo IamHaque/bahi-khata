@@ -349,7 +349,7 @@ export function ImportPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-medium text-foreground">
+            <h3 className="font-heading text-sm font-medium text-foreground">
               Per-customer summary
             </h3>
             <table aria-label="Per-customer summary" className="mt-3 w-full text-sm">
@@ -411,7 +411,7 @@ export function ImportPage() {
 
           {validation.invalidRows.length > 0 && (
             <div className="rounded-xl border border-destructive/40 bg-card p-4">
-              <h3 className="text-sm font-medium text-destructive">
+              <h3 className="font-heading text-sm font-medium text-destructive">
                 Rows with errors ({validation.invalidRows.length})
               </h3>
               <table aria-label="Rows with errors" className="mt-3 w-full text-sm">
@@ -501,7 +501,7 @@ export function ImportPage() {
 
       {step === "done" && validation && importMutation.data && (
         <section className="space-y-4 rounded-xl border border-border bg-card p-6">
-          <h3 className="text-base font-semibold text-foreground">
+          <h3 className="font-heading text-base font-semibold text-foreground">
             {validation.invalidRows.length > 0
               ? "Partial import complete"
               : "Import complete"}

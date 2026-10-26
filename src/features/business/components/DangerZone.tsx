@@ -85,7 +85,7 @@ export function DangerZone({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <h3 className="font-heading flex items-center gap-2 text-sm font-semibold text-foreground">
             <AlertTriangle className="size-4 text-destructive" aria-hidden />
             Danger zone
           </h3>

@@ -440,7 +440,7 @@ export function CustomerDetailPage() {
             >
               &larr; Customers
             </button>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
               {customer.name}
             </h2>
 

@@ -157,7 +157,7 @@ export function StatementPage() {
 
       {/* The printable statement itself. */}
       <article className="rounded-xl border border-border bg-card p-6 print:border-0 print:bg-white print:p-0 print:text-black">
-        <h1 className="text-xl font-semibold">{businessName}</h1>
+        <h1 className="font-heading text-xl font-semibold">{businessName}</h1>
         <p className="mt-1 text-sm text-muted-foreground print:text-black">
           Statement for{" "}
           <span className="font-medium text-foreground">

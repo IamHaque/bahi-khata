@@ -219,7 +219,7 @@ function BackupSection({ businessId }: { businessId: string }) {
       className="max-w-2xl space-y-3 rounded-lg border border-border p-4"
     >
       <div>
-        <h3 className="text-sm font-medium text-foreground">Backup</h3>
+        <h3 className="font-heading text-sm font-medium text-foreground">Backup</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           Download every customer and transaction in this business as two
           CSV files: customers.csv and transactions.csv.
