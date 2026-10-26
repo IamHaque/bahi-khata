@@ -26,9 +26,9 @@ describe("App route splitting (S-48)", () => {
 
   it("lazy-loads every page (none imported statically)", () => {
     const lazyCalls = source.match(/lazy\(/g) ?? [];
-    // 14 pages at the time of writing. The PRD card says 12; grep wins,
-    // and S-56 adds RecentlyDeletedPage as a 15th lazy chunk.
-    expect(lazyCalls).toHaveLength(14);
+    // 15 pages at the time of writing. The PRD card says 12; grep wins,
+    // and S-56 added Recently Deleted as the 15th lazy chunk.
+    expect(lazyCalls).toHaveLength(15);
     // No static page imports survive: nothing matches the old pattern.
     expect(source).not.toMatch(/import \{ (LoginPage|DashboardPage|CustomersPage) \}/);
   });
@@ -48,7 +48,8 @@ describe("App route splitting (S-48)", () => {
       "transactions",
       "transaction-detail",
       "dashboard",
-      // "recently-deleted" joins when S-56 lands that page.
+      // v3 (S-56): the owner's trash page.
+      "recently-deleted",
     ];
     for (const name of namedChunks) {
       expect(viteConfig).toContain(`"${name}"`);

@@ -56,6 +56,10 @@ vi.mock("@/lib/supabase", () => ({
           calls.push({ method: "order", args });
           return chain;
         },
+        limit: (...args: unknown[]) => {
+          calls.push({ method: "limit", args });
+          return chain;
+        },
         // Awaitable chain, resolving one queued value per query.
         then: (
           onFulfilled?: (value: { data: unknown; error: null }) => unknown,
@@ -189,5 +193,11 @@ describe("deletion API (S-52)", () => {
     const entries = await listDeletionLog("b1");
     expect(state.chains).toHaveLength(1);
     expect(entries[0]?.deleted_by_name).toBeNull();
+  });
+
+  it("listDeletionLog caps the read when a limit is given (S-56's 200-row page)", async () => {
+    state.resolveQueue = [[], []];
+    await listDeletionLog("b1", { limit: 200 });
+    expect(state.chains[0]).toContainEqual({ method: "limit", args: [200] });
   });
 });

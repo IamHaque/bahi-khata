@@ -39,6 +39,7 @@ export default defineConfig({
             ["pages/StatementPage", "statement"],
             ["LandingResolver", "landing"],
             ["dev/UiGallery", "ui-gallery"],
+            ["DeletedItemsPage", "recently-deleted"],
           ];
           for (const [needle, name] of routeChunks) {
             if (id.includes(needle)) return name;

@@ -44,6 +44,11 @@ const MembersPage = lazy(() =>
     default: m.MembersPage,
   })),
 );
+const DeletedItemsPage = lazy(() =>
+  import( "@/features/deleted-items/pages/DeletedItemsPage").then((m) => ({
+    default: m.DeletedItemsPage,
+  })),
+);
 const LoginPage = lazy(() =>
   import( "@/pages/Login").then((m) => ({
     default: m.LoginPage,
@@ -216,6 +221,13 @@ export default function App() {
                         <Route
                           path={routePatterns.settings}
                           element={<SettingsPage />}
+                        />
+                        {/* v3 (S-56): the owner's Recently deleted. The
+                            page itself renders the no-access state for
+                            a member who types the URL. */}
+                        <Route
+                          path={routePatterns.deletedItems}
+                          element={<DeletedItemsPage />}
                         />
                       </Route>
                     </Route>

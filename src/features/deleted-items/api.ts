@@ -65,6 +65,9 @@ export async function listDeletionLog(
     if (opts.restored !== "include") {
       query = query.is("restored_at", null);
     }
+    if (opts.limit !== undefined) {
+      query = query.limit(opts.limit);
+    }
 
     const { data, error } = await query.order("deleted_at", {
       ascending: false,
