@@ -588,3 +588,66 @@ Re-run after every story that touches data or routing:
 | `src/lib/format.ts`, `queryKeys.ts`, `permissions.ts` | new files |
 | `src/test/` | new directory for test helpers |
 | `.github/workflows/` | new directory |
+
+
+## v3 baseline
+
+Recorded on 2026-10-26 (branch `feat/v3` from `master` @ `506cc0d`), story S-44, after `npm ci && npm run verify`.
+
+| Measure | Reference (PRD §11) | Actual on this machine |
+| --- | --- | --- |
+| lint | 0 errors / 7 warnings | 0 errors / 7 warnings |
+| typecheck | passes | passes |
+| tests | 54 files, 469 passed (1 skipped), ~169 s | 54 files, **470 passed, 0 skipped**, 27.66 s |
+| `npm run verify` total | - | 56.5 s (lint + typecheck + tests 27.7 s + build 6.6 s) |
+| largest JS chunk | 1,397 kB (gzip 421 kB) | `dist/assets/index-BMyAyeoa.js` 1,396.81 kB, gzip 420.96 kB (single chunk, no splitting yet) |
+| `npm audit --omit=dev` | 12 vulnerabilities (1 critical, 9 high, 2 moderate) | 11 vulnerabilities (1 critical, 7 high, 3 moderate) |
+
+Notes: test count differs from the reference by one (470 vs 469+1 skipped) and the audit totals differ; machine is much faster than the review machine (vitest 27.7 s vs 169 s). Record the real numbers, per S-44 step 4.
+
+## v3 stories
+
+| Story | Status | Commit | Notes |
+| --- | --- | --- | --- |
+| S-44 Branch, baseline and toolchain pins | in progress | (this commit) | .nvmrc=22, engines>=22, verify script, baseline above |
+| S-45 Dependency hygiene | todo | | |
+| S-46 CI and SQL test runner | todo | | |
+| S-47 Environment validation | todo | | |
+| S-48 Route-level code splitting and bundle guard | todo | | |
+| S-49 Faster unit tests | todo | | |
+| S-50 Adopt the tested migrations and SQL tests | todo | | |
+| S-51 Permissions, errors, paths, nav, query keys | todo | | |
+| S-52 API layer and hooks for delete, restore, log, timezone | todo | | |
+| S-53 Customers list query uses last_activity_at | todo | | |
+| S-54 Delete a transaction | todo | | |
+| S-55 Delete a customer | todo | | |
+| S-56 Recently deleted page | todo | | |
+| L-00 Gate check and decisions file | todo | | |
+| L-01 Ledger tokens and contrast gate | todo | | |
+| L-02 Heading font | todo | | |
+| L-03 Fixes that do not depend on the look | todo | | |
+| L-04 Primitives | todo | | |
+| L-05 App shell: spine navigation, top bar, titles | todo | | |
+| L-06 Dashboard | todo | | |
+| L-07 Customer detail as a ledger, with quick add | todo | | |
+| L-08 Customers list | todo | | |
+| L-09 Transactions as a day book | todo | | |
+| L-10 Dialogs, forms and the mobile entry sheet | todo | | |
+| L-11 Members, Settings, Import, Login, Businesses, Recently deleted | todo | | |
+| L-12 Entry row (gate G-A2) | todo | | |
+| L-13 Who to chase (gate G-A1) | todo | | |
+| L-14 Mobile and accessibility sweep | todo | | |
+| S-67 Documentation and backlog | todo | | |
+| S-68 Final verification and release | todo | | |
+
+## v3 Deviations
+
+| ID | Story | What the PRD said | What was done | Why |
+| --- | --- | --- | --- | --- |
+| V-00 | setup | Unzip the bundle to `/tmp/v3-bundle` | Extracted to `C:\Users\Haque\AppData\Local\Temp\opencode\v3-bundle` (approved temp dir on this Windows machine) | `/tmp` does not exist on Windows; content is byte-identical to `docs_v3.x/bahikhata-v3.1-handoff.zip` |
+| V-00b | setup | Baseline reference: 469 tests (1 skipped), 12 prod vulnerabilities | Real numbers recorded above: 470 passed / 0 skipped; 11 vulnerabilities | S-44 step 4: differences are fine, record the real numbers |
+
+## S-44 checklist (Behaviour)
+
+- [x] A fresh clone verifies with one command: clean checkout of feat/v3 + Node 22 -> `npm ci && npm run verify` passed (lint, typecheck, tests, build)
+- [x] The Node version is pinned: `.nvmrc` contains `22`; `package.json` `engines.node` is `>=22`
