@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "audit:contrast": "node scripts/contrast-audit.cjs",
+    "audit:bundle": "node scripts/check-bundle-size.cjs",
+    "audit:tokens": "node scripts/check-token-sync.cjs",
+    "test:sql": "bash scripts/run-sql-tests.sh"
   },
   "engines": {
     "node": ">=22"

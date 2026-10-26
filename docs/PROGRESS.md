@@ -611,7 +611,7 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 | --- | --- | --- | --- |
 | S-44 Branch, baseline and toolchain pins | in progress | (this commit) | .nvmrc=22, engines>=22, verify script, baseline above |
 | S-45 Dependency hygiene | done | (this commit) | five packages moved to devDependencies (versions unchanged), `npm install --package-lock-only` + `npm audit fix --package-lock-only --omit=dev` bumped transitive `fast-uri` 3.1.7->3.1.9; lockfile also gained standard wasm32-wasi optional-platform entries for @tailwindcss/oxide; `npm audit --omit=dev` = 0 vulnerabilities; `npm run verify` green (470 tests, 27.7s) |
-| S-46 CI and SQL test runner | todo | | |
+| S-46 CI and SQL test runner | done | (this commit) | bundle files copied byte-for-byte (7 files verified by hash); scripts added; ci.yml runs on pull_request; sql job `if: false` pending S-50; audit:tokens/audit:bundle steps commented pending L-01/S-48; run-sql-tests.sh mode 100755 in index. Verify: contrast audit 41+41 checks pass, npm run verify green. **Push/CI-on-GitHub deferred: deviation V-01** |
 | S-47 Environment validation | todo | | |
 | S-48 Route-level code splitting and bundle guard | todo | | |
 | S-49 Faster unit tests | todo | | |
@@ -646,6 +646,7 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 | --- | --- | --- | --- | --- |
 | V-00 | setup | Unzip the bundle to `/tmp/v3-bundle` | Extracted to `C:\Users\Haque\AppData\Local\Temp\opencode\v3-bundle` (approved temp dir on this Windows machine) | `/tmp` does not exist on Windows; content is byte-identical to `docs_v3.x/bahikhata-v3.1-handoff.zip` |
 | V-00b | setup | Baseline reference: 469 tests (1 skipped), 12 prod vulnerabilities | Real numbers recorded above: 470 passed / 0 skipped; 11 vulnerabilities | S-44 step 4: differences are fine, record the real numbers |
+| V-01 | S-46, S-68 | S-46 Verify: "push the branch and confirm the verify job is green on GitHub" | Branch stays local; CI confirmation deferred to the end of the build | The human instructed "stay local until you say so" (plan agreement 2026-10-26). Recorded again at S-68 where the PR is opened |
 
 ## S-44 checklist (Behaviour)
 
@@ -658,3 +659,9 @@ Notes: test count differs from the reference by one (470 vs 469+1 skipped) and t
 - [x] Nothing broke: `npm run verify` passes (lint 0/7, 470 tests, build ok)
 - Note: `tw-animate-css` and `cn` left in dependencies (build imports them), per step 5.
 - Note for the deploy: Vercel installs devDependencies during build by default; if the Vercel project sets NODE_ENV=production at install time, tell the human in docs/MANUAL_STEPS.md (recorded for S-67's MANUAL_STEPS pass).
+
+## S-46 checklist (Behaviour)
+
+- [ ] CI runs on pull requests: workflow now has `on: pull_request` and the verify job runs lint, typecheck, contrast audit, production dependency audit, tests and build — **not yet confirmed on GitHub (deviation V-01, no pushes until the human approves)**
+- [x] The contrast audit gates colours: `node scripts/contrast-audit.cjs` prints "All required pairs pass AA in both themes." and exits 0 (light 41 checks, dark 41 checks)
+- [x] npm run verify green (470 tests, 25.7s)
