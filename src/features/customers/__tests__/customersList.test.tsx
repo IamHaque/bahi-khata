@@ -372,7 +372,7 @@ describe("S-28 customers list", () => {
     );
   });
 
-  it("offers View, Edit, Add transaction and Archive to an Owner", async () => {
+  it("offers View, Edit, Add transaction, Archive and Delete to an Owner", async () => {
     renderPage();
     const asha = await findRowScope("Asha");
 
@@ -383,7 +383,14 @@ describe("S-28 customers list", () => {
     const labels = within(menu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    expect(labels).toEqual(["View", "Edit", "Add transaction", "Archive"]);
+    // v3 (S-55): Delete joins the end of the Owner's active-row menu.
+    expect(labels).toEqual([
+      "View",
+      "Edit",
+      "Add transaction",
+      "Archive",
+      "Delete",
+    ]);
 
     // Live since S-32: opens the shared sheet with this row's customer
     // preselected (the sheet itself mounts in the Topbar).

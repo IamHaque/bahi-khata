@@ -8,6 +8,7 @@ import {
   DataTable,
   RowActionsMenu,
   type Column,
+  type RowActionItem,
 } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
 import { StatCard } from "@/components/app/StatCard";
@@ -20,6 +21,7 @@ import { useSort } from "@/hooks/useSort";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
 import { ArchiveCustomerDialog } from "@/features/customers/components/ArchiveCustomerDialog";
+import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { useCustomer, useSetCustomerArchived } from "@/features/customers/hooks";
 import type { CustomerListRow } from "@/features/customers/api";
@@ -94,6 +96,8 @@ export function CustomerDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  // v3 (S-55): the owner's hard delete for the whole customer.
+  const [deleteCustomerOpen, setDeleteCustomerOpen] = useState(false);
   // S-34: the void confirmation for one row at a time; Restore on the
   // ledger mutates directly (it only ever adds history back).
   const [voidTx, setVoidTx] = useState<LedgerRow | null>(null);
@@ -384,6 +388,26 @@ export function CustomerDetailPage() {
     last_activity: lastActivityIso,
   };
 
+  // v3 (S-55): Archive stays for active customers; Delete customer
+  // joins it next to Archive and also stands alone on archived ones
+  // (destroying works either way), always owner-only.
+  const customerMenuItems: RowActionItem[] = [];
+  if (canArchive && !archived) {
+    customerMenuItems.push({
+      label: "Archive",
+      onSelect: () => setArchiveOpen(true),
+      variant: "destructive",
+    });
+  }
+  if (can("deleteCustomer")) {
+    customerMenuItems.push({
+      label: "Delete customer",
+      onSelect: () => setDeleteCustomerOpen(true),
+      variant: "destructive",
+      separator: customerMenuItems.length > 0,
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* S-30/S-31: an archived customer keeps everything but writes. */}
@@ -478,16 +502,10 @@ export function CustomerDetailPage() {
               Edit
             </Button>
           )}
-          {canArchive && !archived && (
+          {customerMenuItems.length > 0 && (
             <RowActionsMenu
               triggerLabel="Customer actions"
-              items={[
-                {
-                  label: "Archive",
-                  onSelect: () => setArchiveOpen(true),
-                  variant: "destructive",
-                },
-              ]}
+              items={customerMenuItems}
             />
           )}
         </div>
@@ -661,6 +679,16 @@ export function CustomerDetailPage() {
         onOpenChange={setArchiveOpen}
         businessId={businessId}
         customer={archiveRow}
+      />
+
+      {/* v3 (S-55): the owner's hard delete — after success the page
+          returns to the customers list (the customer is gone). */}
+      <DeleteCustomerDialog
+        open={deleteCustomerOpen}
+        onOpenChange={setDeleteCustomerOpen}
+        businessId={businessId}
+        customer={archiveRow}
+        onDeleted={() => navigate(paths.customers(businessId))}
       />
 
       {/* S-34: the void confirmation; its own toast carries Undo. */}

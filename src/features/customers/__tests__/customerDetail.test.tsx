@@ -521,16 +521,29 @@ describe("S-31 customer detail v2", () => {
     );
     await screen.findByText("This customer is archived.");
 
-    // Writes are hidden while archived…
+    // v3 (S-55): writes are hidden while archived… the Edit button and
+    // every row write action are gone.
     expect(screen.queryByRole("button", { name: "Add charge" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add payment" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Customer actions" }),
-    ).toBeNull();
-    expect(
       screen.queryByRole("button", { name: /Void (charge|payment)/ }),
     ).toBeNull();
+    // …and the Owner's menu keeps exactly one live action: Delete
+    // (Archive has nothing left to do on an archived customer).
+    await userEvent.click(
+      screen.getByRole("button", { name: "Customer actions" }),
+    );
+    const archivedMenu = await screen.findByRole("menu");
+    expect(
+      within(archivedMenu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Delete customer"]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Customer actions" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     // …but the history stays readable.
     screen.getByText("Current Balance");
     rowElementByAmount("+₹5,000");

@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
+import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { AppError } from "@/lib/AppError";
 import { paths, routePatterns } from "@/lib/paths";
 import { toast } from "sonner";
@@ -25,7 +27,13 @@ const customersApi = vi.hoisted(() => ({
   countCustomerTransactions: vi.fn(),
 }));
 const transactionsApi = vi.hoisted(() => ({
+  currentTimeZone: vi.fn(() => "UTC"),
+  deleteTransaction: vi.fn(),
   getAllCustomerBalances: vi.fn(async () => ({})),
+}));
+const deletedApi = vi.hoisted(() => ({
+  listDeletionLog: vi.fn(async () => []),
+  restoreDeleted: vi.fn(),
 }));
 // The fake database every mocked api function reads and mutates — the
 // harness's server-state pattern: mutations write here, queries read
@@ -51,6 +59,8 @@ vi.mock("@/features/customers/api", () => ({
 vi.mock("@/features/transactions/api", () => ({
   createTransaction: vi.fn(),
   createTransactionsBatch: vi.fn(),
+  currentTimeZone: transactionsApi.currentTimeZone,
+  deleteTransaction: transactionsApi.deleteTransaction,
   getAllCustomerBalances: transactionsApi.getAllCustomerBalances,
   queryTransactions: vi.fn(async () => ({ rows: [], total: 0 })),
   transactionRollup: vi.fn(async () => []),
@@ -61,6 +71,10 @@ vi.mock("@/features/transactions/api", () => ({
   updateTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   voidTransaction: vi.fn(),
+}));
+vi.mock("@/features/deleted-items/api", () => ({
+  listDeletionLog: deletedApi.listDeletionLog,
+  restoreDeleted: deletedApi.restoreDeleted,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -216,11 +230,14 @@ beforeEach(() => {
         (customer) => customer.id !== id,
       );
       delete server.counts[id];
+      // v3 (S-52): the RPC resolves with the deletion_log id.
+      return `log-${id}`;
     },
   );
   customersApi.countCustomerTransactions.mockImplementation(
     async (id: string) => server.counts[id] ?? 0,
   );
+  deletedApi.restoreDeleted.mockResolvedValue({ status: "ok", restored: 1 });
   transactionsApi.getAllCustomerBalances.mockImplementation(async () =>
     // Mirrors the real feed (S-30): archived customers leave the totals.
     Object.fromEntries(
@@ -335,7 +352,9 @@ describe("S-30 archive, restore and delete", () => {
     const labels = within(menu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    expect(labels).toEqual(["View", "Restore", "Delete permanently"]);
+    // v3 (S-55): Delete is renamed and now on every row — last, after
+    // the divider.
+    expect(labels).toEqual(["View", "Restore", "Delete"]);
 
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Restore" }));
     await waitFor(() =>
@@ -350,31 +369,50 @@ describe("S-30 archive, restore and delete", () => {
     );
   });
 
-  it("gates permanent delete behind typing the customer's exact name", async () => {
-    archiveAsha();
+  it("the Owner deletes an active customer from the list: recovery copy, divider, typed-name gate, Undo", async () => {
     renderPage();
-    await showArchivedFilter();
 
+    // No archive step: every row offers Delete now, last, behind a
+    // divider.
     const menu = await openRowMenu("Asha Verma");
-    await userEvent.click(
-      within(menu).getByRole("menuitem", { name: "Delete permanently" }),
-    );
+    expect(within(menu).getByRole("separator")).toBeTruthy();
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByRole("heading", {
-        name: "Delete Asha Verma permanently?",
-      }),
+      within(dialog).getByRole("heading", { name: "Delete Asha Verma?" }),
     ).toBeTruthy();
     expect(
-      await within(dialog).findByText(/all 12 transactions are permanently removed/),
+      await within(dialog).findByText(
+        /This removes Asha Verma and 12 transactions from your ledger\. You can restore them from Recently deleted\./,
+      ),
     ).toBeTruthy();
+    // The gentler options live inside the dialog.
+    const statementLink = within(dialog).getByRole("link", {
+      name: "Download statement first",
+    });
+    expect(statementLink.getAttribute("href")).toBe(
+      "/b/b1/customers/c1/statement",
+    );
+    expect(statementLink.getAttribute("target")).toBe("_blank");
+    within(dialog).getByRole("button", { name: "Archive instead" });
     within(dialog).getByText("Type Asha Verma to confirm");
 
     const confirmButton = () =>
       within(dialog).getByRole("button", {
-        name: "Delete permanently",
+        name: "Delete customer",
       }) as HTMLButtonElement;
     expect(confirmButton().disabled).toBe(true);
+
+    // Case-sensitive: a lowercased name never enables the button.
+    await userEvent.type(
+      within(dialog).getByLabelText("Type Asha Verma to confirm"),
+      "asha verma",
+    );
+    expect(confirmButton().disabled).toBe(true);
+    await userEvent.clear(
+      within(dialog).getByLabelText("Type Asha Verma to confirm"),
+    );
 
     await userEvent.type(
       within(dialog).getByLabelText("Type Asha Verma to confirm"),
@@ -395,9 +433,71 @@ describe("S-30 archive, restore and delete", () => {
         "b1",
       ),
     );
+    await waitFor(() => expect(screen.queryByText("Asha Verma")).toBeNull());
+
+    // The toast offers Undo for 10 seconds, wired to restore_deleted.
+    const deletedCall = vi
+      .mocked(toast.success)
+      .mock.calls.find((call) => call[0] === "Customer deleted");
+    expect(deletedCall).toBeTruthy();
+    const [, options] = deletedCall as unknown as [
+      string,
+      { duration: number; action: { label: string; onClick: () => void } },
+    ];
+    expect(options.duration).toBe(10_000);
+    expect(options.action.label).toBe("Undo");
+
+    // Put her back: the undo restores through the log id.
+    server.counts.c1 = 12;
+    options.action.onClick();
     await waitFor(() =>
-      expect(screen.queryByText("Asha Verma")).toBeNull(),
+      expect(deletedApi.restoreDeleted).toHaveBeenCalledWith("log-c1"),
     );
+    await waitFor(() =>
+      expect(
+        vi.mocked(toast.success).mock.calls.some(
+          (call) => call[0] === "Restored",
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("uses the singular when the customer has exactly one transaction", async () => {
+    server.counts = { c1: 12, c2: 1 };
+    renderPage();
+    const menu = await openRowMenu("Karim Chowdhury");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText(
+      /This removes Karim Chowdhury and 1 transaction from your ledger/,
+    );
+    expect(within(dialog).queryByText(/1 transactions/)).toBeNull();
+  });
+
+  it("Archive instead closes the dialog and archives the customer through the same mutation", async () => {
+    renderPage();
+    const menu = await openRowMenu("Asha Verma");
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Archive instead" }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(customersApi.setCustomerArchived).toHaveBeenCalledWith(
+        "c1",
+        true,
+        "b1",
+      ),
+    );
+    expect(
+      vi.mocked(toast.success).mock.calls.some(
+        (call) => call[0] === "Customer archived",
+      ),
+    ).toBe(true);
+    // The gentler path: no delete happened.
+    expect(customersApi.deleteCustomerPermanently).not.toHaveBeenCalled();
   });
 
   it("lets an Editor archive and restore but never destroy", async () => {
@@ -473,5 +573,117 @@ describe("S-30 archive, restore and delete", () => {
     );
     // Nothing was archived, so the row never left the list.
     expect(screen.getByText("Asha Verma")).toBeTruthy();
+  });
+});
+
+describe("S-55 delete customer from the detail page", () => {
+  function LocationProbe() {
+    const location = useLocation();
+    return <span data-testid="location">{location.pathname}</span>;
+  }
+
+  async function renderDetail(customerId = "c1") {
+    customersApi.getCustomer.mockImplementation(async (id: string) => {
+      const row = server.customers.find((customer) => customer.id === id);
+      if (!row) throw new Error("customer not found");
+      return { ...row };
+    });
+    renderApp(
+      <>
+        <LocationProbe />
+        <Routes>
+          <Route path={routePatterns.customers} element={<CustomersPage />} />
+          <Route
+            path={`${routePatterns.customers}/:customerId`}
+            element={<CustomerDetailPage />}
+          />
+        </Routes>
+      </>,
+      { session, route: paths.customerDetail("b1", customerId) },
+    );
+    return screen.findByText("Current Balance");
+  }
+
+  async function openCustomerActionsMenu() {
+    const trigger = await screen.findByRole("button", {
+      name: "Customer actions",
+    });
+    await userEvent.click(trigger);
+    return screen.findByRole("menu");
+  }
+
+  it("deletes from the detail page, returns to the customers list, and offers Undo", async () => {
+    await renderDetail();
+
+    const menu = await openCustomerActionsMenu();
+    await userEvent.click(
+      within(menu).getByRole("menuitem", { name: "Delete customer" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByLabelText("Type Asha Verma to confirm"),
+      "Asha Verma",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Delete customer" }),
+    );
+
+    await waitFor(() =>
+      expect(customersApi.deleteCustomerPermanently).toHaveBeenCalledWith(
+        "c1",
+        "b1",
+      ),
+    );
+    // The customer is gone from the page's own read, so the page
+    // navigated back to the customers list…
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe(
+        paths.customers("b1"),
+      ),
+    );
+    // …and the toast offered Undo.
+    expect(
+      vi
+        .mocked(toast.success)
+        .mock.calls.some((call) => call[0] === "Customer deleted"),
+    ).toBe(true);
+  });
+
+  it("an Editor's detail page offers Archive but never Delete customer", async () => {
+    businessApi.getMemberships.mockImplementation(async () =>
+      membershipsFor("editor"),
+    );
+    await renderDetail();
+
+    const menu = await openCustomerActionsMenu();
+    within(menu).getByRole("menuitem", { name: "Archive" });
+    expect(
+      within(menu).queryByRole("menuitem", { name: "Delete customer" }),
+    ).toBeNull();
+  });
+
+  it("an archived customer's detail page still offers Delete customer (owner)", async () => {
+    archiveAsha();
+    await renderDetail();
+
+    const menu = await openCustomerActionsMenu();
+    // No Archive item on an archived row — but destruction still works.
+    expect(
+      within(menu).queryByRole("menuitem", { name: "Archive" }),
+    ).toBeNull();
+    within(menu).getByRole("menuitem", { name: "Delete customer" });
+  });
+
+  it("the open delete dialog passes axe", async () => {
+    await renderDetail();
+
+    const menu = await openCustomerActionsMenu();
+    await userEvent.click(
+      within(menu).getByRole("menuitem", { name: "Delete customer" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("Type Asha Verma to confirm");
+    await expectNoSeriousViolations(dialog);
   });
 });

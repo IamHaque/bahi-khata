@@ -233,9 +233,9 @@ export function CustomersPage() {
 
   const rowMenuItems = (row: CustomerListRow): RowActionItem[] => {
     // Archived rows keep history but leave the working set: no edit, no
-    // add-transaction — restore first. Delete permanently appears only
-    // on archived rows and only for the owner (the matrix, S-21), which
-    // makes archive the required first step toward destruction.
+    // add-transaction — restore first. v3 (S-55): Delete is no longer
+    // archived-only — every row offers it, last and behind a divider,
+    // and only for the owner (the matrix, S-21).
     const archived = row.archived_at != null;
     const items: RowActionItem[] = [
       {
@@ -278,11 +278,12 @@ export function CustomersPage() {
         });
       }
     }
-    if (archived && can("deleteCustomer")) {
+    if (can("deleteCustomer")) {
       items.push({
-        label: "Delete permanently",
+        label: "Delete",
         onSelect: () => setDialog({ kind: "delete", customer: row }),
         variant: "destructive",
+        separator: true,
       });
     }
     return items;

@@ -9,6 +9,7 @@ import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
 import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
+import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import { EmptyState } from "@/components/app/EmptyState";
 import { EntityDialog } from "@/components/app/EntityDialog";
@@ -428,7 +429,7 @@ const entitySchema = z.object({ name: z.string().min(1, "Name is required") });
 function DialogsSection() {
   const [entityOpen, setEntityOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [typedOpen, setTypedOpen] = useState(false);
+  const [customerDeleteOpen, setCustomerDeleteOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
@@ -441,8 +442,11 @@ function DialogsSection() {
         <Button variant="outline" onClick={() => setConfirmOpen(true)}>
           Archive customer (ConfirmDialog)
         </Button>
-        <Button variant="destructive" onClick={() => setTypedOpen(true)}>
-          Delete permanently (typed confirmation)
+        <Button
+          variant="destructive"
+          onClick={() => setCustomerDeleteOpen(true)}
+        >
+          Delete customer (v3 typed confirmation + Undo)
         </Button>
         <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
           Delete transaction (v3 delete + Undo)
@@ -485,14 +489,13 @@ function DialogsSection() {
         onConfirm={() => toastSuccess("Customer archived")}
       />
 
-      <ConfirmDialog
-        open={typedOpen}
-        onOpenChange={setTypedOpen}
-        title="Delete Rahim Traders permanently?"
-        description="This removes the customer and every transaction."
-        confirmLabel="Delete permanently"
-        typingConfirmation="Rahim Traders"
-        onConfirm={() => toastSuccess("Customer deleted permanently")}
+      {/* v3 (S-55): the gentler delete — recovery copy, the softer
+          paths inside, typed name, 10s Undo. */}
+      <DeleteCustomerDialog
+        open={customerDeleteOpen}
+        onOpenChange={setCustomerDeleteOpen}
+        businessId="b1"
+        customer={{ id: "gallery-c1", name: "Rahim Traders" }}
       />
 
       {/* v3 (S-54): the delete dialog with the balance sentence and the

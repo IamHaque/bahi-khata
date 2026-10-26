@@ -40,6 +40,8 @@ export interface RowActionItem {
   onSelect: () => void;
   variant?: "default" | "destructive";
   disabled?: boolean;
+  /** Render a divider above this item (e.g. destructive, set apart). */
+  separator?: boolean;
 }
 
 export function RowActionsMenu({
@@ -102,6 +104,13 @@ export function RowActionsMenu({
         <ul role="menu" aria-label={triggerLabel}>
           {items.map((item, i) => (
             <li key={item.label} role="none">
+              {item.separator && (
+                <div
+                  className="my-1 border-t border-border"
+                  role="separator"
+                  aria-orientation="horizontal"
+                />
+              )}
               <button
                 ref={(el) => {
                   itemRefs.current[i] = el;
