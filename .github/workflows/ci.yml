@@ -33,9 +33,8 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-      # enabled in S-48
-      # - name: Bundle size guard
-      #   run: npm run audit:bundle
+      - name: Bundle size guard
+        run: npm run audit:bundle
 
   sql:
     if: false # enabled in S-50

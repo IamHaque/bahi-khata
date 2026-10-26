@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -6,25 +7,88 @@ import { BusinessProvider } from "@/contexts/BusinessContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RouteFallback } from "@/components/app/RouteFallback";
 import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/queryClient";
 import { paths, routePatterns } from "@/lib/paths";
-import { UiGallery } from "@/features/dev/UiGallery";
-import { LandingResolver } from "@/features/business/pages/LandingResolver";
-import { BusinessesPage } from "@/features/business/pages/BusinessesPage";
-import { SettingsPage } from "@/features/business/pages/SettingsPage";
-import { MembersPage } from "@/features/members/pages/MembersPage";
 import { BusinessGuard } from "@/features/business/components/BusinessGuard";
 import { LegacyBusinessRedirect } from "@/features/business/components/LegacyBusinessRedirect";
-import { LoginPage } from "@/pages/Login";
-import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
-import { CustomersPage } from "@/features/customers/pages/CustomersPage";
-import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
-import { ImportPage } from "@/features/import-export/pages/ImportPage";
-import { StatementPage } from "@/features/import-export/pages/StatementPage";
-import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
-import { TransactionDetailPage } from "@/pages/TransactionDetailPage";
-import { CreateBusinessPage } from "@/features/business/pages/CreateBusinessPage";
+
+// S-48 - route-level code splitting. Every page loads on demand; the stable
+// route chunk names (login, dashboard, ...) come from manualChunks in
+// vite.config.ts, which maps each page module to its route name.
+// (The PRD card says "12 pages"; grep shows 14 here - and RecentlyDeletedPage
+// joins as a named chunk when S-56 lands it.)
+const UiGallery = lazy(() =>
+  import( "@/features/dev/UiGallery").then(
+    (m) => ({ default: m.UiGallery }),
+  ),
+);
+const LandingResolver = lazy(() =>
+  import( "@/features/business/pages/LandingResolver").then(
+    (m) => ({ default: m.LandingResolver }),
+  ),
+);
+const BusinessesPage = lazy(() =>
+  import( "@/features/business/pages/BusinessesPage").then(
+    (m) => ({ default: m.BusinessesPage }),
+  ),
+);
+const SettingsPage = lazy(() =>
+  import( "@/features/business/pages/SettingsPage").then(
+    (m) => ({ default: m.SettingsPage }),
+  ),
+);
+const MembersPage = lazy(() =>
+  import( "@/features/members/pages/MembersPage").then((m) => ({
+    default: m.MembersPage,
+  })),
+);
+const LoginPage = lazy(() =>
+  import( "@/pages/Login").then((m) => ({
+    default: m.LoginPage,
+  })),
+);
+const CreateBusinessPage = lazy(() =>
+  import( "@/features/business/pages/CreateBusinessPage").then(
+    (m) => ({ default: m.CreateBusinessPage }),
+  ),
+);
+const DashboardPage = lazy(() =>
+  import( "@/features/dashboard/pages/DashboardPage").then((m) => ({
+    default: m.DashboardPage,
+  })),
+);
+const CustomersPage = lazy(() =>
+  import( "@/features/customers/pages/CustomersPage").then(
+    (m) => ({ default: m.CustomersPage }),
+  ),
+);
+const CustomerDetailPage = lazy(() =>
+  import( "@/features/customers/pages/CustomerDetailPage").then(
+    (m) => ({ default: m.CustomerDetailPage }),
+  ),
+);
+const ImportPage = lazy(() =>
+  import( "@/features/import-export/pages/ImportPage").then((m) => ({
+    default: m.ImportPage,
+  })),
+);
+const StatementPage = lazy(() =>
+  import( "@/features/import-export/pages/StatementPage").then(
+    (m) => ({ default: m.StatementPage }),
+  ),
+);
+const TransactionsPage = lazy(() =>
+  import( "@/features/transactions/pages/TransactionsPage").then(
+    (m) => ({ default: m.TransactionsPage }),
+  ),
+);
+const TransactionDetailPage = lazy(() =>
+  import( "@/pages/TransactionDetailPage").then((m) => ({
+    default: m.TransactionDetailPage,
+  })),
+);
 
 export default function App() {
   return (
@@ -34,7 +98,8 @@ export default function App() {
           <BusinessProvider>
             <BrowserRouter>
               <ErrorBoundary>
-                <Routes>
+                <Suspense fallback={<RouteFallback />}>
+                  <Routes>
                   <Route
                     path={routePatterns.login}
                     element={<LoginPage />}
@@ -156,6 +221,7 @@ export default function App() {
                     </Route>
                   </Route>
                 </Routes>
+                </Suspense>
               </ErrorBoundary>
             </BrowserRouter>
           </BusinessProvider>
