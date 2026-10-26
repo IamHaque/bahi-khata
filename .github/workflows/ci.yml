@@ -24,9 +24,8 @@ jobs:
         run: npm run typecheck
       - name: Contrast audit (WCAG AA, both themes)
         run: node scripts/contrast-audit.cjs
-      # enabled in L-01
-      # - name: Token sync check
-      #   run: npm run audit:tokens
+      - name: Token sync check
+        run: npm run audit:tokens
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Test

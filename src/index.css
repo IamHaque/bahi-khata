@@ -11,7 +11,7 @@
 @custom-variant pointer-coarse (@media (pointer: coarse));
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  --font-heading: "Bricolage Grotesque Variable", var(--font-sans);
   --font-sans: "Public Sans Variable", system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -41,75 +41,87 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-margin: var(--margin);
+  --font-display: "Bricolage Grotesque Variable", var(--font-sans);
 }
 
 :root {
-  --background: oklch(0.99 0.002 250);
-  --foreground: oklch(0.20 0.015 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.015 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.015 250);
-  --primary: oklch(0.55 0.19 262);
-  --primary-foreground: oklch(0.98 0.005 262);
-  --secondary: oklch(0.96 0.005 250);
-  --secondary-foreground: oklch(0.20 0.015 250);
-  --muted: oklch(0.96 0.005 250);
-  --muted-foreground: oklch(0.45 0.015 250);
-  --accent: oklch(0.96 0.005 250);
-  --accent-foreground: oklch(0.20 0.015 250);
-  --destructive: oklch(0.55 0.20 25);
-  --border: oklch(0.62 0.01 250);
-  --input: oklch(0.62 0.01 250);
-  --ring: oklch(0.55 0.19 262);
-  --radius: 0.625rem;
-  --accent-wash: oklch(0.55 0.19 262 / 0.07);
+  --background: oklch(0.936 0.012 138);
+  --foreground: oklch(0.247 0.053 263);
+  --card: oklch(0.972 0.009 129);
+  --card-foreground: oklch(0.247 0.053 263);
+  --popover: oklch(0.972 0.009 129);
+  --popover-foreground: oklch(0.247 0.053 263);
+  --primary: oklch(0.438 0.203 266);
+  --primary-foreground: oklch(0.972 0.009 129);
+  --secondary: oklch(0.927 0.007 146);
+  --secondary-foreground: oklch(0.247 0.053 263);
+  --muted: oklch(0.927 0.007 146);
+  --muted-foreground: oklch(0.458 0.043 261);
+  --accent: oklch(0.927 0.007 146);
+  --accent-foreground: oklch(0.247 0.053 263);
+  --destructive: oklch(0.501 0.178 29);
+  --border: oklch(0.247 0.053 263 / 0.16);
+  --input: oklch(0.599 0.02 253);
+  --ring: oklch(0.438 0.203 266);
+  --radius: 0.1875rem;
+  --accent-wash: oklch(0.438 0.203 266 / 0.07);
 
-  --receivable: oklch(0.52 0.14 150);
-  --credit: oklch(0.58 0.17 25);
-  --settled: oklch(0.50 0.012 250);
-  --success: oklch(0.50 0.15 150);
-  --warning: oklch(0.48 0.15 75);
+  --receivable: oklch(0.468 0.109 152);
+  --credit: oklch(0.515 0.16 35);
+  --settled: oklch(0.458 0.043 261);
+  --success: oklch(0.468 0.109 152);
+  --warning: oklch(0.471 0.099 76);
 
-  --chart-1: oklch(0.55 0.19 262);
-  --chart-2: oklch(0.52 0.14 150);
-  --chart-3: oklch(0.58 0.17 25);
-  --chart-4: oklch(0.60 0.14 75);
-  --chart-5: oklch(0.55 0.16 320);
+  --chart-1: oklch(0.438 0.203 266);
+  --chart-2: oklch(0.468 0.109 152);
+  --chart-3: oklch(0.515 0.16 35);
+  --chart-4: oklch(0.471 0.099 76);
+  --chart-5: oklch(0.458 0.043 261);
+  --sidebar: oklch(0.247 0.053 263);
+  --sidebar-foreground: oklch(0.865 0.028 263);
+  --margin: oklch(0.438 0.203 266 / 0.38);
+  --tint: 10%;
 }
 
 .dark {
-  --background: oklch(0.16 0.01 250);
-  --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.19 0.012 250);
-  --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.19 0.012 250);
-  --popover-foreground: oklch(0.97 0.005 250);
-  --primary: oklch(0.70 0.16 262);
-  --primary-foreground: oklch(0.20 0.02 262);
-  --secondary: oklch(0.23 0.012 250);
-  --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.23 0.012 250);
-  --muted-foreground: oklch(0.65 0.015 250);
-  --accent: oklch(0.23 0.012 250);
-  --accent-foreground: oklch(0.97 0.005 250);
-  --destructive: oklch(0.68 0.18 25);
-  --border: oklch(0.52 0.015 250);
-  --input: oklch(0.52 0.015 250);
-  --ring: oklch(0.70 0.16 262);
-  --accent-wash: oklch(0.70 0.16 262 / 0.12);
+  --background: oklch(0.19 0.015 172);
+  --foreground: oklch(0.94 0.011 137);
+  --card: oklch(0.231 0.019 172);
+  --card-foreground: oklch(0.94 0.011 137);
+  --popover: oklch(0.231 0.019 172);
+  --popover-foreground: oklch(0.94 0.011 137);
+  --primary: oklch(0.757 0.124 271);
+  --primary-foreground: oklch(0.19 0.015 172);
+  --secondary: oklch(0.305 0.017 171);
+  --secondary-foreground: oklch(0.94 0.011 137);
+  --muted: oklch(0.305 0.017 171);
+  --muted-foreground: oklch(0.728 0.02 158);
+  --accent: oklch(0.305 0.017 171);
+  --accent-foreground: oklch(0.94 0.011 137);
+  --destructive: oklch(0.767 0.138 29);
+  --border: oklch(0.94 0.011 137 / 0.14);
+  --input: oklch(0.648 0.013 154);
+  --ring: oklch(0.757 0.124 271);
+  --accent-wash: oklch(0.757 0.124 271 / 0.12);
 
-  --receivable: oklch(0.75 0.15 150);
-  --credit: oklch(0.72 0.16 25);
-  --settled: oklch(0.65 0.012 250);
-  --success: oklch(0.72 0.15 150);
-  --warning: oklch(0.75 0.14 75);
+  --receivable: oklch(0.79 0.132 153);
+  --credit: oklch(0.789 0.125 36);
+  --settled: oklch(0.728 0.02 158);
+  --success: oklch(0.79 0.132 153);
+  --warning: oklch(0.785 0.131 82);
 
-  --chart-1: oklch(0.70 0.16 262);
-  --chart-2: oklch(0.75 0.15 150);
-  --chart-3: oklch(0.72 0.16 25);
-  --chart-4: oklch(0.75 0.14 75);
-  --chart-5: oklch(0.70 0.15 320);
+  --chart-1: oklch(0.757 0.124 271);
+  --chart-2: oklch(0.79 0.132 153);
+  --chart-3: oklch(0.789 0.125 36);
+  --chart-4: oklch(0.785 0.131 82);
+  --chart-5: oklch(0.728 0.02 158);
+  --sidebar: oklch(0.166 0.01 173);
+  --sidebar-foreground: oklch(0.728 0.02 158);
+  --margin: oklch(0.757 0.124 271 / 0.40);
+  --tint: 8%;
 }
 
 @layer base {
@@ -168,4 +180,14 @@
     background: #fff;
     color: #111;
   }
+}
+
+@layer components {
+  .totals-rule { border-top: 1px solid var(--foreground); border-bottom: 6px double var(--foreground); }
+  .leader { display: flex; align-items: baseline; gap: 0.625rem; }
+  .leader-dots { flex: 1 1 1rem; min-width: 1rem; border-bottom: 2px dotted var(--input); transform: translateY(-0.25rem); }
+  .margin-rule { border-left: 2px solid var(--margin); }
+  .entry-reveal { animation: ledger-reveal 200ms ease-out; }
+  @keyframes ledger-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @media (prefers-reduced-motion: reduce) { .entry-reveal { animation: none; } }
 }

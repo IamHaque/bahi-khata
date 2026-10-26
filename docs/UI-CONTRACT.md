@@ -1,25 +1,28 @@
 # BahiKhata v2 — UI Contract
 
-## Theme decision (S-08)
+## Tokens and class rules (PRD 5.2 — applied in L-01)
 
-- **Preset:** no external preset (tweakcn / ui.shadcn.com/themes) was copied.
-  Token values were derived directly from PRD 4.5 semantics (indigo/blue
-  `primary`, green `receivable`, red-orange `credit`, neutral `settled`)
-  as OKLCH, then machine-verified for WCAG AA contrast.
-- **Source of truth:** `docs/PRD-v2.md` §4.5 (semantic tokens, radius,
-  surfaces) + `docs/ARCHITECTURE-BASELINE.md` §8 (existing token
-  architecture, kept). Contrast verified 2026-10-12 with a script
-  computing WCAG relative luminance from OKLCH; all 36 token/background
-  pairs pass AA (≥4.5:1 text, ≥3:1 borders) on card and page
-  backgrounds in both themes.
-- **Architecture:** CSS variables in `src/index.css` (`:root` + `.dark`),
-  mapped into Tailwind 4 via `@theme inline`. Dark mode via the `.dark`
-  class; `ThemeContext` supports `system | light | dark` (PRD scenario
-  asks for next-themes — deviation DEV-3: the existing custom context was
-  extended with a `system` option instead of adopting next-themes).
-- **Font:** Public Sans Variable (the family already wired in v1);
-  the unused `@fontsource-variable/geist` package was removed (S-08).
-  Tabular numerals enabled globally via `.tabular-nums`.
+Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by 82 automated contrast checks).
+
+| Need | Use | Never |
+|---|---|---|
+| Page canvas ("Paper") | `bg-background` | hard-coded colours |
+| Panel, ledger, table container ("Sheet") | `bg-card border border-border` | `shadow-*`, `ring-*`, gradients, `rounded-xl` or larger |
+| Sidebar ("spine") | `bg-sidebar text-sidebar-foreground` | `bg-card` |
+| Active spine item (the tab that joins the page) | `bg-background text-foreground font-semibold` | outlines, left bars |
+| Row rule, divider | `border-t border-border` | `border-input` on dividers |
+| Table header strip | `bg-muted/60 text-xs font-medium text-muted-foreground` | upper-case, letter-spaced labels |
+| Ledger margin rule (between Date and Particulars) | `margin-rule` (or `border-l-2 border-margin`) | red |
+| A total (single rule above, double rule below) | `totals-rule` | box borders |
+| Name joined to an amount | `leader` on the row and `<i className="leader-dots" aria-hidden="true" />` between | CSS tricks that hide the amount |
+| Form control (input, select, textarea, checkbox, outline button) | `border border-input` | `border-border` (too faint for 3:1) |
+| Tinted chip | light `bg-TONE/10`, dark `dark:bg-TONE/8`, text `text-TONE` | `/12` or higher (the audit assumes 10 and 8) |
+| Popover, menu, dialog | `bg-popover border border-border`; dialogs add `border-t-2 border-t-foreground` | custom backgrounds |
+| Page title and section heading | `font-heading` | any other family |
+| Hero figure (balances, net position) | `font-display tabular-nums` | proportional digits |
+| All money | `<Money>` / `formatMoney` (guard test added in L-03) | hand formatting |
+
+`scripts/contrast-audit.cjs` audits text, tinted chips and control borders in both themes (82 checks); `scripts/check-token-sync.cjs` keeps it in step with `src/index.css`. Both run in CI.
 
 ## Consistency checklist (copied from PRD §8 — owned by S-13)
 
