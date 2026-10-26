@@ -19,9 +19,11 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
   const { businessId } = useParams();
   const location = useLocation();
   // S-38: the Import link is role-gated — hidden for viewers entirely.
+  // S-51: Recently deleted is Owner-only, the same mechanism.
   const { can } = usePermissions();
   const navItems = buildNavItems(businessId ?? null, {
     canImport: can("importTransactions"),
+    canViewDeleted: can("viewDeletedItems"),
   });
 
   // Most-specific match wins. NavLink's default prefix matching lights

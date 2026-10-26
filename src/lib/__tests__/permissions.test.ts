@@ -36,6 +36,12 @@ const prdSection3: Record<PermissionAction, Record<PermissionRole, boolean>> = {
   deleteBusiness: { owner: true, editor: false, viewer: false },
   // Leave business — owner must delete instead.
   leaveBusiness: { owner: false, editor: true, viewer: true },
+  // S-51 (v3): void a transaction so it disappears from balances — owner.
+  deleteTransaction: { owner: true, editor: false, viewer: false },
+  // S-51: open the Recently deleted page — owner only.
+  viewDeletedItems: { owner: true, editor: false, viewer: false },
+  // S-51: bring a deleted item back — owner only.
+  restoreDeleted: { owner: true, editor: false, viewer: false },
 };
 
 const roles: PermissionRole[] = ["owner", "editor", "viewer"];

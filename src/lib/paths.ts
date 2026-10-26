@@ -28,6 +28,8 @@ export const paths = {
   // the navigation until then.
   members: (businessId: string) => `/b/${businessId}/members`,
   settings: (businessId: string) => `/b/${businessId}/settings`,
+  // S-51 (v3): the owner's trash page for deleted transactions/customers.
+  deletedItems: (businessId: string) => `/b/${businessId}/deleted`,
 } as const;
 
 // React Router route patterns (":param" placeholders) for <Route path=...>.
@@ -46,6 +48,7 @@ export const routePatterns = {
   transactionDetail: "/b/:businessId/transactions/:transactionId",
   members: "/b/:businessId/members",
   settings: "/b/:businessId/settings",
+  deletedItems: "/b/:businessId/deleted",
   // v1 URLs (S-17): each redirects to the same page under the active
   // business.
   legacyCustomers: "/customers",

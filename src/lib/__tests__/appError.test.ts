@@ -36,13 +36,48 @@ describe("toAppError", () => {
     expect(err.code).toBe("validation");
   });
 
-  it("maps other Postgres data errors to validation with a user-safe message", () => {
+  it("maps 22001 (value too long) to validation, showing the database message (S-51)", () => {
+    // S-51 changed this: the v3 database functions author user-safe
+    // messages, so the message now travels through for 22001.
     const err = toAppError({
       code: "22001",
-      message: "value too long for type character varying(100)",
+      message: "Name must be 100 characters or fewer.",
     });
     expect(err.code).toBe("validation");
-    expect(err.message).not.toMatch(/character varying/);
+    expect(err.message).toBe("Name must be 100 characters or fewer.");
+  });
+
+  it("maps other Postgres data errors to validation with a user-safe message", () => {
+    const err = toAppError({
+      code: "22003",
+      message: "numeric field overflow",
+    });
+    expect(err.code).toBe("validation");
+    expect(err.message).not.toMatch(/numeric field overflow/);
+  });
+
+  it("maps SQLSTATE P0002 to notFound with the database message (S-51)", () => {
+    const err = toAppError({
+      code: "P0002",
+      message: "Customer not found.",
+    });
+    expect(err.code).toBe("notFound");
+    expect(err.message).toBe("Customer not found.");
+  });
+
+  it("falls back to a friendly notFound message when P0002 carries none", () => {
+    const err = toAppError({ code: "P0002" });
+    expect(err.code).toBe("notFound");
+    expect(err.message).toBe("That item no longer exists.");
+  });
+
+  it("maps SQLSTATE 55000 to conflict with the database message (S-51)", () => {
+    const err = toAppError({
+      code: "55000",
+      message: "Restore the customer first.",
+    });
+    expect(err.code).toBe("conflict");
+    expect(err.message).toBe("Restore the customer first.");
   });
 
   it("maps Postgrest errors to unknown with a user-safe message", () => {

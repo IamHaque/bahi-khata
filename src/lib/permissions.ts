@@ -22,6 +22,11 @@ export const permissionActions = [
   "manageMembers",
   "deleteBusiness",
   "leaveBusiness",
+  // S-51 (v3 deletion flow): owner-only, matching the database's
+  // delete_transaction()/restore_deleted() privileges.
+  "deleteTransaction",
+  "viewDeletedItems",
+  "restoreDeleted",
 ] as const;
 
 export type PermissionAction = (typeof permissionActions)[number];
@@ -52,6 +57,12 @@ export const permissionMatrix: Record<
   deleteBusiness: { owner: true, editor: false, viewer: false },
   // Leave business — owner must delete instead.
   leaveBusiness: { owner: false, editor: true, viewer: true },
+  // Void a transaction so it disappears from balances — owner only.
+  deleteTransaction: { owner: true, editor: false, viewer: false },
+  // Open the Recently deleted page — owner only.
+  viewDeletedItems: { owner: true, editor: false, viewer: false },
+  // Bring a deleted item back — owner only.
+  restoreDeleted: { owner: true, editor: false, viewer: false },
 };
 
 /** Pure check: may `role` perform `action`? No role → no. */

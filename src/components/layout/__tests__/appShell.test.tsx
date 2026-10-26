@@ -116,9 +116,9 @@ describe("app shell", () => {
 describe("navigation configuration", () => {
   it("is one array with every in-business link visible", () => {
     const navItems = buildNavItems("biz1");
-    // S-38: Import joins the config (6 entries), but the bare call
-    // keeps it hidden — exactly five links, as before S-38.
-    expect(navItems).toHaveLength(6);
+    // S-38 added Import and S-51 added Recently deleted (7 entries), but
+    // the bare call keeps both hidden — exactly five links, as before.
+    expect(navItems).toHaveLength(7);
     const visible = navItems.filter((item) => item.visible);
     expect(visible.map((item) => item.label)).toEqual([
       "Dashboard",
@@ -136,7 +136,7 @@ describe("navigation configuration", () => {
 
   it("adds the Import link only for roles that may import (S-38)", () => {
     const owner = buildNavItems("biz1", { canImport: true });
-    expect(owner).toHaveLength(6);
+    expect(owner).toHaveLength(7);
     const importItem = owner.find((item) => item.label === "Import");
     expect(importItem?.path).toBe("/b/biz1/customers/import");
     expect(importItem?.visible).toBe(true);
@@ -144,11 +144,39 @@ describe("navigation configuration", () => {
     // Viewer (or memberships not loaded): the item exists in the config
     // but stays hidden — five links, exactly as before S-38.
     const viewer = buildNavItems("biz1", { canImport: false });
-    expect(viewer).toHaveLength(6);
+    expect(viewer).toHaveLength(7);
     expect(viewer.filter((item) => item.visible)).toHaveLength(5);
     expect(
       viewer.find((item) => item.label === "Import")?.visible,
     ).toBe(false);
+  });
+
+  it("shows Recently deleted only for owners, between Import and Settings (S-51)", () => {
+    const owner = buildNavItems("biz1", {
+      canImport: true,
+      canViewDeleted: true,
+    });
+    const deleted = owner.find((item) => item.label === "Recently deleted");
+    expect(deleted?.path).toBe("/b/biz1/deleted");
+    expect(deleted?.visible).toBe(true);
+    // Position: after Import, before Settings.
+    const labels = owner.map((item) => item.label);
+    expect(labels.indexOf("Recently deleted")).toBeGreaterThan(
+      labels.indexOf("Import"),
+    );
+    expect(labels.indexOf("Recently deleted")).toBeLessThan(
+      labels.indexOf("Settings"),
+    );
+
+    // A non-owner (editor/viewer) must not see it.
+    const nonOwner = buildNavItems("biz1", {
+      canImport: true,
+      canViewDeleted: false,
+    });
+    expect(
+      nonOwner.find((item) => item.label === "Recently deleted")?.visible,
+    ).toBe(false);
+    expect(nonOwner.filter((item) => item.visible)).toHaveLength(6);
   });
 });
 
@@ -172,6 +200,9 @@ describe("centralized paths", () => {
     expect(routePatterns.transactionDetail).toBe(
       "/b/:businessId/transactions/:transactionId",
     );
+    // S-51: the owner's trash page.
+    expect(routePatterns.deletedItems).toBe("/b/:businessId/deleted");
+    expect(paths.deletedItems("b1")).toBe("/b/b1/deleted");
   });
 
   it("keeps the v1 URLs as redirect patterns (S-17)", () => {
