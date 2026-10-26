@@ -96,8 +96,10 @@ function escapeSearch(raw: string): string {
 }
 
 interface CustomerListQueryRow extends Customer {
-  customer_balances: { balance: number } | null;
-  transactions: Array<{ occurred_at: string }> | null;
+  customer_balances: {
+    balance: number;
+    last_activity_at: string | null;
+  } | null;
 }
 
 /**
@@ -106,9 +108,8 @@ interface CustomerListQueryRow extends Customer {
  * count for the pager. The balance comes from the same security-invoker
  * `customer_balances` view every other balance read uses (S-20) — joined
  * `!inner`, and the view includes every non-deleted customer (a left
- * join + coalesce), so nothing drops out. Last activity is the newest
- * `occurred_at` among the row's transactions, embedded for the page's
- * rows only.
+ * join + coalesce), so nothing drops out. Last activity comes from the
+ * view (voided entries excluded).
  */
 export async function queryCustomers(
   businessId: string,
@@ -125,7 +126,7 @@ export async function queryCustomers(
     let query = supabase
       .from("customers")
       .select(
-        "*, customer_balances!inner(balance), transactions(occurred_at)",
+        "*, customer_balances!inner(balance, last_activity_at)",
         { count: "exact" },
       )
       .eq("business_id", businessId)
@@ -181,17 +182,11 @@ export async function queryCustomers(
 
     const items: CustomerListRow[] = ((paged.data ?? []) as CustomerListQueryRow[]).map(
       (row) => {
-        const { customer_balances, transactions, ...customer } = row;
-        let lastActivity: string | null = null;
-        for (const tx of transactions ?? []) {
-          if (lastActivity === null || tx.occurred_at > lastActivity) {
-            lastActivity = tx.occurred_at;
-          }
-        }
+        const { customer_balances, ...customer } = row;
         return {
           ...customer,
           balance: customer_balances?.balance ?? 0,
-          last_activity: lastActivity,
+          last_activity: customer_balances?.last_activity_at ?? null,
         };
       },
     );
