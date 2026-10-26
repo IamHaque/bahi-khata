@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Money } from "@/components/app/Money";
 import { Button } from "@/components/ui/button";
 import {
   useCustomerLedger,
@@ -232,8 +233,7 @@ export function TransactionDetailPage() {
             } ${transaction.status === "voided" ? "line-through opacity-50" : ""}`}
             style={{ letterSpacing: "-0.02em" }}
           >
-            {transaction.type === "charge" ? "+" : "-"}₹
-            {transaction.amount.toLocaleString("en-IN")}
+            <Money amount={transaction.amount} />
           </p>
         </div>
 

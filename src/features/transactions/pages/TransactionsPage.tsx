@@ -9,6 +9,7 @@ import {
 } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FilterBar, type FilterChip } from "@/components/app/FilterBar";
+import { Money } from "@/components/app/Money";
 import { PageHeader } from "@/components/app/PageHeader";
 import { SearchInput } from "@/components/app/SearchInput";
 import { StatusBadge } from "@/components/app/StatusBadge";
@@ -391,7 +392,7 @@ export function TransactionsPage() {
             );
           }}
           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={`Restore ${row.type} of ₹${row.amount}`}
+          aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
@@ -409,7 +410,7 @@ export function TransactionsPage() {
             openTransactionEdit(row, sheetCustomer(row));
           }}
           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={`Edit ${row.type} of ₹${row.amount}`}
+          aria-label={`Edit ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -422,7 +423,7 @@ export function TransactionsPage() {
             setVoidTx(row);
           }}
           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={`Void ${row.type} of ₹${row.amount}`}
+          aria-label={`Void ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -439,7 +440,7 @@ export function TransactionsPage() {
                 setDeleteTx(row);
               }}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label={`Delete ${row.type} of ₹${row.amount}`}
+              aria-label={`Delete ${row.type} of ${formatMoney(row.amount)}`}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" />
@@ -465,15 +466,14 @@ export function TransactionsPage() {
   );
 
   const amountCell = (row: TransactionListRow) => (
-    <span
+    <Money
+      signed
+      amount={row.type === "charge" ? row.amount : -row.amount}
       className={cn(
-        "tabular-nums",
         row.type === "charge" ? "text-receivable" : "text-credit",
         row.status === "voided" && "line-through opacity-50",
       )}
-    >
-      {row.type === "charge" ? "+" : "-"}₹{row.amount.toLocaleString("en-IN")}
-    </span>
+    />
   );
 
   // "status or source badges": the S-33 edit marker, the S-34 void

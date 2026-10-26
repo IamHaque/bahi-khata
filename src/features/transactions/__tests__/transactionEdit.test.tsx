@@ -325,7 +325,7 @@ describe("S-33 edit transaction", () => {
   it("edits in the same sheet: prefilled row values, honest preview, recalculated balance, Edited badge", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit payment of ₹500" }),
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
 
@@ -384,10 +384,15 @@ describe("S-33 edit transaction", () => {
 
     // The row keeps its place with the Edited badge…
     expect(screen.getByText("Edited")).toBeTruthy();
-    rowScopeByAmount("-₹450");
+    rowScopeByAmount("-₹450.00");
     // …the balance recalculated and flashes…
     await waitFor(() =>
-      expect(screen.getByText("₹4,550").className).toContain("balance-flash"),
+      expect(
+        screen
+          .getAllByText("₹4,550.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
     // …and the older row is untouched.
     expect(transactionsApi.updateTransaction).toHaveBeenCalledTimes(1);
@@ -403,7 +408,7 @@ describe("S-33 edit transaction", () => {
 
     // Hover or focus reads: 'Edited by Eli on 12 Oct 2026, …'. The
     // pill's wrapper carries the tooltip; the pill carries the text.
-    const eliBadge = rowScopeByAmount("-₹450")
+    const eliBadge = rowScopeByAmount("-₹450.00")
       .getByText("Edited")
       .closest("span[title]");
     if (!eliBadge) throw new Error("badge wrapper with title not found");
@@ -414,7 +419,7 @@ describe("S-33 edit transaction", () => {
     expect(eliBadge.textContent).toContain(expected);
 
     // An editor whose profile is no longer readable degrades honestly.
-    const goneBadge = rowScopeByAmount("+₹5,000")
+    const goneBadge = rowScopeByAmount("+₹5,000.00")
       .getByText("Edited")
       .closest("span[title]");
     expect(goneBadge?.getAttribute("title")).toContain(
@@ -425,7 +430,7 @@ describe("S-33 edit transaction", () => {
   it("keeps the customer fixed, allows type/amount/date/note, and applies the same validation", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit payment of ₹500" }),
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
 
@@ -504,7 +509,7 @@ describe("S-33 edit transaction", () => {
 
     await openLedger("c2");
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit charge of ₹300" }),
+      screen.getByRole("button", { name: "Edit charge of ₹300.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Amount"), {
@@ -527,7 +532,7 @@ describe("S-33 edit transaction", () => {
     expect(input).not.toHaveProperty("customer_id");
     // The row comes back edited — and still imported.
     await waitFor(() => expect(screen.getByText("Edited")).toBeTruthy());
-    rowScopeByAmount("+₹250");
+    rowScopeByAmount("+₹250.00");
     expect(
       server.transactions.find((tx) => tx.id === "t9")?.source,
     ).toBe("import");
@@ -547,6 +552,6 @@ describe("S-33 edit transaction", () => {
       screen.queryByRole("button", { name: /add transaction/i }),
     ).toBeNull();
     screen.getByText("Current Balance");
-    rowScopeByAmount("+₹5,000");
+    rowScopeByAmount("+₹5,000.00");
   });
 });

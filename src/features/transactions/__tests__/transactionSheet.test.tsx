@@ -389,18 +389,21 @@ describe("S-32 transaction sheet", () => {
     // The sheet closed, the balance recalculated and highlights…
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() =>
-      expect(screen.getByText("₹1,500").className).toContain(
-        "balance-flash",
-      ),
+      expect(
+        screen
+          .getAllByText("₹1,500.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
 
     // …and the new row sits at the top of her ledger, above the old one.
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     const newIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹500"),
+      (row.textContent ?? "").includes("+₹500.00"),
     );
     const oldIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹5,000"),
+      (row.textContent ?? "").includes("+₹5,000.00"),
     );
     expect(newIdx).toBeGreaterThan(-1);
     expect(oldIdx).toBeGreaterThan(-1);

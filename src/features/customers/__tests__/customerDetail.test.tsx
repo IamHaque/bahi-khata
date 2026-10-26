@@ -310,7 +310,10 @@ describe("S-31 customer detail v2", () => {
 
     // The balance is the hero: the biggest number on the page, badge
     // alongside.
-    const hero = screen.getByText("₹4,500");
+    const hero = screen
+      .getAllByText("₹4,500.00")
+      .find((el) => el.closest("p"))!
+      .closest("p")!;
     expect(hero.className).toContain("text-5xl");
     screen.getByText("Current Balance");
     screen.getByText("Owes you");
@@ -396,14 +399,14 @@ describe("S-31 customer detail v2", () => {
     // Balance after is the running total in date order; the voided
     // 300-charged row shows the live balance (its own amount is not
     // part of the math).
-    const voidedRow = rowElementByAmount("+₹300");
+    const voidedRow = rowElementByAmount("+₹300.00");
     within(voidedRow).getByText("₹4,500.00");
     // The voided amount itself is struck through…
-    expect(screen.getByText("+₹300").className).toContain("line-through");
+    expect(screen.getByText("+₹300.00").className).toContain("line-through");
     // …the payment row carries the same running balance…
-    within(rowElementByAmount("-₹500")).getByText("₹4,500.00");
+    within(rowElementByAmount("-₹500.00")).getByText("₹4,500.00");
     // …and the opening charge starts at 5000.
-    within(rowElementByAmount("+₹5,000")).getByText("₹5,000.00");
+    within(rowElementByAmount("+₹5,000.00")).getByText("₹5,000.00");
   });
 
   it("ledger filters: All / Charges / Payments and Show voided (on by default)", async () => {
@@ -419,35 +422,35 @@ describe("S-31 customer detail v2", () => {
     renderDetail();
     await screen.findByText("Current Balance");
     await waitFor(() =>
-      expect(screen.getByText("+₹300")).toBeTruthy(), // voided visible by default
+      expect(screen.getByText("+₹300.00")).toBeTruthy(), // voided visible by default
     );
 
     // Charges: both charges (including the voided one), no payment.
     await userEvent.click(screen.getByRole("button", { name: "Charges" }));
-    await waitFor(() => expect(screen.queryByText("-₹500")).toBeNull());
-    screen.getByText("+₹5,000");
-    screen.getByText("+₹300");
+    await waitFor(() => expect(screen.queryByText("-₹500.00")).toBeNull());
+    screen.getByText("+₹5,000.00");
+    screen.getByText("+₹300.00");
 
     // Payments: just the payment.
     await userEvent.click(screen.getByRole("button", { name: "Payments" }));
-    await waitFor(() => expect(screen.queryByText("+₹5,000")).toBeNull());
-    screen.getByText("-₹500");
+    await waitFor(() => expect(screen.queryByText("+₹5,000.00")).toBeNull());
+    screen.getByText("-₹500.00");
 
     // Back to All: everything again.
     await userEvent.click(screen.getByRole("button", { name: "All" }));
-    await waitFor(() => screen.getByText("+₹5,000"));
-    screen.getByText("+₹300");
+    await waitFor(() => screen.getByText("+₹5,000.00"));
+    screen.getByText("+₹300.00");
 
     // Show voided is on by default; switching it off hides the voided
     // row only, and switching it back brings it home.
     const toggle = screen.getByRole("button", { name: "Show voided" });
     await userEvent.click(toggle);
-    await waitFor(() => expect(screen.queryByText("+₹300")).toBeNull());
-    screen.getByText("+₹5,000");
-    screen.getByText("-₹500");
+    await waitFor(() => expect(screen.queryByText("+₹300.00")).toBeNull());
+    screen.getByText("+₹5,000.00");
+    screen.getByText("-₹500.00");
 
     await userEvent.click(toggle);
-    await waitFor(() => screen.getByText("+₹300"));
+    await waitFor(() => screen.getByText("+₹300.00"));
   });
 
   it("Details tab shows every profile field and notes", async () => {
@@ -546,7 +549,7 @@ describe("S-31 customer detail v2", () => {
     await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     // …but the history stays readable.
     screen.getByText("Current Balance");
-    rowElementByAmount("+₹5,000");
+    rowElementByAmount("+₹5,000.00");
 
     // The banner's Restore brings it all back.
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
@@ -572,7 +575,7 @@ describe("S-31 customer detail v2", () => {
     );
     renderDetail();
     await screen.findByText("Current Balance");
-    await waitFor(() => screen.getByText("+₹5,000"));
+    await waitFor(() => screen.getByText("+₹5,000.00"));
 
     // No primary actions, no Edit, no menu, no row actions.
     expect(screen.queryByRole("button", { name: "Add charge" })).toBeNull();
@@ -605,8 +608,8 @@ describe("S-31 customer detail v2", () => {
       expect(cards).toHaveLength(2); // both seeded rows
       screen.getByText("Balance after ₹5,000.00");
       // The row actions ride along in the card (owner).
-      screen.getByRole("button", { name: "Void charge of ₹5000" });
-      screen.getByRole("button", { name: "Void payment of ₹500" });
+      screen.getByRole("button", { name: "Void charge of ₹5,000.00" });
+      screen.getByRole("button", { name: "Void payment of ₹500.00" });
     } finally {
       __setMatchMedia(false);
     }

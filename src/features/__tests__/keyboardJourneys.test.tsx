@@ -746,13 +746,13 @@ describe("S-40 keyboard-only journeys", () => {
       user,
       (element) =>
         element ===
-        screen.getByRole("button", { name: "Void payment of ₹500" }),
+        screen.getByRole("button", { name: "Void payment of ₹500.00" }),
       "the row's Void action",
     );
     await user.keyboard("{Enter}");
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Void this payment of ₹500?"),
+      within(dialog).getByText("Void this payment of ₹500.00?"),
     ).toBeTruthy();
 
     await tabUntil(

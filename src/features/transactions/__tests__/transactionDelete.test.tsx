@@ -178,7 +178,7 @@ describe("S-54 delete transaction entry points", () => {
     );
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete charge of ₹500" }),
+      await screen.findByRole("button", { name: "Delete charge of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     within(dialog).getByText("Delete this transaction?");
@@ -217,9 +217,9 @@ describe("S-54 delete transaction entry points", () => {
       { session, route: "/b/b1/transactions" },
     );
 
-    await screen.findByRole("button", { name: "Void charge of ₹500" });
+    await screen.findByRole("button", { name: "Void charge of ₹500.00" });
     expect(
-      screen.queryByRole("button", { name: "Delete charge of ₹500" }),
+      screen.queryByRole("button", { name: "Delete charge of ₹500.00" }),
     ).toBeNull();
     expect(transactionsApi.deleteTransaction).not.toHaveBeenCalled();
   });
@@ -237,7 +237,7 @@ describe("S-54 delete transaction entry points", () => {
 
     await screen.findByText("Current Balance");
     await userEvent.click(
-      screen.getByRole("button", { name: "Delete charge of ₹500" }),
+      screen.getByRole("button", { name: "Delete charge of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     // balance_after 45,000 includes this 500 charge → before was 44,500.

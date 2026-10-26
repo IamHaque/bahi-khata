@@ -10,8 +10,8 @@ export function getBalanceStatus(balance: number): BalanceStatus {
 }
 
 const statusStyles: Record<BalanceStatus, string> = {
-  owes: "bg-receivable/10 text-receivable",
-  credit: "bg-credit/10 text-credit",
+  owes: "bg-receivable/10 dark:bg-receivable/8 text-receivable",
+  credit: "bg-credit/10 dark:bg-credit/8 text-credit",
   settled: "bg-muted text-muted-foreground",
 };
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { useRestoreTransaction, useVoidTransaction } from "../hooks";
 import type { TransactionType } from "@/types";
@@ -50,7 +51,7 @@ export function VoidTransactionDialog({
       onOpenChange={onOpenChange}
       title={
         transaction
-          ? `Void this ${transaction.type} of ₹${transaction.amount}?`
+          ? `Void this ${transaction.type} of ${formatMoney(transaction.amount)}?`
           : ""
       }
       description="The row stays on the ledger with a Voided badge and stops counting towards balances and totals. Restore brings it back any time."

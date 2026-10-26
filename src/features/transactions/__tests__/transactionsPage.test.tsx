@@ -340,17 +340,17 @@ describe("S-35 transactions page v2", () => {
     }
 
     // Newest first = the server's order, passed through untouched.
-    const firstRow = rowElementByAmount("+₹5,000");
+    const firstRow = rowElementByAmount("+₹5,000.00");
     expect(within(firstRow).getByText("Asha Verma")).toBeTruthy();
     expect(within(firstRow).getByText("Rice for the month")).toBeTruthy();
     expect(within(firstRow).getByText("Eli Hassan")).toBeTruthy();
     expect(within(firstRow).getByText("Charge")).toBeTruthy();
 
-    const secondRow = rowElementByAmount("-₹500");
+    const secondRow = rowElementByAmount("-₹500.00");
     expect(within(secondRow).getByText("Rahim Traders")).toBeTruthy();
     expect(within(secondRow).getByText("Edited")).toBeTruthy();
 
-    const thirdRow = rowElementByAmount("+₹700");
+    const thirdRow = rowElementByAmount("+₹700.00");
     expect(within(thirdRow).getByText("Import")).toBeTruthy();
     // A former member resolves to the S-25 fallback.
     expect(within(thirdRow).getByText("Former member")).toBeTruthy();
@@ -394,7 +394,7 @@ describe("S-35 transactions page v2", () => {
     );
 
     // Row click still opens the entry's detail page.
-    await userEvent.click(rowElementByAmount("+₹5,000"));
+    await userEvent.click(rowElementByAmount("+₹5,000.00"));
     expect(await screen.findByText("Transaction detail t1")).toBeTruthy();
   });
 
@@ -697,9 +697,9 @@ describe("S-35 transactions page v2", () => {
 
       expect(await screen.findByText("Asha Verma")).toBeTruthy();
       expect(screen.queryByRole("columnheader")).toBeNull();
-      const amount = screen.getByText("+₹5,000");
+      const amount = screen.getByText("+₹5,000.00");
       expect(amount.className).not.toContain("truncate");
-      expect(screen.getByText("-₹500")).toBeTruthy();
+      expect(screen.getByText("-₹500.00")).toBeTruthy();
       expect(screen.getByText("Former member")).toBeTruthy();
     } finally {
       __setMatchMedia(false);
@@ -715,10 +715,10 @@ describe("S-35 transactions page v2", () => {
     expect(await screen.findByText("Asha Verma")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add Transaction" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Edit charge of ₹5000" }),
+      screen.queryByRole("button", { name: "Edit charge of ₹5,000.00" }),
     ).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Void charge of ₹5000" }),
+      screen.queryByRole("button", { name: "Void charge of ₹5,000.00" }),
     ).toBeNull();
     // The information itself stays fully readable.
     expect(screen.getByRole("columnheader", { name: "Amount" })).toBeTruthy();
@@ -744,7 +744,7 @@ describe("S-35 transactions page v2", () => {
 
     // Edit → the one shared sheet, in edit mode.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Edit charge of ₹5000" }),
+      await screen.findByRole("button", { name: "Edit charge of ₹5,000.00" }),
     );
     expect(getTransactionSheetState()).toMatchObject({
       open: true,
@@ -755,18 +755,18 @@ describe("S-35 transactions page v2", () => {
     // Void → the confirmation dialog with its copy. The sheet has just
     // closed (its modal aria-hidden lingers a beat), so wait for it.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Void charge of ₹5000" }),
+      await screen.findByRole("button", { name: "Void charge of ₹5,000.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Void this charge of ₹5000?"),
+      within(dialog).getByText("Void this charge of ₹5,000.00?"),
     ).toBeTruthy();
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     // The voided row offers Restore (and nothing else).
     await userEvent.click(
-      await screen.findByRole("button", { name: "Restore charge of ₹300" }),
+      await screen.findByRole("button", { name: "Restore charge of ₹300.00" }),
     );
     await waitFor(() =>
       expect(transactionsApi.restoreTransaction).toHaveBeenCalledWith(
@@ -775,7 +775,7 @@ describe("S-35 transactions page v2", () => {
       ),
     );
     expect(
-      screen.queryByRole("button", { name: "Edit charge of ₹300" }),
+      screen.queryByRole("button", { name: "Edit charge of ₹300.00" }),
     ).toBeNull();
   });
 });
