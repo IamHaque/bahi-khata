@@ -9,6 +9,7 @@ import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
 import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
+import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import { EmptyState } from "@/components/app/EmptyState";
 import { EntityDialog } from "@/components/app/EntityDialog";
 import { ErrorState } from "@/components/app/ErrorState";
@@ -428,6 +429,7 @@ function DialogsSection() {
   const [entityOpen, setEntityOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [typedOpen, setTypedOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <Section title="Dialogs and toasts">
@@ -441,6 +443,9 @@ function DialogsSection() {
         </Button>
         <Button variant="destructive" onClick={() => setTypedOpen(true)}>
           Delete permanently (typed confirmation)
+        </Button>
+        <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          Delete transaction (v3 delete + Undo)
         </Button>
         <Button
           variant="outline"
@@ -488,6 +493,24 @@ function DialogsSection() {
         confirmLabel="Delete permanently"
         typingConfirmation="Rahim Traders"
         onConfirm={() => toastSuccess("Customer deleted permanently")}
+      />
+
+      {/* v3 (S-54): the delete dialog with the balance sentence and the
+          Void instead escape hatch (both onVoidInstead branches). */}
+      <DeleteTransactionDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        businessId="b1"
+        transaction={{
+          id: "gallery-t1",
+          type: "charge",
+          amount: 50000,
+          occurred_at: "2026-10-20T10:00:00+00:00",
+          customer_name: "Rahim Uddin",
+          balance_before: 100000,
+          balance_after: 50000,
+        }}
+        onVoidInstead={() => toastSuccess("Void instead (demo)")}
       />
     </Section>
   );

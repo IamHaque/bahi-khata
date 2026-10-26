@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
+  useCustomerLedger,
   useRestoreTransaction,
   useTransaction,
 } from "@/features/transactions/hooks";
@@ -9,6 +10,10 @@ import {
   VoidTransactionDialog,
   type VoidableTransaction,
 } from "@/features/transactions/components/VoidTransactionDialog";
+import {
+  DeleteTransactionDialog,
+  type DeletableTransaction,
+} from "@/features/transactions/components/DeleteTransactionDialog";
 import { openTransactionEdit } from "@/features/transactions/sheetStore";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
@@ -32,6 +37,11 @@ export function TransactionDetailPage() {
   // optional reason; restore only ever adds history back, so it goes
   // straight through. Viewers have no actions at all.
   const [voidTx, setVoidTx] = useState<VoidableTransaction | null>(null);
+  // v3 (S-54): the owner's hard delete. The ledger is fetched so the
+  // dialog can carry the balance sentence (enabled once the row's
+  // customer is known).
+  const [deleteTx, setDeleteTx] = useState<DeletableTransaction | null>(null);
+  const ledger = useCustomerLedger(transaction?.customer_id ?? "", businessId);
   const { can } = usePermissions();
   const restore = useRestoreTransaction(businessId);
 
@@ -140,6 +150,35 @@ export function TransactionDetailPage() {
                 >
                   Void
                 </Button>
+                {/* v3 (S-54): destructive, owner-only, after Void. */}
+                {can("deleteTransaction") && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      const row = ledger.data?.find(
+                        (r) => r.id === transaction.id,
+                      );
+                      setDeleteTx({
+                        id: transaction.id,
+                        type: transaction.type,
+                        amount: transaction.amount,
+                        occurred_at: transaction.occurred_at,
+                        customer_name: transaction.customer_name,
+                        // The ledger row's balance_after includes this
+                        // row, so "before" is it with the effect undone.
+                        balance_before: row
+                          ? transaction.type === "charge"
+                            ? row.balance_after - transaction.amount
+                            : row.balance_after + transaction.amount
+                          : null,
+                        balance_after: row?.balance_after ?? null,
+                      });
+                    }}
+                  >
+                    Delete
+                  </Button>
+                )}
               </>
             ) : (
               <Button
@@ -244,6 +283,17 @@ export function TransactionDetailPage() {
         }}
         businessId={businessId}
         transaction={voidTx}
+      />
+
+      {/* v3 (S-54): the owner's hard delete; the dialog's own toast
+          carries the 10-second Undo. */}
+      <DeleteTransactionDialog
+        open={!!deleteTx}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTx(null);
+        }}
+        businessId={businessId}
+        transaction={deleteTx}
       />
     </div>
   );

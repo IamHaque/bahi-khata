@@ -36,6 +36,7 @@ import { exportTransactionsCsv } from "@/features/import-export/exports";
 import { useExportRunner } from "@/features/import-export/hooks";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
 import { VoidTransactionDialog } from "@/features/transactions/components/VoidTransactionDialog";
+import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import {
   useRestoreTransaction,
   useTransactionList,
@@ -298,6 +299,8 @@ export function TransactionsPage() {
 
   const restore = useRestoreTransaction(businessId);
   const [voidTx, setVoidTx] = useState<TransactionListRow | null>(null);
+  // v3 (S-54): the owner's hard delete — same shape of state as Void.
+  const [deleteTx, setDeleteTx] = useState<TransactionListRow | null>(null);
 
   const rows = list.data?.rows ?? [];
   // An old shared link with ?page= beyond the count lands on page 1
@@ -425,6 +428,25 @@ export function TransactionsPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         </button>
+        {/* v3 (S-54): after a divider — destructive, owner-only. */}
+        {can("deleteTransaction") && (
+          <>
+            <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setDeleteTx(row);
+              }}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Delete ${row.type} of ₹${row.amount}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
     );
   };
@@ -1018,6 +1040,31 @@ export function TransactionsPage() {
         }}
         businessId={businessId}
         transaction={voidTx}
+      />
+
+      {/* v3 (S-54): the owner's hard delete. This page has no customer
+          balance column, so the dialog's balance sentence is omitted. */}
+      <DeleteTransactionDialog
+        open={!!deleteTx}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTx(null);
+        }}
+        businessId={businessId}
+        transaction={
+          deleteTx && {
+            id: deleteTx.id,
+            type: deleteTx.type,
+            amount: deleteTx.amount,
+            occurred_at: deleteTx.occurred_at,
+            customer_name: deleteTx.customer.name,
+            balance_before: null,
+            balance_after: null,
+          }
+        }
+        onVoidInstead={(id) => {
+          const row = list.data?.rows.find((r) => r.id === id);
+          if (row) setVoidTx(row);
+        }}
       />
     </div>
   );

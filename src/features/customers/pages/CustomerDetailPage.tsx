@@ -25,6 +25,7 @@ import { useCustomer, useSetCustomerArchived } from "@/features/customers/hooks"
 import type { CustomerListRow } from "@/features/customers/api";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
 import { VoidTransactionDialog } from "@/features/transactions/components/VoidTransactionDialog";
+import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import {
   useCustomerBalance,
   useCustomerLedger,
@@ -96,6 +97,8 @@ export function CustomerDetailPage() {
   // S-34: the void confirmation for one row at a time; Restore on the
   // ledger mutates directly (it only ever adds history back).
   const [voidTx, setVoidTx] = useState<LedgerRow | null>(null);
+  // v3 (S-54): the owner's hard delete — same shape of state as Void.
+  const [deleteTx, setDeleteTx] = useState<LedgerRow | null>(null);
   // S-31: ledger filters — All / Charges / Payments, Show voided on by
   // default (voided history stays part of the story unless you hide it).
   const [typeFilter, setTypeFilter] = useState<"all" | "charge" | "payment">(
@@ -262,6 +265,26 @@ export function CustomerDetailPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         </button>
+        {/* v3 (S-54): after a divider — destructive, owner-only, and
+            never on an archived customer (no writes until restored). */}
+        {can("deleteTransaction") && !archived && (
+          <>
+            <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteTx(row);
+              }}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={`Delete ${row.type} of ₹${row.amount}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
     );
   };
@@ -648,6 +671,35 @@ export function CustomerDetailPage() {
         }}
         businessId={businessId}
         transaction={voidTx}
+      />
+
+      {/* v3 (S-54): the owner's hard delete. The ledger row is at hand,
+          so the dialog carries the balance sentence. */}
+      <DeleteTransactionDialog
+        open={!!deleteTx}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTx(null);
+        }}
+        businessId={businessId}
+        transaction={
+          deleteTx && {
+            id: deleteTx.id,
+            type: deleteTx.type,
+            amount: deleteTx.amount,
+            occurred_at: deleteTx.occurred_at,
+            customer_name: customer.name,
+            // balance_after is the running balance INCLUDING this row,
+            // so "before" is it with this row's effect taken back out.
+            balance_before:
+              deleteTx.type === "charge"
+                ? deleteTx.balance_after - deleteTx.amount
+                : deleteTx.balance_after + deleteTx.amount,
+            balance_after: deleteTx.balance_after,
+          }
+        }
+        onVoidInstead={() => {
+          if (deleteTx) setVoidTx(deleteTx);
+        }}
       />
     </div>
   );
