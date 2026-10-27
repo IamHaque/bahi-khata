@@ -531,7 +531,7 @@ describe("S-40 axe checks", () => {
       { session, route: paths.business("b1") },
     );
 
-    await screen.findByText("Total owes you");
+    await screen.findByRole("heading", { name: "Where you stand" });
     await expectNoSeriousViolations(container);
   });
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { Topbar } from "@/components/layout/Topbar";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
@@ -11,7 +12,7 @@ import {
   closeTransactionSheet as closeSheet,
   getTransactionSheetState,
 } from "@/features/transactions/sheetStore";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { paths, routePatterns, transactionsPath } from "@/lib/paths";
 import type { Memberships } from "@/features/business/api";
 import type { DashboardSummary } from "@/features/transactions/api";
@@ -142,12 +143,21 @@ function LocationProbe() {
   return <div data-testid="url">{location.search}</div>;
 }
 
+/** The LeaderRow (role=listitem) that carries this label. */
+function listRow(label: string): HTMLElement {
+  return screen.getByText(label).closest('[role="listitem"]') as HTMLElement;
+}
+
 function TopbarStub() {
   return (
     <>
       <Topbar
         title="Bahi Khata"
         collapsed={false}
+        // L-05: the shell hides the bar's copy on the Dashboard, where
+        // the PageHeader owns the one primary Add transaction. The stub
+        // mirrors that so "exactly one" is what these tests observe.
+        showAddTransaction={false}
         onToggleSidebar={() => {}}
         onOpenMenu={() => {}}
       />
@@ -200,6 +210,7 @@ beforeEach(() => {
       id: "t1",
       type: "payment",
       amount: 500,
+      note: "On account",
       occurred_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       customer_id: "c1",
       customer_name: "Asha Verma",
@@ -209,6 +220,7 @@ beforeEach(() => {
       id: "t2",
       type: "charge",
       amount: 1500,
+      note: null,
       occurred_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
       customer_id: "c9",
       customer_name: "Rahim Traders",
@@ -236,27 +248,40 @@ beforeEach(() => {
   dashboardApi.getActivityFeed.mockImplementation(async () => server.feed);
 });
 
-describe("S-36 dashboard v2", () => {
-  it("KPI cards read dashboard_summary in one scoped call, receivable largest", async () => {
+describe("L-06 dashboard as a ledger page", () => {
+  it("Where you stand reads dashboard_summary in one scoped call; the stat tiles are gone", async () => {
     renderPage();
 
-    expect(await screen.findByText("Total owes you")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Where you stand" }),
+    ).toBeTruthy();
     expect(transactionsApi.getDashboardSummary).toHaveBeenCalledWith("b1");
     expect(transactionsApi.getDashboardSummary).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Welcome, ollie")).toBeTruthy();
 
-    // The receivable is the largest card — the PRD pins it.
-    const receivable = screen.getByText("₹9,000.00");
-    expect(receivable.className).toContain("text-4xl");
-    expect(screen.getByText("Total you owe")).toBeTruthy();
-    expect(screen.getByText("₹1,200.00").className).toContain("text-2xl");
+    // The two balances as leader rows, receivable and credit coloured.
+    const owed = listRow("Owed to you");
+    expect(within(owed).getByText("4 open accounts")).toBeTruthy();
+    expect(within(owed).getByText("₹9,000.00").className).toContain(
+      "text-receivable",
+    );
+    const owe = listRow("You owe");
+    expect(within(owe).getByText("₹1,200.00").className).toContain(
+      "text-credit",
+    );
 
-    expect(screen.getByText("Open accounts")).toBeTruthy();
-    expect(screen.getByText("4")).toBeTruthy();
+    // The net position, under the single and double rule.
+    const net = listRow("Net position");
+    expect(within(net).getByText("₹7,800.00")).toBeTruthy();
 
-    expect(screen.getByText("Today's activity")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("Net ₹1,500.00")).toBeTruthy();
+    // Today's line, straight from the summary.
+    expect(screen.getByText(/Today: 3 entries, net/)).toBeTruthy();
+
+    // F-16: the four stat tiles (and their clipping text-4xl) are gone.
+    expect(screen.queryByText("Total owes you")).toBeNull();
+    expect(screen.queryByText("Total you owe")).toBeNull();
+    expect(screen.queryByText("Open accounts")).toBeNull();
+    expect(screen.queryByText("Today's activity")).toBeNull();
   });
 
   it("every KPI total equals the manual sum of the seed data (voided excluded)", async () => {
@@ -310,15 +335,15 @@ describe("S-36 dashboard v2", () => {
     };
     renderPage();
 
-    expect(await screen.findByText("Total owes you")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Where you stand" })).toBeTruthy();
     expect(screen.getByText(formatMoney(receivable))).toBeTruthy();
     expect(screen.getByText(formatMoney(credit))).toBeTruthy();
-    expect(screen.getByText(String(openAccounts))).toBeTruthy();
+    expect(screen.getByText(`${openAccounts} open accounts`)).toBeTruthy();
     // The voided charge is nowhere in any figure.
     expect(screen.queryByText(formatMoney(9500))).toBeNull();
   });
 
-  it("top outstanding: up to 8, avatar, balance and a link to detail", async () => {
+  it("top outstanding: up to 5, monogram, share of the total and a link to detail", async () => {
     server.summary.top_debtors = Array.from({ length: 9 }, (_, index) => {
       const rank = 9 - index;
       return { id: `d${rank}`, name: `Debtor ${rank}`, balance: rank * 1000 };
@@ -329,16 +354,37 @@ describe("S-36 dashboard v2", () => {
       name: "Top outstanding balances",
     });
     const items = within(list).getAllByRole("listitem");
-    expect(items).toHaveLength(8); // capped at 8
-    expect(items[0]!.getAttribute("href")).toBe(
+    expect(items).toHaveLength(5); // capped at 5
+    const topLink = within(items[0]!).getByRole("link", { name: "Debtor 9" });
+    expect(topLink.getAttribute("href")).toBe(
       paths.customerDetail("b1", "d9"),
     );
-    expect(within(items[0]!).getByText("Debtor 9")).toBeTruthy();
     expect(within(items[0]!).getByText("₹9,000.00")).toBeTruthy();
-    // The decorative initials avatar rides along.
-    expect(items[0]!.querySelector("span.rounded-full")).not.toBeNull();
+    // 9000 of a 9000 total is the whole pie, rounded.
+    expect(within(items[0]!).getByText("100% of the total")).toBeTruthy();
+    // The decorative monogram rides along.
+    expect(items[0]!.querySelector("span.rounded-sm")).not.toBeNull();
     // The ninth debtor never renders.
     expect(screen.queryByText("Debtor 1")).toBeNull();
+    expect(screen.queryByText("Debtor 4")).toBeNull();
+  });
+
+  it("Top outstanding shows each debtor's share of the total receivable", async () => {
+    server.summary = {
+      ...server.summary,
+      total_receivable: 309188.56,
+      top_debtors: [{ id: "c9", name: "Rahim Traders", balance: 237439 }],
+    };
+    renderPage();
+
+    const list = await screen.findByRole("list", {
+      name: "Top outstanding balances",
+    });
+    const item = within(list).getAllByRole("listitem")[0]!;
+    expect(within(item).getByText("77% of the total")).toBeTruthy();
+    expect(
+      within(item).getByRole("link", { name: "Rahim Traders" }).getAttribute("href"),
+    ).toBe(paths.customerDetail("b1", "c9"));
   });
 
   it("nobody owes anything: the calm All settled state", async () => {
@@ -350,7 +396,7 @@ describe("S-36 dashboard v2", () => {
     ).toBeTruthy();
   });
 
-  it("Today links through to the transactions page with identical count and net", async () => {
+  it("Today still opens Transactions filtered to today with identical count and net", async () => {
     server.totals = {
       period_start: null,
       entries: 3,
@@ -361,14 +407,18 @@ describe("S-36 dashboard v2", () => {
     renderPage();
 
     const todayLink = await screen.findByRole("link", {
-      name: /Today's activity/,
+      name: "Open today",
     });
     expect(todayLink.getAttribute("href")).toBe(
       transactionsPath("b1", { range: "today" }),
     );
     // The dashboard's own figures, before navigation.
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("Net ₹1,500.00")).toBeTruthy();
+    expect(screen.getByText(/Today: 3 entries, net/)).toBeTruthy();
+    expect(
+      within(screen.getByText(/Today: 3 entries, net/)).getByText(
+        "₹1,500.00",
+      ),
+    ).toBeTruthy();
 
     await userEvent.click(todayLink);
 
@@ -383,11 +433,11 @@ describe("S-36 dashboard v2", () => {
     expect(within(region).getByText("₹1,500.00")).toBeTruthy();
   });
 
-  it("owner: Add Transaction opens the shared sheet, Add customer the dialog", async () => {
+  it("owner: Add transaction opens the shared sheet, Add customer the dialog", async () => {
     renderPage();
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "Add Transaction" }),
+      await screen.findByRole("button", { name: "Add transaction" }),
     );
     expect(getTransactionSheetState()).toMatchObject({
       open: true,
@@ -405,6 +455,24 @@ describe("S-36 dashboard v2", () => {
     ).toBeTruthy();
   });
 
+  it("One primary action: exactly one Add transaction, in the page header", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "Where you stand" }),
+    ).toBeTruthy();
+    const buttons = screen.getAllByRole("button", {
+      name: "Add transaction",
+    });
+    expect(buttons).toHaveLength(1);
+    // It is not the top bar's copy — the bar is silent on the Dashboard.
+    expect(
+      within(screen.getByRole("banner")).queryByRole("button", {
+        name: "Add transaction",
+      }),
+    ).toBeNull();
+  });
+
   it("editor: quick actions work and first-run shows steps 1-2 but no invite", async () => {
     businessApi.getMemberships.mockImplementation(async () =>
       membershipsFor("editor"),
@@ -414,7 +482,7 @@ describe("S-36 dashboard v2", () => {
 
     expect(await screen.findByRole("button", { name: "Add customer" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Add Transaction" }),
+      screen.getByRole("button", { name: "Add transaction" }),
     ).toBeTruthy();
 
     // First-run: actionable steps 1 and 2, no invite step (Owner only).
@@ -437,12 +505,12 @@ describe("S-36 dashboard v2", () => {
     server.summary = { ...server.summary, customer_count: 0 };
     renderPage();
 
-    expect(await screen.findByText("Total owes you")).toBeTruthy();
+    expect(await screen.findByText("Owed to you")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Add customer" }),
     ).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Add Transaction" }),
+      screen.queryByRole("button", { name: "Add transaction" }),
     ).toBeNull();
 
     expect(screen.getByText("Add your first customer")).toBeTruthy();
@@ -481,7 +549,7 @@ describe("S-36 dashboard v2", () => {
     renderPage();
 
     expect(screen.getByRole("status", { name: "Loading dashboard" })).toBeTruthy();
-    expect(screen.queryByText("Total owes you")).toBeNull();
+    expect(screen.queryByText("Where you stand")).toBeNull();
     expect(screen.queryByText("₹9,000.00")).toBeNull();
   });
 
@@ -500,7 +568,9 @@ describe("S-36 dashboard v2", () => {
       async () => server.summary,
     );
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("Total owes you")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Where you stand" }),
+    ).toBeTruthy();
   });
 
   it("trend chart: server-aggregated days, text summary, hidden data table, selector re-reads", async () => {
@@ -571,37 +641,67 @@ describe("S-36 dashboard v2", () => {
     expect(await screen.findByText(/Last 7 days: charged/)).toBeTruthy();
   });
 
-  it("activity feed: sentences with links, and the Former member fallback", async () => {
+  it("day book: the last entries as a table, with links and the Former member fallback", async () => {
     renderPage();
 
-    expect(await screen.findByText("Recent activity")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Day book" })).toBeTruthy();
     expect(dashboardApi.getActivityFeed).toHaveBeenCalledWith("b1");
 
-    const feed = await screen.findByRole("region", { name: "Recent activity" });
-    const items = within(feed).getAllByRole("listitem");
-    expect(items).toHaveLength(2);
+    const card = screen
+      .getByRole("heading", { name: "Day book" })
+      .closest('[data-slot="card"]')!;
+    const table = within(card as HTMLElement).getByRole("table");
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(3); // header + two entries, newest first
 
-    // The PRD's sentence, in structure: "<creator> recorded a
-    // <type> of <amount> from <customer>, <when>".
-    expect(items[0]!.textContent).toContain("Eli recorded a payment of");
-    expect(items[0]!.textContent).toContain("₹500.00");
-    expect(items[0]!.textContent).toContain("2 hr ago");
+    // The payment (2 hr ago) leads; its customer links to the detail
+    // page and the note sits muted under the name.
+    const paymentRow = rows.find((row) =>
+      within(row).queryByText("Asha Verma"),
+    )!;
     expect(
-      within(items[0]!)
+      within(paymentRow)
         .getByRole("link", { name: "Asha Verma" })
         .getAttribute("href"),
     ).toBe(paths.customerDetail("b1", "c1"));
+    expect(within(paymentRow).getByText("On account")).toBeTruthy();
+    expect(within(paymentRow).getByText(/by Eli/)).toBeTruthy();
 
     // A creator who has since left reads "Former member" (the S-25
     // contract the transactions list already uses).
-    expect(items[1]!.textContent).toContain("Former member recorded a charge of");
-    expect(items[1]!.textContent).toContain("₹1,500.00");
+    const chargeRow = rows.find((row) =>
+      within(row).queryByText("Rahim Traders"),
+    )!;
+    expect(within(chargeRow).getByText(/by Former member/)).toBeTruthy();
     expect(
-      within(items[1]!).getByRole("link", { name: "Rahim Traders" }),
+      within(chargeRow).getByRole("link", { name: "Rahim Traders" }),
     ).toBeTruthy();
   });
 
-  it("activity feed: a fresh business gets a friendly empty state", async () => {
+  it("day book columns: a charge in Charged, a payment in Paid, dates formatted", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "Day book" });
+    const card = screen
+      .getByRole("heading", { name: "Day book" })
+      .closest('[data-slot="card"]')!;
+    const table = within(card as HTMLElement).getByRole("table");
+    const rows = within(table).getAllByRole("row").slice(1); // data rows only
+
+    const paymentCells = within(rows[0]!).getAllByRole("cell");
+    expect(paymentCells).toHaveLength(4);
+    expect(paymentCells[0]!.textContent).toBe(
+      formatDate(server.feed[0]!.occurred_at),
+    );
+    expect(paymentCells[2]!.textContent).toBe(""); // nothing charged
+    expect(within(paymentCells[3]!).getByText("₹500.00")).toBeTruthy();
+
+    const chargeCells = within(rows[1]!).getAllByRole("cell");
+    expect(within(chargeCells[2]!).getByText("₹1,500.00")).toBeTruthy();
+    expect(chargeCells[3]!.textContent).toBe(""); // nothing paid
+  });
+
+  it("day book: a fresh business gets a friendly empty state", async () => {
     server.feed = [];
     renderPage();
 
@@ -612,7 +712,7 @@ describe("S-36 dashboard v2", () => {
     ).toBeTruthy();
   });
 
-  it("activity feed: a failed read offers retry", async () => {
+  it("day book: a failed read offers retry", async () => {
     dashboardApi.getActivityFeed.mockImplementation(async () => {
       throw new Error("Feed exploded");
     });
@@ -622,5 +722,94 @@ describe("S-36 dashboard v2", () => {
     expect(
       await screen.findByRole("button", { name: "Try again" }),
     ).toBeTruthy();
+  });
+
+  it("PositionSheet: singular forms and the net arithmetic", async () => {
+    server.summary = {
+      ...server.summary,
+      total_receivable: 309188.56,
+      total_credit: 3202.33,
+      open_accounts: 1,
+      today_count: 1,
+      top_debtors: [],
+    };
+    renderPage();
+
+    await screen.findByRole("heading", { name: "Where you stand" });
+    const owed = listRow("Owed to you");
+    expect(within(owed).getByText("₹3,09,188.56").className).toContain(
+      "text-receivable",
+    );
+    expect(within(owed).getByText("1 open account")).toBeTruthy();
+    expect(screen.queryByText("1 open accounts")).toBeNull();
+
+    const owe = listRow("You owe");
+    expect(within(owe).getByText("₹3,202.33").className).toContain(
+      "text-credit",
+    );
+
+    const net = listRow("Net position");
+    expect(within(net).getByText("₹3,05,986.23")).toBeTruthy();
+
+    expect(screen.getByText(/Today: 1 entry, net/)).toBeTruthy();
+    expect(screen.queryByText(/Today: 1 entries/)).toBeNull();
+  });
+
+  it("trend chart fills: receivable and credit bars, swatches in the summary", async () => {
+    renderPage();
+
+    const chart = await screen.findByRole("region", {
+      name: "Charges and payments per day",
+    });
+    await waitFor(() => {
+      expect(
+        chart.querySelector('path[fill="var(--receivable)"]'),
+      ).not.toBeNull();
+    });
+    expect(chart.querySelector('path[fill="var(--credit)"]')).not.toBeNull();
+
+    // Two decorative swatches sit before "charged" and "paid".
+    const summary = screen.getByText(/Last 7 days: charged/);
+    expect(summary.querySelector("i.bg-receivable")).not.toBeNull();
+    expect(summary.querySelector("i.bg-credit")).not.toBeNull();
+  });
+});
+
+describe("L-06 axe in every dashboard state", () => {
+  it("data state", async () => {
+    const { container } = renderPage();
+
+    await screen.findByRole("heading", { name: "Where you stand" });
+    await expectNoSeriousViolations(container);
+  });
+
+  it("loading state", async () => {
+    transactionsApi.getDashboardSummary.mockImplementation(
+      () => new Promise(() => {}),
+    );
+    const { container } = renderPage();
+
+    expect(
+      screen.getByRole("status", { name: "Loading dashboard" }),
+    ).toBeTruthy();
+    await expectNoSeriousViolations(container);
+  });
+
+  it("error state", async () => {
+    transactionsApi.getDashboardSummary.mockImplementation(async () => {
+      throw new Error("Summary exploded");
+    });
+    const { container } = renderPage();
+
+    await screen.findByText("Summary exploded");
+    await expectNoSeriousViolations(container);
+  });
+
+  it("first-run state", async () => {
+    server.summary = { ...server.summary, customer_count: 0 };
+    const { container } = renderPage();
+
+    await screen.findByText("Getting started");
+    await expectNoSeriousViolations(container);
   });
 });

@@ -7,7 +7,8 @@ import {
   YAxis,
 } from "recharts";
 import { ErrorState } from "@/components/app/ErrorState";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { formatDayMonth, formatMoney } from "@/lib/format";
 import { useDailyActivity } from "../hooks";
 
@@ -25,13 +26,15 @@ function toLocalDate(day: string): Date {
 }
 
 /**
- * S-37 — the trend chart: charges and payments per day, aggregated
- * SERVER-side by migration 0007's daily_activity RPC (zero-filled,
- * voided out, archived customers out, days cut in the caller's own
- * timezone). The chart renders with the semantic chart tokens
- * (--chart-1/2), carries a visible text summary and an equivalent
- * visually hidden data table, and the 7/30/90 selector re-reads per
- * window. Empty and failing states are this section's own.
+ * S-37 / L-06 — the trend chart: charges and payments per day,
+ * aggregated SERVER-side by migration 0007's daily_activity RPC
+ * (zero-filled, voided out, archived customers out, days cut in the
+ * caller's own timezone). L-06: the bars are filled with the ledger
+ * tones (receivable / credit), the tops are square, the baseline is a
+ * ruled foreground line and the gridlines are dashed. The chart
+ * carries a visible text summary and an equivalent visually hidden
+ * data table, and the 7/30/90 selector re-reads per window. Empty and
+ * failing states are this section's own.
  */
 export function TrendChart({ businessId }: { businessId: string }) {
   const [days, setDays] = useState<Window>(7);
@@ -45,23 +48,27 @@ export function TrendChart({ businessId }: { businessId: string }) {
     rows.every((row) => row.charges === 0 && row.payments === 0);
 
   return (
-    <section
-      aria-label="Charges and payments per day"
-      className="rounded-xl border border-border bg-card p-4"
-    >
+    <Card className="p-6" role="region" aria-label="Charges and payments per day">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-heading text-sm font-medium text-foreground">Daily activity</h3>
+        {/* L-06: the 7/30/90 control as text tabs (L-04 style); labels
+            and aria-pressed unchanged. */}
         <div role="group" aria-label="Chart range" className="flex gap-1">
           {WINDOWS.map((option) => (
-            <Button
+            <button
               key={option}
-              variant={days === option ? "default" : "ghost"}
-              size="sm"
+              type="button"
               aria-pressed={days === option}
               onClick={() => setDays(option)}
+              className={cn(
+                "border-b-2 px-2 py-1.5 text-sm transition-colors",
+                days === option
+                  ? "border-foreground text-foreground font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
             >
               {option} days
-            </Button>
+            </button>
           ))}
         </div>
       </div>
@@ -95,10 +102,14 @@ export function TrendChart({ businessId }: { businessId: string }) {
 
       {rows !== undefined && !isEmpty && (
         <>
-          {/* The text summary the accessibility scenario asks for. */}
+          {/* The text summary the accessibility scenario asks for, with
+              decorative swatches before "charged" and "paid". */}
           <p className="mt-3 text-sm text-muted-foreground">
-            Last {days} days: charged {formatMoney(totalCharged)}, paid{" "}
-            {formatMoney(totalPaid)}.
+            Last {days} days:{" "}
+            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-receivable" />
+            charged {formatMoney(totalCharged)},{" "}
+            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-credit" />
+            paid {formatMoney(totalPaid)}.
           </p>
           <div className="mt-2 overflow-x-auto">
             <BarChart
@@ -107,12 +118,16 @@ export function TrendChart({ businessId }: { businessId: string }) {
               data={rows}
               margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
             >
-              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <CartesianGrid
+                vertical={false}
+                stroke="var(--border)"
+                strokeDasharray="2 5"
+              />
               <XAxis
                 dataKey="activity_date"
                 tickFormatter={(day: string) => formatDayMonth(toLocalDate(day))}
                 tickLine={false}
-                axisLine={false}
+                axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.5 }}
                 tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                 interval="preserveStartEnd"
                 minTickGap={days > 30 ? 24 : 8}
@@ -129,14 +144,19 @@ export function TrendChart({ businessId }: { businessId: string }) {
               <Bar
                 dataKey="charges"
                 name="Charges"
-                fill="var(--chart-1)"
-                radius={[2, 2, 0, 0]}
+                fill="var(--receivable)"
+                radius={0}
+                // The bars render their final geometry immediately: no
+                // entrance animation on a ledger figure (and the fills
+                // are assertable without waiting on rAF timing).
+                isAnimationActive={false}
               />
               <Bar
                 dataKey="payments"
                 name="Payments"
-                fill="var(--chart-2)"
-                radius={[2, 2, 0, 0]}
+                fill="var(--credit)"
+                radius={0}
+                isAnimationActive={false}
               />
             </BarChart>
           </div>
@@ -162,6 +182,6 @@ export function TrendChart({ businessId }: { businessId: string }) {
           </table>
         </>
       )}
-    </section>
+    </Card>
   );
 }

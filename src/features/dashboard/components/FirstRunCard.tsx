@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { EmptyState } from "@/components/app/EmptyState";
 import { Button } from "@/components/ui/button";
 import { paths } from "@/lib/paths";
 
@@ -12,11 +13,12 @@ interface FirstRunCardProps {
 }
 
 /**
- * S-36 first-run guidance: with zero customers the dashboard hands a
- * new business its opening moves instead of a wall of zeros. A step's
- * action renders only for a member who may take it — a Viewer reads
- * the guidance as plain text, an Editor gets steps 1 and 2 (the invite
- * step is the Owner's alone).
+ * S-36 / L-06 first-run guidance: with zero customers the dashboard
+ * hands a new business its opening moves instead of a wall of zeros —
+ * now as the blank ruled page of EmptyState. A step's action renders
+ * only for a member who may take it — a Viewer reads the guidance as
+ * plain text, an Editor gets steps 1 and 2 (the invite step is the
+ * Owner's alone).
  */
 export function FirstRunCard({
   businessId,
@@ -27,12 +29,8 @@ export function FirstRunCard({
   onAddTransaction,
 }: FirstRunCardProps) {
   return (
-    <section
-      aria-label="Getting started"
-      className="rounded-xl border border-border bg-card p-4"
-    >
-      <p className="text-sm font-medium text-foreground">Getting started</p>
-      <ul className="mt-3 space-y-2">
+    <EmptyState title="Getting started">
+      <ul className="space-y-2">
         <li className="flex items-center gap-2">
           <StepNumber n={1} />
           {canAddCustomer ? (
@@ -69,7 +67,7 @@ export function FirstRunCard({
           </li>
         )}
       </ul>
-    </section>
+    </EmptyState>
   );
 }
 

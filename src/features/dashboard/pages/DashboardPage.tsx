@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { ErrorState } from "@/components/app/ErrorState";
 import { PageHeader } from "@/components/app/PageHeader";
-import { StatCard } from "@/components/app/StatCard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/features/business/hooks";
@@ -10,24 +8,23 @@ import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { useDashboardSummary } from "@/features/transactions/hooks";
 import { openTransactionSheet } from "@/features/transactions/sheetStore";
-import { formatMoney } from "@/lib/format";
-import { paths, transactionsPath } from "@/lib/paths";
+import { transactionsPath } from "@/lib/paths";
+import { DayBook } from "../components/DayBook";
 import { FirstRunCard } from "../components/FirstRunCard";
+import { PositionSheet } from "../components/PositionSheet";
 import { TopOutstanding } from "../components/TopOutstanding";
 import { TrendChart } from "../components/TrendChart";
-import { ActivityFeed } from "../components/ActivityFeed";
 
 /**
- * S-36 — the business at a glance, every figure from the
- * dashboard_summary RPC (one scoped read): receivables, credit, open
- * accounts and today's count/net — voided transactions and archived
- * customers excluded at the source. The receivable is the number the
- * business came for, so it is the largest card; the Today card opens
- * the transactions page filtered to today with identical figures. The
- * v1 page's client-side sums and its today list are gone: this page
- * interprets nothing, it displays what the database computed. S-37
- * adds the trend chart and the activity feed as independent sections
- * below the summary, each with its own states.
+ * S-36 / L-06 — the dashboard as a ledger page: every figure from the
+ * dashboard_summary RPC (one scoped read: receivables, credit, open
+ * accounts, today's count/net — voided transactions and archived
+ * customers excluded at the source). The four stat tiles are gone
+ * (F-16: the text-4xl total clipped); the page is now two sheets —
+ * Where you stand and Top outstanding balances — over a row with the
+ * day book and the week chart, each of the latter two an independent
+ * read with its own states. The Today line opens Transactions filtered
+ * to today with identical figures.
  */
 export function DashboardPage() {
   const { user } = useAuth();
@@ -39,6 +36,8 @@ export function DashboardPage() {
   const data = summary.data;
   const userEmail = user?.email ? `, ${user.email.split("@")[0]}` : "";
   const userName = user?.user_metadata?.name ? `, ${user?.user_metadata?.name}` : "";
+  // The v2 "Today's activity" href, kept byte for byte.
+  const todayHref = transactionsPath(businessId, { range: "today" });
 
   return (
     <div className="space-y-6">
@@ -55,25 +54,31 @@ export function DashboardPage() {
         )}
         {can("manageTransactions") && (
           <Button onClick={() => openTransactionSheet()}>
-            Add Transaction
+            Add transaction
           </Button>
         )}
       </PageHeader>
 
       {summary.isPending && (
         <div className="space-y-6" role="status" aria-label="Loading dashboard">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((slot) => (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[0, 1].map((slot) => (
               <div
                 key={slot}
-                className="space-y-2 rounded-xl border border-border bg-card p-4"
+                className="rounded-lg border border-border bg-card p-6"
               >
-                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                <div className="h-8 w-32 animate-pulse rounded bg-muted" />
+                <div className="h-5 w-36 animate-pulse rounded bg-muted" />
+                <div className="mt-4 space-y-3">
+                  <div className="h-9 w-2/3 animate-pulse rounded bg-muted" />
+                  <div className="h-9 w-1/2 animate-pulse rounded bg-muted" />
+                </div>
               </div>
             ))}
           </div>
-          <div className="h-48 animate-pulse rounded-xl bg-muted" />
+          <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+            <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
+            <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
+          </div>
         </div>
       )}
 
@@ -101,72 +106,34 @@ export function DashboardPage() {
             />
           )}
 
-          <section
-            aria-label="Key figures"
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {/* The receivable is the largest card — the PRD pins it as
-                the figure the business came for. */}
-            <StatCard
-              label="Total owes you"
-              value={formatMoney(data.total_receivable)}
-              hint="Customers owe the business"
-              valueClassName="text-4xl text-receivable"
+          {/* L-06 row 1: where you stand, then the second sheet. Gate
+              G-A1 is pending, so Top outstanding balances is this
+              slot's final content. */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <PositionSheet
+              openAccounts={data.open_accounts}
+              totalReceivable={data.total_receivable}
+              totalCredit={data.total_credit}
+              todayCount={data.today_count}
+              todayNet={data.today_net}
+              todayHref={todayHref}
             />
-            <StatCard
-              label="Total you owe"
-              value={formatMoney(data.total_credit)}
-              hint="Business owes customers"
-              valueClassName="text-credit"
+            <TopOutstanding
+              businessId={businessId}
+              customers={data.top_debtors}
+              total={data.total_receivable}
             />
-            <StatCard
-              label="Open accounts"
-              value={data.open_accounts}
-              hint="Customers with a non-zero balance"
-            />
-            {/* S-36 "Today links through": the card itself opens the
-                transactions page filtered to today — both sides read
-                the same count and net (same exclusions at the source:
-                voided out, archived customers out). */}
-            <Link
-              to={transactionsPath(businessId, { range: "today" })}
-              className="group block rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              <StatCard
-                label="Today's activity"
-                value={data.today_count}
-                hint={`Net ${formatMoney(data.today_net)}`}
-                className="transition-colors group-hover:border-ring"
-              />
-            </Link>
-          </section>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-heading text-sm font-medium text-foreground">
-                Top outstanding balances
-              </h3>
-              <Link
-                to={paths.customers(businessId)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                View all
-              </Link>
-            </div>
-            <div className="mt-3">
-              <TopOutstanding
-                businessId={businessId}
-                customers={data.top_debtors}
-              />
-            </div>
           </div>
         </>
       )}
 
-      {/* S-37: two independent reads, each with its own states — they
-          render even when the summary above failed. */}
-      <TrendChart businessId={businessId} />
-      <ActivityFeed businessId={businessId} />
+      {/* L-06 row 2: the day book and the week chart — two independent
+          reads, each with its own states; they render even when the
+          summary above failed. */}
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <DayBook businessId={businessId} />
+        <TrendChart businessId={businessId} />
+      </div>
 
       <CustomerFormDialog
         open={customerFormOpen}
