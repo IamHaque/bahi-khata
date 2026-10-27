@@ -35,6 +35,9 @@ interface TopbarProps {
   onToggleSidebar: () => void;
   onOpenMenu: () => void;
   collapsed: boolean;
+  /** L-05: false on pages whose PageHeader already leads with Add
+   *  transaction, so the screen keeps exactly one primary action. */
+  showAddTransaction?: boolean;
 }
 
 export function Topbar({
@@ -42,6 +45,7 @@ export function Topbar({
   onToggleSidebar,
   onOpenMenu,
   collapsed,
+  showAddTransaction = true,
 }: TopbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
@@ -110,15 +114,19 @@ export function Topbar({
           )}
         </button>
 
-        <h1 className="font-heading min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-foreground">
+        {/* L-05: one page title. The top bar's copy is a paragraph for
+            mobile only; from lg up the page's h1 is the only title and
+            this spacer keeps the right-hand controls right-aligned. */}
+        <p className="min-w-0 flex-1 truncate text-base font-semibold lg:hidden">
           {title}
-        </h1>
+        </p>
+        <div className="hidden flex-1 lg:block" aria-hidden="true" />
 
         {/* Global search trigger (S-28) — opens the customer palette */}
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
+          className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
           aria-label="Search (Ctrl+K)"
         >
           <Search className="size-4" />
@@ -129,12 +137,13 @@ export function Topbar({
         </button>
 
         {/* Add transaction (S-32) — owner/editor only, anywhere in the
-            business. Opens the shared sheet with the picker first. */}
-        {businessId !== "" && can("manageTransactions") && (
+            business unless the page leads with it (L-05). Opens the
+            shared sheet with the picker first. */}
+        {showAddTransaction && businessId !== "" && can("manageTransactions") && (
           <button
             type="button"
             onClick={() => openTransactionSheet()}
-            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash"
+            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash"
             aria-label="Add transaction"
           >
             <Plus className="size-4" />

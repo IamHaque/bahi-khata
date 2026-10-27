@@ -1,16 +1,32 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/app/PageHeader";
 import { buildNavItems } from "@/components/layout/navConfig";
 import { paths, routePatterns } from "@/lib/paths";
+
+const businessApi = vi.hoisted(() => ({ getMemberships: vi.fn() }));
+vi.mock("@/features/business/api", () => ({
+  getMemberships: businessApi.getMemberships,
+}));
 
 const session = {
   user: { email: "asha@example.com" },
 } as unknown as Session;
+
+// The owner fixture makes the role gates observable: with it live, the
+// Import and Recently deleted links appear, proving permissions resolved.
+const ownerMemberships = {
+  businesses: [
+    { id: "biz1", name: "Rahim Traders", role: "owner", isOwner: true },
+  ],
+  invitations: [],
+};
 
 // The shell renders inside /b/:businessId (S-17); route is the pathname
 // under test.
@@ -18,23 +34,50 @@ function renderShell(options: { route?: string } = {}) {
   return renderApp(
     <Routes>
       <Route path={routePatterns.business} element={<AppShell />}>
-        <Route index element={<div>page</div>} />
+        {/* The index route carries a real PageHeader so the one-h1
+            assertion sees the page's own heading (L-05). */}
+        <Route index element={<PageHeader title="Dashboard" />} />
         <Route path="customers" element={<div>customers</div>} />
         <Route path="customers/:customerId" element={<div>customer</div>} />
+        <Route
+          path="customers/:customerId/statement"
+          element={<div>statement</div>}
+        />
+        <Route path="customers/import" element={<div>import</div>} />
         <Route path="transactions" element={<div>transactions</div>} />
+        <Route path="transactions/:transactionId" element={<div>tx</div>} />
+        <Route path="deleted" element={<div>deleted</div>} />
+        <Route path="members" element={<div>members</div>} />
+        <Route path="settings" element={<div>settings</div>} />
       </Route>
+      <Route path={routePatterns.businesses} element={<AppShell />} />
     </Routes>,
     { session, route: options.route ?? "/b/biz1" },
   );
 }
+
+beforeEach(() => {
+  businessApi.getMemberships.mockReset();
+  businessApi.getMemberships.mockResolvedValue({
+    businesses: [],
+    invitations: [],
+  });
+});
 
 describe("app shell", () => {
   it("renders sidebar navigation, business slot and top bar", () => {
     renderShell();
 
     // The switcher falls back to the app name while memberships are
-    // unavailable (S-26).
-    expect(screen.getByText("BahiKhata")).toBeTruthy();
+    // unavailable (S-26); the brand row always carries the wordmark
+    // (L-05), so scope the fallback to the trigger.
+    expect(
+      within(
+        screen.getByRole("button", {
+          name: "Switch business: BahiKhata Business",
+        }),
+      ).getByText("BahiKhata"),
+    ).toBeTruthy();
 
     // Sidebar nav — visible items only
     const nav = screen.getByRole("navigation", { name: "Main navigation" });
@@ -45,8 +88,11 @@ describe("app shell", () => {
     expect(screen.getAllByText("Members").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Settings").length).toBeGreaterThan(0);
 
-    // Top bar controls
-    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy();
+    // Top bar controls. L-05: the title is a paragraph in the bar, not
+    // a heading - the page's PageHeader owns the h1.
+    const banner = within(screen.getByRole("banner"));
+    expect(banner.getByText("Dashboard")).toBeTruthy();
+    expect(banner.getByText("Dashboard").tagName).toBe("P");
     expect(screen.getByLabelText("Search (Ctrl+K)")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Switch to dark mode" }),
@@ -70,9 +116,68 @@ describe("app shell", () => {
     ]);
   });
 
-  it("shows the page title for the current route", () => {
-    renderShell({ route: "/b/biz1/customers/c-1" });
-    expect(screen.getByRole("heading", { name: "Customers" })).toBeTruthy();
+  it("titles the top bar for every route, most specific first (L-05)", () => {
+    const cases: Array<[route: string, title: string]> = [
+      ["/b/biz1/customers/import", "Import"],
+      ["/b/biz1/customers/c-1/statement", "Statement"],
+      ["/b/biz1/customers/c-1", "Customer"],
+      ["/b/biz1/customers", "Customers"],
+      ["/b/biz1/transactions/t-1", "Transaction"],
+      ["/b/biz1/transactions", "Transactions"],
+      ["/b/biz1/deleted", "Recently deleted"],
+      ["/b/biz1/members", "Members"],
+      ["/b/biz1/settings", "Settings"],
+      ["/b/biz1", "Dashboard"],
+      ["/businesses", "My businesses"],
+    ];
+    for (const [route, expected] of cases) {
+      const rendered = renderShell({ route });
+      const banner = within(screen.getByRole("banner"));
+      expect(banner.getByText(expected).tagName).toBe("P");
+      rendered.unmount();
+    }
+  });
+
+  it("never titles the Import page Customers (L-05)", () => {
+    renderShell({ route: "/b/biz1/customers/import" });
+    const banner = within(screen.getByRole("banner"));
+    expect(banner.getByText("Import")).toBeTruthy();
+    expect(banner.queryByText("Customers")).toBeNull();
+  });
+
+  it("renders exactly one level-1 heading - the page's own (L-05)", () => {
+    renderShell();
+    const h1s = screen.getAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]!.textContent).toBe("Dashboard");
+  });
+
+  it("keeps one primary Add transaction: off in the bar on Dashboard, on elsewhere (L-05)", async () => {
+    businessApi.getMemberships.mockResolvedValue(ownerMemberships);
+
+    // Dashboard: permissions are demonstrably live (the owner sees the
+    // Import link) yet the top bar carries no Add transaction - the
+    // page's PageHeader owns the primary action.
+    const dashboard = renderShell({ route: "/b/biz1" });
+    await screen.findByRole("link", { name: "Import" });
+    expect(
+      within(screen.getByRole("banner")).queryByLabelText(
+        "Add transaction",
+      ),
+    ).toBeNull();
+    dashboard.unmount();
+
+    // Customers: the top bar shows the one Add transaction.
+    renderShell({ route: "/b/biz1/customers" });
+    await screen.findByRole("link", { name: "Import" });
+    expect(
+      within(screen.getByRole("banner")).getByLabelText("Add transaction"),
+    ).toBeTruthy();
+  });
+
+  it("is free of serious accessibility violations (L-05)", async () => {
+    const { container } = renderShell();
+    await expectNoSeriousViolations(container);
   });
 
   it("collapses the desktop sidebar to an icon rail", async () => {

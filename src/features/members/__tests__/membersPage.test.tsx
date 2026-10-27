@@ -224,6 +224,8 @@ describe("S-22 standard states", () => {
 
     // DataTable renders skeleton rows; the heading is there immediately.
     expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
+    // L-05: the PageHeader title is the page's only level-1 heading.
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByText("Asha Verma")).toBeNull();
   });
 

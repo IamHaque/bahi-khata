@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Outlet, useLocation, useParams } from "react-router-dom";
-import { paths } from "@/lib/paths";
+import { matchPath, Outlet, useLocation } from "react-router-dom";
+import { routePatterns } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { MobileDrawer, Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function AppShell() {
   const location = useLocation();
-  const { businessId } = useParams();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -16,18 +15,34 @@ export function AppShell() {
     setDrawerOpen(false);
   }, [location.pathname]);
 
+  // L-05: the one page title, most specific route first. Every pattern
+  // is matched with end:true so Import never reads as Customers and a
+  // transaction detail never reads as Transactions.
   const title = useMemo(() => {
     const pathname = location.pathname;
-    if (pathname === paths.businesses) return "My businesses";
-    if (!businessId) return "";
-    if (pathname === paths.business(businessId)) return "Dashboard";
-    if (pathname.startsWith(paths.customers(businessId))) return "Customers";
-    if (pathname.startsWith(paths.transactions(businessId)))
-      return "Transactions";
-    if (pathname === paths.members(businessId)) return "Members";
-    if (pathname === paths.settings(businessId)) return "Settings";
+    const is = (pattern: string) =>
+      matchPath({ path: pattern, end: true }, pathname) !== null;
+    if (is(routePatterns.importCustomers)) return "Import";
+    if (is(routePatterns.statement)) return "Statement";
+    if (is(routePatterns.customerDetail)) return "Customer";
+    if (is(routePatterns.customers)) return "Customers";
+    if (is(routePatterns.transactionDetail)) return "Transaction";
+    if (is(routePatterns.transactions)) return "Transactions";
+    if (is(routePatterns.deletedItems)) return "Recently deleted";
+    if (is(routePatterns.members)) return "Members";
+    if (is(routePatterns.settings)) return "Settings";
+    if (is(routePatterns.business)) return "Dashboard";
+    if (is(routePatterns.businesses)) return "My businesses";
     return "";
-  }, [location.pathname, businessId]);
+  }, [location.pathname]);
+
+  // L-05: one primary Add transaction per screen. The Dashboard and the
+  // transactions list already carry it in their PageHeader, so the top
+  // bar stays out of their way there.
+  const showAddTransaction = !(
+    matchPath({ path: routePatterns.business, end: true }, location.pathname) ||
+    matchPath({ path: routePatterns.transactions, end: true }, location.pathname)
+  );
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -43,7 +58,9 @@ export function AppShell() {
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 transition-[width] duration-150 lg:block print:hidden",
-          collapsed ? "w-16" : "w-60",
+          // L-05: the spine is 212px wide, so the active tab's edge is
+          // the main area's edge.
+          collapsed ? "w-16" : "w-[212px]",
         )}
       >
         <Sidebar collapsed={collapsed} />
@@ -56,6 +73,7 @@ export function AppShell() {
         <Topbar
           title={title}
           collapsed={collapsed}
+          showAddTransaction={showAddTransaction}
           onToggleSidebar={() => setCollapsed((c) => !c)}
           onOpenMenu={() => setDrawerOpen(true)}
         />
