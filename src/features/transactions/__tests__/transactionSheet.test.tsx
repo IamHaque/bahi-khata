@@ -459,10 +459,11 @@ describe("S-32 transaction sheet", () => {
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-    // The list refetched: her row's badge now says You owe 300.
+    // The list refetched: her row's balance now reads "you owe" under
+    // the toned amount (L-08 replaced the badge's label).
     await waitFor(() => {
       const scope = rowScopeNow("Asha Verma");
-      expect(scope.getByText("You owe")).toBeTruthy();
+      expect(scope.getByText("you owe")).toBeTruthy();
       expect(scope.getByText("₹300.00")).toBeTruthy();
     });
   });

@@ -33,6 +33,9 @@ export interface Column<T> {
   sortable?: boolean;
   render: (row: T) => React.ReactNode;
   sortValue?: (row: T) => string | number;
+  /** Classes for the header cell and its body cells — responsive
+   *  column hiding (`hidden md:table-cell`) rides here (L-08). */
+  className?: string;
 }
 
 export interface RowActionItem {
@@ -228,6 +231,7 @@ export function DataTable<T>({
                       (isActive
                         ? "cursor-pointer bg-accent-wash font-medium text-primary"
                         : "cursor-pointer hover:bg-accent-wash"),
+                    col.className,
                   )}
                   {...(col.sortable
                     ? {
@@ -267,6 +271,7 @@ export function DataTable<T>({
                   className={cn(
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
+                    col.className,
                   )}
                 >
                   {col.render(row)}
@@ -312,7 +317,10 @@ export function DataTable<T>({
                 {columns.map((col) => (
                   <TableHead
                     key={col.key}
-                    className="sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground"
+                    className={cn(
+                      "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
+                      col.className,
+                    )}
                   >
                     {col.header}
                   </TableHead>
@@ -324,7 +332,7 @@ export function DataTable<T>({
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={i}>
                   {columns.map((col) => (
-                    <TableCell key={col.key}>
+                    <TableCell key={col.key} className={col.className}>
                       <Skeleton className="h-4" />
                     </TableCell>
                   ))}
