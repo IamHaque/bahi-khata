@@ -235,7 +235,7 @@ describe("S-54 delete transaction entry points", () => {
       { session, route: "/b/b1/customers/c1" },
     );
 
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     await userEvent.click(
       screen.getByRole("button", { name: "Delete charge of ₹500.00" }),
     );

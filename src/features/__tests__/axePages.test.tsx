@@ -565,7 +565,7 @@ describe("S-40 axe checks", () => {
       { session, route: paths.customerDetail("b1", "c1") },
     );
 
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     await expectNoSeriousViolations(container);
   });
 

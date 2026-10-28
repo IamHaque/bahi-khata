@@ -188,14 +188,22 @@ function atDayStart(offsetDays: number): string {
 /** Open a customer's ledger and wait for the rows. */
 async function openLedger(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
+  await screen.findByRole("tab", { name: "Ledger" });
 }
 
-/** Scope to the ledger row that shows this amount. */
+/** Scope to the ledger body row whose Charged or Paid cell shows
+ *  exactly this amount (L-07: the column word carries the direction,
+ *  so numbers print unsigned; the totals row prints the same digits,
+ *  hence the tbody scope). */
 function rowScopeByAmount(amountText: string) {
-  const cell = screen.getByText(amountText);
-  const row = cell.closest("tr");
-  if (!row) throw new Error(`no <tr> containing ${amountText}`);
+  const row = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+  ).find(
+    (tr) =>
+      tr.cells[2]?.textContent?.trim() === amountText ||
+      tr.cells[3]?.textContent?.trim() === amountText,
+  );
+  if (!row) throw new Error(`no ledger row with amount ${amountText}`);
   return within(row);
 }
 
@@ -384,7 +392,7 @@ describe("S-33 edit transaction", () => {
 
     // The row keeps its place with the Edited badge…
     expect(screen.getByText("Edited")).toBeTruthy();
-    rowScopeByAmount("-₹450.00");
+    rowScopeByAmount("₹450.00");
     // …the balance recalculated and flashes…
     await waitFor(() =>
       expect(
@@ -408,7 +416,7 @@ describe("S-33 edit transaction", () => {
 
     // Hover or focus reads: 'Edited by Eli on 12 Oct 2026, …'. The
     // pill's wrapper carries the tooltip; the pill carries the text.
-    const eliBadge = rowScopeByAmount("-₹450.00")
+    const eliBadge = rowScopeByAmount("₹450.00")
       .getByText("Edited")
       .closest("span[title]");
     if (!eliBadge) throw new Error("badge wrapper with title not found");
@@ -419,7 +427,7 @@ describe("S-33 edit transaction", () => {
     expect(eliBadge.textContent).toContain(expected);
 
     // An editor whose profile is no longer readable degrades honestly.
-    const goneBadge = rowScopeByAmount("+₹5,000.00")
+    const goneBadge = rowScopeByAmount("₹5,000.00")
       .getByText("Edited")
       .closest("span[title]");
     expect(goneBadge?.getAttribute("title")).toContain(
@@ -532,7 +540,7 @@ describe("S-33 edit transaction", () => {
     expect(input).not.toHaveProperty("customer_id");
     // The row comes back edited — and still imported.
     await waitFor(() => expect(screen.getByText("Edited")).toBeTruthy());
-    rowScopeByAmount("+₹250.00");
+    rowScopeByAmount("₹250.00");
     expect(
       server.transactions.find((tx) => tx.id === "t9")?.source,
     ).toBe("import");
@@ -551,7 +559,7 @@ describe("S-33 edit transaction", () => {
     expect(
       screen.queryByRole("button", { name: /add transaction/i }),
     ).toBeNull();
-    screen.getByText("Current Balance");
-    rowScopeByAmount("+₹5,000.00");
+    screen.getByRole("tab", { name: "Ledger" });
+    rowScopeByAmount("₹5,000.00");
   });
 });

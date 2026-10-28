@@ -741,7 +741,7 @@ describe("S-40 keyboard-only journeys", () => {
     );
     const user = userEvent.setup();
 
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     await tabUntil(
       user,
       (element) =>

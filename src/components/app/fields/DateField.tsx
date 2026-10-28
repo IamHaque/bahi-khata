@@ -6,9 +6,12 @@ interface DateFieldProps {
   name: string;
   label: string;
   autoFocus?: boolean;
+  /** Overrides the generated input/error ids when two forms with the
+   *  same field names can share a page (L-07 quick-add vs the sheet). */
+  idPrefix?: string;
 }
 
-export function DateField({ name, label, autoFocus }: DateFieldProps) {
+export function DateField({ name, label, autoFocus, idPrefix }: DateFieldProps) {
   const {
     control,
     formState: { errors },
@@ -21,9 +24,9 @@ export function DateField({ name, label, autoFocus }: DateFieldProps) {
       control={control}
       render={({ field }) => (
         <div className="space-y-1.5">
-          <Label htmlFor={`${name}-date`}>{label}</Label>
+          <Label htmlFor={`${idPrefix ?? name}-date`}>{label}</Label>
           <Input
-            id={`${name}-date`}
+            id={`${idPrefix ?? name}-date`}
             type="date"
             autoFocus={autoFocus}
             aria-invalid={!!error}

@@ -601,7 +601,7 @@ describe("S-55 delete customer from the detail page", () => {
       </>,
       { session, route: paths.customerDetail("b1", customerId) },
     );
-    return screen.findByText("Current Balance");
+    return screen.findByRole("tab", { name: "Ledger" });
   }
 
   async function openCustomerActionsMenu() {

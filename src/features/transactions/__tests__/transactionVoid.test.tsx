@@ -186,19 +186,22 @@ function isoDay(offsetDays: number): string {
 /** Open a customer's ledger and wait for the rows. */
 async function openLedger(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
+  await screen.findByRole("tab", { name: "Ledger" });
 }
 
-/** The ledger row that shows this amount. The amount and the
- *  Balance-after column can print the same number (L-03), so pick the
- *  Money cell — the one carrying the aria-label. */
+/** Scope to the ledger body row whose Charged or Paid cell shows
+ *  exactly this amount (L-07: the column word carries the direction,
+ *  so the numbers print unsigned; the totals row prints the same
+ *  digits, hence the tbody scope). */
 function rowElementByAmount(amountText: string) {
-  const cell = screen
-    .getAllByText(amountText)
-    .find((el) => el.hasAttribute("aria-label"));
-  if (!cell) throw new Error(`no amount cell containing ${amountText}`);
-  const row = cell.closest("tr");
-  if (!row) throw new Error(`no <tr> containing ${amountText}`);
+  const row = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+  ).find(
+    (tr) =>
+      tr.cells[2]?.textContent?.trim() === amountText ||
+      tr.cells[3]?.textContent?.trim() === amountText,
+  );
+  if (!row) throw new Error(`no ledger row with amount ${amountText}`);
   return row;
 }
 
@@ -375,9 +378,9 @@ describe("S-34 void and restore transactions", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     // The row stays visible: muted badge, struck-through amount…
-    const row = rowElementByAmount("-₹500.00");
+    const row = rowElementByAmount("₹500.00");
     within(row).getByText("Voided");
-    const amount = screen.getByText("-₹500.00");
+    const amount = within(row).getByText("₹500.00");
     expect(amount.className).toContain("line-through");
     // …the balance stopped counting it and flashes the new number…
     await waitFor(() =>
@@ -466,7 +469,7 @@ describe("S-34 void and restore transactions", () => {
     await waitFor(() =>
       expect(server.transactions[0]!.status).toBe("edited"),
     );
-    within(rowElementByAmount("-₹450.00")).getByText("Edited");
+    within(rowElementByAmount("₹450.00")).getByText("Edited");
     expect(toast.success).toHaveBeenLastCalledWith("Transaction restored.");
 
     await userEvent.click(
@@ -476,7 +479,7 @@ describe("S-34 void and restore transactions", () => {
       expect(server.transactions[1]!.status).toBe("active"),
     );
     // No markers at all: neither badge.
-    const row = rowElementByAmount("+₹5,000.00");
+    const row = rowElementByAmount("₹5,000.00");
     expect(within(row).queryByText("Edited")).toBeNull();
     expect(within(row).queryByText("Voided")).toBeNull();
   });
@@ -516,8 +519,8 @@ describe("S-34 void and restore transactions", () => {
       screen.queryByRole("button", { name: /restore (charge|payment)/i }),
     ).toBeNull();
     // Rows stay readable.
-    screen.getByText("Current Balance");
-    expect(rowElementByAmount("+₹5,000.00")).toBeTruthy();
+    screen.getByRole("tab", { name: "Ledger" });
+    expect(rowElementByAmount("₹5,000.00")).toBeTruthy();
   });
 
   it("transaction detail: voids with the page's button, shows the reason, restores, and edits through the shared sheet", async () => {

@@ -191,13 +191,21 @@ function rowScopeNow(name: string) {
   return within(row);
 }
 
+/** The hero's Add charge button — the quick-add card carries its own
+ *  copy of the same label. */
+function heroAddCharge() {
+  const header = screen.getByRole("heading", { level: 2 }).closest("header");
+  if (!header) throw new Error("no customer header");
+  return within(header as HTMLElement).getByRole("button", {
+    name: "Add charge",
+  });
+}
+
 /** Open the customer's ledger and press its Add charge button. */
 async function openLedgerSheet(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Add charge" }),
-  );
+  await screen.findByRole("tab", { name: "Ledger" });
+  await userEvent.click(heroAddCharge());
   return screen.findByRole("dialog");
 }
 
@@ -400,10 +408,10 @@ describe("S-32 transaction sheet", () => {
     // …and the new row sits at the top of her ledger, above the old one.
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     const newIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹500.00"),
+      (row.textContent ?? "").includes("₹500.00"),
     );
     const oldIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹5,000.00"),
+      (row.textContent ?? "").includes("₹5,000.00"),
     );
     expect(newIdx).toBeGreaterThan(-1);
     expect(oldIdx).toBeGreaterThan(-1);
@@ -610,10 +618,8 @@ describe("S-32 transaction sheet", () => {
 
   it("keyboard flow: Amount focused on open and Enter saves", async () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add charge" }),
-    );
+    await screen.findByRole("tab", { name: "Ledger" });
+    await userEvent.click(heroAddCharge());
     const dialog = await screen.findByRole("dialog");
     await waitFor(() =>
       expect(document.activeElement?.id).toBe("amount-money"),
@@ -630,8 +636,8 @@ describe("S-32 transaction sheet", () => {
 
   it("Escape closes the clean sheet and focus returns to the trigger", async () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
-    const trigger = screen.getByRole("button", { name: "Add charge" });
+    await screen.findByRole("tab", { name: "Ledger" });
+    const trigger = heroAddCharge();
     await userEvent.click(trigger);
     await screen.findByRole("dialog");
 
@@ -679,7 +685,7 @@ describe("S-32 transaction sheet", () => {
       membershipsFor("viewer"),
     );
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     // Neither the ledger button nor the top bar's (case-insensitive so
     // both spellings are covered).
     expect(screen.queryByRole("button", { name: /add transaction/i })).toBeNull();
