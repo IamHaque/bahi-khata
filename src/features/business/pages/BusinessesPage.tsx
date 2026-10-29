@@ -6,8 +6,10 @@ import { InvitationCard } from "@/features/members/components/InvitationCard";
 import type { BusinessSummary } from "@/features/business/api";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { EmptyState } from "@/components/app/EmptyState";
 import { ErrorState } from "@/components/app/ErrorState";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 
 function roleLabel(role: string): string {
@@ -26,7 +28,7 @@ function BusinessCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+    <Card className="flex items-center justify-between gap-4 p-4">
       <div className="min-w-0 space-y-1">
         <p className="truncate text-sm font-semibold text-foreground">
           {business.name}
@@ -38,10 +40,10 @@ function BusinessCard({
         </p>
         <StatusBadge label={roleLabel(business.role)} />
       </div>
-      <Button variant="outline" size="sm" onClick={onOpen}>
+      <Button size="sm" onClick={onOpen}>
         Open
       </Button>
-    </div>
+    </Card>
   );
 }
 
@@ -70,7 +72,7 @@ export function BusinessesPage() {
 
       {isLoading ? (
         <div role="status" aria-label="Loading your businesses">
-          <div className="h-24 animate-pulse rounded-xl bg-muted" />
+          <div className="h-24 animate-pulse rounded-lg bg-muted" />
         </div>
       ) : !data ? (
         <ErrorState
@@ -100,7 +102,7 @@ export function BusinessesPage() {
                 ))}
               </ul>
             ) : (
-              <div className="rounded-xl border border-dashed border-primary/40 bg-card px-6 py-10 text-center">
+              <div className="rounded-lg border border-dashed border-primary/40 bg-card px-6 py-10 text-center">
                 <p className="text-base font-semibold text-foreground">
                   Create your business
                 </p>
@@ -137,9 +139,10 @@ export function BusinessesPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No businesses shared with you yet.
-              </p>
+              <EmptyState
+                title="No businesses shared with you yet."
+                description="Ask an owner to invite your Google email."
+              />
             )}
           </section>
 
@@ -159,9 +162,7 @@ export function BusinessesPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No pending invitations.
-              </p>
+              <EmptyState title="No pending invitations." />
             )}
           </section>
         </>

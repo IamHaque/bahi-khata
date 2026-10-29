@@ -85,9 +85,8 @@ export function DeletedItemsPage() {
             <ArrowLeftRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
           <div>
-            <span
-              className={entry.restored_at ? "text-muted-foreground" : ""}
-            >
+            {/* L-11: the removed item's name reads as struck out. */}
+            <span className="line-through text-muted-foreground">
               {entry.label}
             </span>
             {entry.entity_type === "customer" &&

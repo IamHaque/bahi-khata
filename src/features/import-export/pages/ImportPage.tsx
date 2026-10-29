@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload } from "lucide-react";
+import { Check, Upload } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { LeaderRow } from "@/components/app/LeaderRow";
 import { PageHeader } from "@/components/app/PageHeader";
+import { StatusBadge } from "@/components/app/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
@@ -262,9 +264,17 @@ export function ImportPage() {
         </Button>
       </PageHeader>
 
+      {/* L-11: the flow really is a sequence — current step in primary,
+          finished steps ticked in success, upcoming steps muted. */}
       <ol className="flex flex-wrap gap-4 text-sm" aria-label="Import steps">
         {STEP_LABELS.map((label, index) => {
-          const current = STEP_ORDER[step] === index;
+          const state =
+            STEP_ORDER[step] > index
+              ? "done"
+              : STEP_ORDER[step] === index
+                ? "current"
+                : "upcoming";
+          const current = state === "current";
           return (
             <li
               key={label}
@@ -282,10 +292,12 @@ export function ImportPage() {
                   "flex size-5 items-center justify-center rounded-full text-xs",
                   current
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
+                    : state === "done"
+                      ? "bg-success/10 text-success dark:bg-success/8"
+                      : "bg-muted text-muted-foreground",
                 )}
               >
-                {index + 1}
+                {state === "done" ? <Check className="size-3" /> : index + 1}
               </span>
               {label}
             </li>
@@ -294,10 +306,10 @@ export function ImportPage() {
       </ol>
 
       {step === "upload" && (
-        <section className="rounded-xl border border-border bg-card p-6">
+        <section className="rounded-lg border border-border bg-card p-6">
           <label
             htmlFor="import-file"
-            className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border p-8 text-center hover:bg-accent-wash"
+            className="flex cursor-pointer flex-col items-center gap-2 rounded-sm border border-dashed border-input bg-card p-8 text-center hover:bg-accent-wash"
           >
             <Upload aria-hidden className="size-6 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">
@@ -333,7 +345,7 @@ export function ImportPage() {
 
       {step === "review" && validation && (
         <section className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
             <p>
               <span className="font-medium text-foreground">{fileName}</span>{" "}
               — {validation.validRows.length} valid transactions across{" "}
@@ -348,7 +360,25 @@ export function ImportPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          {/* L-11: the three leader rows, above the summary table. */}
+          <div className="rounded-lg border border-border bg-card px-4 py-1">
+            <div role="list">
+              <LeaderRow
+                label="Valid transactions"
+                amount={validation.validRows.length}
+              />
+              <LeaderRow
+                label="Customers"
+                amount={validation.customers.length}
+              />
+              <LeaderRow
+                label="Problems"
+                amount={validation.invalidRows.length}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
             <h3 className="font-heading text-sm font-medium text-foreground">
               Per-customer summary
             </h3>
@@ -400,8 +430,11 @@ export function ImportPage() {
                     >
                       {formatMoney(customer.resultingBalance)}
                     </td>
-                    <td className="py-2 text-muted-foreground">
-                      {customer.existing ? "Existing" : "New"}
+                    <td className="py-2">
+                      <StatusBadge
+                        label={customer.existing ? "Existing" : "New"}
+                        tone={customer.existing ? "muted" : "neutral"}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -410,7 +443,7 @@ export function ImportPage() {
           </div>
 
           {validation.invalidRows.length > 0 && (
-            <div className="rounded-xl border border-destructive/40 bg-card p-4">
+            <div className="rounded-lg border border-destructive/40 bg-card p-4">
               <h3 className="font-heading text-sm font-medium text-destructive">
                 Rows with errors ({validation.invalidRows.length})
               </h3>
@@ -447,6 +480,10 @@ export function ImportPage() {
             </div>
           )}
 
+          <p className="text-sm font-medium text-foreground">
+            Nothing is saved until you click Import. It is all-or-nothing.
+          </p>
+
           <div className="flex flex-wrap items-center gap-3">
             {validation.validRows.length > 0 ? (
               <>
@@ -473,7 +510,7 @@ export function ImportPage() {
       )}
 
       {step === "importing" && (
-        <section className="rounded-xl border border-border bg-card p-6 text-sm">
+        <section className="rounded-lg border border-border bg-card p-6 text-sm">
           {importError ? (
             <div className="space-y-4">
               <p role="alert" className="text-destructive">
@@ -500,7 +537,7 @@ export function ImportPage() {
       )}
 
       {step === "done" && validation && importMutation.data && (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-6">
+        <section className="space-y-4 rounded-lg border border-border bg-card p-6">
           <h3 className="font-heading text-base font-semibold text-foreground">
             {validation.invalidRows.length > 0
               ? "Partial import complete"

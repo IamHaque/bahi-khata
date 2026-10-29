@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toAppError, type AppError } from "@/lib/AppError";
 import { paths } from "@/lib/paths";
@@ -81,22 +81,30 @@ export function DangerZone({
   return (
     <section
       aria-label="Danger zone"
-      className="max-w-2xl rounded-lg border border-destructive/30 p-4"
+      className="border-t border-border py-6"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h3 className="font-heading flex items-center gap-2 text-sm font-semibold text-foreground">
-            <AlertTriangle className="size-4 text-destructive" aria-hidden />
-            Danger zone
+      {/* L-11 (section 5.5): a ledger card topped with the totals rule
+          and a credit-coloured title; the typed-confirmation dialog
+          below is unchanged. */}
+      <div className="w-full max-w-xl rounded-lg border border-border bg-card">
+        <div className="totals-rule" />
+        <div className="p-4">
+          <h3 className="font-heading text-base font-semibold text-credit">
+            Delete business
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Deleting {businessName} removes its customers, transactions,
             members and invitations permanently.
           </p>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="mt-3"
+            onClick={() => setOpen(true)}
+          >
+            Delete business
+          </Button>
         </div>
-        <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
-          Delete business
-        </Button>
       </div>
 
       <Dialog
