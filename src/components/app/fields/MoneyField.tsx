@@ -1,6 +1,7 @@
 import { Controller, useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface MoneyFieldProps {
   name: string;
@@ -13,6 +14,8 @@ interface MoneyFieldProps {
    * the transaction sheet both have an `amount` field).
    */
   idPrefix?: string;
+  /** Extra classes for the input itself (L-10's hero amount). */
+  inputClassName?: string;
 }
 
 export function MoneyField({
@@ -21,6 +24,7 @@ export function MoneyField({
   placeholder = "0.00",
   autoFocus,
   idPrefix,
+  inputClassName,
 }: MoneyFieldProps) {
   const {
     control,
@@ -48,11 +52,13 @@ export function MoneyField({
               type="number"
               min="0"
               step="0.01"
+              // The numeric keypad a money field deserves (L-10).
+              inputMode="decimal"
               placeholder={placeholder}
               autoFocus={autoFocus}
               aria-invalid={!!error}
               aria-describedby={error ? errorId : undefined}
-              className="pl-7 tabular-nums"
+              className={cn("pl-7 tabular-nums", inputClassName)}
               value={value ?? ""}
               onChange={(e) =>
                 onChange(e.target.value === "" ? "" : Number(e.target.value))

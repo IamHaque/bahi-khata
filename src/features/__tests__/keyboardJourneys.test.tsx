@@ -270,17 +270,19 @@ function TopbarStub() {
 /**
  * Tab from wherever focus is until `predicate` accepts
  * document.activeElement. Bounded — never an infinite loop.
+ * Pass `shift` to walk backwards.
  */
 async function tabUntil(
   user: UserEvent,
   predicate: (element: Element | null) => boolean,
   label: string,
   maxTabs = 60,
+  shift = false,
 ): Promise<HTMLElement> {
   for (let attempt = 0; attempt <= maxTabs; attempt += 1) {
     const active = document.activeElement;
     if (predicate(active)) return active as HTMLElement;
-    await user.tab();
+    await user.tab({ shift });
   }
   throw new Error(`Tabbing never reached ${label} (${maxTabs} tabs)`);
 }
@@ -681,11 +683,21 @@ describe("S-40 keyboard-only journeys", () => {
       expect(document.activeElement?.id).toBe("amount-money"),
     );
 
-    // The searchable customer picker comes first in the form.
+    // The searchable customer picker comes first in the form — before
+    // Amount, which is where focus lands on open. Shift+Tab walks
+    // backwards from Amount (Paid, Charged, picker) and stays inside
+    // the dialog; tabbing forwards would wrap around the page
+    // background, where the modal's focus trap can grab focus first.
     const picker = within(dialog).getByRole("button", {
       name: "Select customer...",
     });
-    await tabUntil(user, (element) => element === picker, "the picker");
+    await tabUntil(
+      user,
+      (element) => element === picker,
+      "the picker",
+      10,
+      true,
+    );
     await user.keyboard("{Enter}");
 
     const search = await screen.findByPlaceholderText("Search customers...");

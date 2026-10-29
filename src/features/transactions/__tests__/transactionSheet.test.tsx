@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { Topbar } from "@/components/layout/Topbar";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
@@ -344,24 +345,30 @@ describe("S-32 transaction sheet", () => {
   it("adds a charge from the ledger: focused amount, live preview, row on top, balance flashes", async () => {
     const dialog = await openLedgerSheet();
 
-    // Amount is focused on open, with Charge selected and the footer
+    // Amount is focused on open, with Charged selected and the footer
     // button speaking in the same type.
     await waitFor(() =>
       expect(document.activeElement?.id).toBe("amount-money"),
     );
     expect(
       within(dialog)
-        .getByRole("radio", { name: "Charge" })
+        .getByRole("radio", { name: "Charged" })
         .getAttribute("aria-checked"),
     ).toBe("true");
     within(dialog).getByRole("button", { name: "Add charge" });
 
-    // Live preview: the 1000 owed today, then the result while typing.
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("₹1,000.00");
+    // The amount is the hero of the form (L-10): the largest type in it.
+    expect(
+      (within(dialog).getByLabelText("Amount") as HTMLElement).className,
+    ).toContain("text-3xl");
+
+    // Live preview (L-10): nothing until a valid amount is typed, then
+    // the one line naming the customer and the balance to come.
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
     await userEvent.type(within(dialog).getByLabelText("Amount"), "500");
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("₹1,500.00");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹1,500.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add charge" }),
@@ -432,17 +439,16 @@ describe("S-32 transaction sheet", () => {
     const dialog = await screen.findByRole("dialog");
     // Preselected from the row: the picker already shows her name.
     within(dialog).getByRole("button", { name: "Asha Verma" });
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("Owes you");
 
     await userEvent.click(
-      within(dialog).getByRole("radio", { name: "Payment" }),
+      within(dialog).getByRole("radio", { name: "Paid" }),
     );
     await userEvent.type(within(dialog).getByLabelText("Amount"), "1300");
-    // The preview flips to credit while I type: You owe 300.
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("You owe");
-    within(dialog).getByText("₹300.00");
+    // The preview flips to credit while I type: a payment of 1300
+    // against the 1000 owed leaves her in credit.
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: -₹300.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add payment" }),
@@ -592,7 +598,7 @@ describe("S-32 transaction sheet", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // …and there is no preview until a customer is chosen.
-    expect(within(dialog).queryByText("Current balance")).toBeNull();
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
 
     // Open the searchable picker and choose Asha.
     await userEvent.click(picker);
@@ -601,11 +607,15 @@ describe("S-32 transaction sheet", () => {
       within(listbox).getByRole("option", { name: /Asha/ }),
     );
 
-    // Same fields, now with the live preview for the chosen customer.
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("Owes you");
+    // Still no preview without a valid amount (L-10 shows it only for
+    // a customer AND a figure above zero)…
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
 
+    // …then the live line once the amount is typed.
     await userEvent.type(within(dialog).getByLabelText("Amount"), "500");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹1,500.00"),
+    ).toBeTruthy();
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add charge" }),
     );
@@ -690,5 +700,33 @@ describe("S-32 transaction sheet", () => {
     // Neither the ledger button nor the top bar's (case-insensitive so
     // both spellings are covered).
     expect(screen.queryByRole("button", { name: /add transaction/i })).toBeNull();
+  });
+
+  it("date chips set Today and Yesterday on the untouched Date field, Pick date focuses it", async () => {
+    const dialog = await openLedgerSheet();
+    const dateInput = within(dialog).getByLabelText("Date") as HTMLInputElement;
+    expect(dateInput.value).toBe(isoDay(0));
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Yesterday" }),
+    );
+    expect(dateInput.value).toBe(isoDay(-1));
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Today" }),
+    );
+    expect(dateInput.value).toBe(isoDay(0));
+
+    // Pick date drops focus into the real field — the chip is a
+    // shortcut, never a second source of validation.
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Pick date" }),
+    );
+    expect(document.activeElement).toBe(dateInput);
+  });
+
+  it("the open add sheet passes axe", async () => {
+    const dialog = await openLedgerSheet();
+    await expectNoSeriousViolations(dialog);
   });
 });

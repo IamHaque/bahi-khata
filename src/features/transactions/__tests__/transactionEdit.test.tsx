@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { Topbar } from "@/components/layout/Topbar";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { paths, routePatterns } from "@/lib/paths";
@@ -344,7 +345,7 @@ describe("S-33 edit transaction", () => {
       (within(dialog).getByLabelText("Amount") as HTMLInputElement).value,
     ).toBe("500");
     expect(
-      within(dialog).getByRole("radio", { name: "Payment" }).getAttribute("aria-checked"),
+      within(dialog).getByRole("radio", { name: "Paid" }).getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       (within(dialog).getByLabelText("Date") as HTMLInputElement).value,
@@ -360,15 +361,15 @@ describe("S-33 edit transaction", () => {
     within(dialog).getByText("Asha Verma");
 
     // The preview knows the balance already contains this entry: it
-    // removes the old 500 payment and adds the new 450 — while the
-    // amounts are still equal both strips read the same, so the check
-    // lands after typing.
-    within(dialog).getByText("Current balance");
+    // removes the old 500 payment and adds the new 450 — with the
+    // amounts still equal it reads the unchanged balance, so the
+    // check lands after typing.
     const amount = within(dialog).getByLabelText("Amount");
     await userEvent.clear(amount);
     await userEvent.type(amount, "450");
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("₹4,550.00");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹4,550.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Save changes" }),
@@ -475,9 +476,9 @@ describe("S-33 edit transaction", () => {
     ).toBeTruthy();
     expect(transactionsApi.updateTransaction).not.toHaveBeenCalled();
 
-    // Type IS editable: switch to Charge and correct everything.
+    // Type IS editable: switch to Charged and correct everything.
     await userEvent.click(
-      within(dialog).getByRole("radio", { name: "Charge" }),
+      within(dialog).getByRole("radio", { name: "Charged" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Amount"), {
       target: { value: "600" },
@@ -561,5 +562,15 @@ describe("S-33 edit transaction", () => {
     ).toBeNull();
     screen.getByRole("tab", { name: "Ledger" });
     rowScopeByAmount("₹5,000.00");
+  });
+
+  it("the open edit sheet passes axe", async () => {
+    await openLedger();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("Edit transaction");
+    await expectNoSeriousViolations(dialog);
   });
 });

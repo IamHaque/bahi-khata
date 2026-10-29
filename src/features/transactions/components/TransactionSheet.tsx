@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { EntityDialog } from '@/components/app/EntityDialog';
-import { BalanceBadge } from '@/components/app/BalanceBadge';
-import { SegmentedField } from '@/components/app/fields/SegmentedField';
 import { MoneyField } from '@/components/app/fields/MoneyField';
 import { DateField } from '@/components/app/fields/DateField';
 import { TextField } from '@/components/app/fields/TextField';
@@ -10,7 +8,10 @@ import { TextAreaField } from '@/components/app/fields/TextAreaField';
 import { Label } from '@/components/ui/label';
 import { CustomerCombobox } from '@/components/CustomerCombobox';
 import { CustomerFormDialog } from '@/features/customers/components/CustomerFormDialog';
+import { useCustomer } from '@/features/customers/hooks';
+import { formatMoney } from '@/lib/format';
 import { toastSuccess } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 import {
   useCreateTransaction,
   useCustomerBalance,
@@ -20,6 +21,8 @@ import {
   transactionEditFormValues,
   transactionFormValues,
   transactionSchema,
+  todayISO,
+  yesterdayISO,
   type TransactionForm,
 } from '../schemas';
 import type { SheetCustomer } from '../sheetStore';
@@ -151,21 +154,25 @@ export function TransactionSheet({
             }}
           />
         )}
+        {/* L-10 (a): the two-choice type control — the words a
+            bookkeeper uses, at thumb size. */}
+        <TypeChoice />
+        {/* L-10 (b): the amount is the hero of this form. */}
+        <MoneyField
+          name="amount"
+          label="Amount"
+          autoFocus
+          inputClassName="font-display text-3xl font-bold tabular-nums"
+        />
+        {/* L-10 (c): what this entry makes the balance, before saving. */}
         <BalancePreview
           businessId={businessId}
           replaceOf={
             edited ? { type: edited.type, amount: edited.amount } : null
           }
         />
-        <SegmentedField
-          name="type"
-          label="Type"
-          options={[
-            { value: 'charge', label: 'Charge' },
-            { value: 'payment', label: 'Payment' },
-          ]}
-        />
-        <MoneyField name="amount" label="Amount" autoFocus />
+        {/* L-10 (d): quick date chips over the untouched Date field. */}
+        <DateChips />
         <div className="grid grid-cols-2 gap-3">
           <DateField name="occurred_on" label="Date" />
           <TextField name="occurred_at_time" label="Time" type="time" />
@@ -250,12 +257,102 @@ function CustomerField({
 }
 
 /**
- * Live preview: the current balance and what this entry makes it.
- * Mounted only once a customer is chosen so the balance query never
- * runs for an empty id. In edit mode (`replaceOf`) the balance already
- * contains the entry being corrected, so "after" removes its old
- * effect and adds the new one — the recalculated number is honest
- * before saving.
+ * L-10 (a) — a two-choice radiogroup, not a segmented field: the same
+ * pattern the L-07 quick-add card proved, at h-11 so it is thumb-sized
+ * on a phone. The words are "Charged" and "Paid" — what the entry does
+ * — not the stored enum.
+ */
+const TYPE_OPTIONS = [
+  { value: 'charge', label: 'Charged' },
+  { value: 'payment', label: 'Paid' },
+] as const;
+
+function TypeChoice() {
+  const { control, setValue } = useFormContext();
+  const type = useWatch({ control, name: 'type' }) as 'charge' | 'payment';
+
+  return (
+    <div className="space-y-1.5">
+      <span id="type-label" className="text-sm font-medium text-foreground">
+        Type
+      </span>
+      <div role="radiogroup" aria-labelledby="type-label" className="flex gap-2">
+        {TYPE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={type === option.value}
+            onClick={() =>
+              setValue('type', option.value, { shouldDirty: true })
+            }
+            className={cn(
+              'h-11 flex-1 rounded-sm text-sm font-medium transition-colors',
+              type === option.value
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-input bg-card text-foreground hover:bg-muted',
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * L-10 (d) — Today / Yesterday set the untouched Date field's value;
+ * Pick date drops focus into it (the native picker opens). The chips
+ * dirty the form, so closing afterwards asks before discarding — an
+ * accidental tap cannot silently discard either.
+ */
+function DateChips() {
+  const { setValue } = useFormContext();
+  const chip =
+    'rounded-sm border border-input bg-card px-2.5 py-1 text-sm text-foreground transition-colors hover:bg-muted';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm text-muted-foreground">Date:</span>
+      <button
+        type="button"
+        className={chip}
+        onClick={() =>
+          setValue('occurred_on', todayISO(), { shouldDirty: true })
+        }
+      >
+        Today
+      </button>
+      <button
+        type="button"
+        className={chip}
+        onClick={() =>
+          setValue('occurred_on', yesterdayISO(), { shouldDirty: true })
+        }
+      >
+        Yesterday
+      </button>
+      <button
+        type="button"
+        className={cn(chip, 'border-transparent bg-transparent hover:bg-muted')}
+        onClick={() => document.getElementById('occurred_on-date')?.focus()}
+      >
+        Pick date
+      </button>
+    </div>
+  );
+}
+
+/**
+ * L-10 (c) — the safety net against a wrong extra zero: one live line,
+ * "New balance for {customer}: ₹X", announced politely so a screen
+ * reader hears it change while typing. Mounted only once a customer is
+ * chosen AND a valid amount typed, so the balance query never runs for
+ * an empty id or a half-typed figure. In edit mode (`replaceOf`) the
+ * balance already contains the entry being corrected, so "after"
+ * removes its old effect and adds the new one — the recalculated
+ * number is honest before saving.
  */
 function BalancePreview({
   businessId,
@@ -270,9 +367,9 @@ function BalancePreview({
   const rawAmount = useWatch({ control, name: 'amount' });
   const amount = typeof rawAmount === 'number' ? rawAmount : 0;
 
-  if (!customerId) return null;
+  if (!customerId || amount <= 0) return null;
   return (
-    <LoadedPreview
+    <PreviewLine
       businessId={businessId}
       customerId={customerId}
       type={type}
@@ -282,7 +379,13 @@ function BalancePreview({
   );
 }
 
-function LoadedPreview({
+/**
+ * The half that needs data, in its own component so the two queries
+ * (the name, the balance) only mount for a real customer with a real
+ * amount. The name comes from the sheet's open request when it is the
+ * same customer; otherwise it is fetched by id.
+ */
+function PreviewLine({
   businessId,
   customerId,
   type,
@@ -295,13 +398,11 @@ function LoadedPreview({
   amount: number;
   replaceOf: { type: 'charge' | 'payment'; amount: number } | null;
 }) {
-  const { data: current, isSuccess } = useCustomerBalance(
-    customerId,
-    businessId,
-  );
-  if (!isSuccess) return null;
+  const { data: customer } = useCustomer(customerId, businessId);
+  const { data: current } = useCustomerBalance(customerId, businessId);
+  if (current === undefined || !customer) return null;
 
-  const balance = current ?? 0;
+  const balance = current;
   const oldEffect = replaceOf
     ? replaceOf.type === 'charge'
       ? replaceOf.amount
@@ -310,15 +411,11 @@ function LoadedPreview({
   const after = balance - oldEffect + (type === 'charge' ? amount : -amount);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
-      <span className="text-muted-foreground">
-        Current balance <BalanceBadge balance={balance} size="sm" />
-      </span>
-      {amount > 0 && (
-        <span className="text-muted-foreground">
-          Balance after <BalanceBadge balance={after} size="sm" />
-        </span>
-      )}
-    </div>
+    <p
+      aria-live="polite"
+      className="text-sm tabular-nums text-muted-foreground"
+    >
+      New balance for {customer.name}: {formatMoney(after)}
+    </p>
   );
 }
