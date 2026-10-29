@@ -36,6 +36,9 @@ export interface Column<T> {
   /** Classes for the header cell and its body cells — responsive
    *  column hiding (`hidden md:table-cell`) rides here (L-08). */
   className?: string;
+  /** Sort identity when it differs from the cell key: Charged and
+   *  Paid both sort by the one stored amount (L-09). */
+  sortKey?: string;
 }
 
 export interface RowActionItem {
@@ -167,6 +170,9 @@ interface DataTableProps<T> {
   renderMobileCard?: (row: T) => React.ReactNode;
   resultCount?: number;
   className?: string;
+  /** Rendered under the rows — inside the bordered container when one
+   *  is drawn (L-09's totals strip, one per branch). */
+  footer?: React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -193,6 +199,7 @@ export function DataTable<T>({
   renderMobileCard,
   resultCount,
   className,
+  footer,
 }: DataTableProps<T>) {
   const isMobile = useMediaQuery("(max-width: 767px)");
 
@@ -213,7 +220,10 @@ export function DataTable<T>({
         <TableHeader>
           <TableRow>
             {columns.map((col) => {
-              const isActive = sortBy === col.key;
+              // Two columns may share one sort key (L-09: Charged and
+              // Paid both sort the stored amount).
+              const sortId = col.sortKey ?? col.key;
+              const isActive = sortBy === sortId;
               const ariaSort = isActive
                 ? sortDir === "asc"
                   ? ("ascending" as const)
@@ -235,7 +245,7 @@ export function DataTable<T>({
                   )}
                   {...(col.sortable
                     ? {
-                        onClick: () => handleSort(col.key),
+                        onClick: () => handleSort(sortId),
                         role: "columnheader" as const,
                         "aria-sort": ariaSort,
                       }
@@ -293,6 +303,7 @@ export function DataTable<T>({
           ))}
         </TableBody>
       </Table>
+      {footer}
     </div>
   );
 
@@ -303,8 +314,9 @@ export function DataTable<T>({
         Showing {rows.length} of {showingCount}
         {sortBy && onSortChange
           ? `, sorted by ${
-              columns.find((column) => column.key === sortBy)?.header ??
-              sortBy
+              columns.find(
+                (column) => (column.sortKey ?? column.key) === sortBy,
+              )?.header ?? sortBy
             }, ${sortDir === "asc" ? "ascending" : "descending"}`
           : ""}
       </p>
@@ -341,29 +353,42 @@ export function DataTable<T>({
               ))}
             </TableBody>
           </Table>
+          {footer}
         </div>
       ) : error ? (
-        <ErrorState message={error} onRetry={onRetry} />
+        <>
+          <ErrorState message={error} onRetry={onRetry} />
+          {footer}
+        </>
       ) : rows.length === 0 && emptyState ? (
-        emptyState
+        <>
+          {emptyState}
+          {footer}
+        </>
       ) : rows.length === 0 && noResultsState ? (
-        <div className="space-y-3">
-          {noResultsState}
-          {onClearFilters && (
-            <div>
-              <Button variant="outline" size="sm" onClick={onClearFilters}>
-                <SearchX className="size-4" />
-                Clear filters
-              </Button>
-            </div>
-          )}
-        </div>
+        <>
+          <div className="space-y-3">
+            {noResultsState}
+            {onClearFilters && (
+              <div>
+                <Button variant="outline" size="sm" onClick={onClearFilters}>
+                  <SearchX className="size-4" />
+                  Clear filters
+                </Button>
+              </div>
+            )}
+          </div>
+          {footer}
+        </>
       ) : isMobile && renderMobileCard ? (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={getRowKey(row)}>{renderMobileCard(row)}</div>
-          ))}
-        </div>
+        <>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={getRowKey(row)}>{renderMobileCard(row)}</div>
+            ))}
+          </div>
+          {footer}
+        </>
       ) : (
         table
       )}
