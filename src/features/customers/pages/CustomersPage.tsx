@@ -472,7 +472,7 @@ export function CustomersPage() {
                 })
               }
               className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
                 status === option.value
                   ? "border-foreground text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",

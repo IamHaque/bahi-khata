@@ -64,7 +64,7 @@ export function TransactionDetailPage() {
         <button
           type="button"
           onClick={() => refetch()}
-          className="ml-3 underline hover:no-underline"
+          className="ml-3 underline hover:no-underline pointer-coarse:min-h-11"
         >
           Retry
         </button>
@@ -78,7 +78,7 @@ export function TransactionDetailPage() {
         <button
           type="button"
           onClick={() => navigate(paths.transactions(businessId))}
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
         >
           &larr; Transactions
         </button>
@@ -121,7 +121,7 @@ export function TransactionDetailPage() {
           <button
             type="button"
             onClick={() => navigate(paths.transactions(businessId))}
-            className="mb-2 text-sm text-muted-foreground hover:text-foreground"
+            className="mb-2 text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
           >
             &larr; Transactions
           </button>

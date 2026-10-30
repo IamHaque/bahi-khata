@@ -78,7 +78,7 @@ export function CustomerHeader({
           <button
             type="button"
             onClick={onBack}
-            className="mb-1 text-sm text-muted-foreground hover:text-foreground"
+            className="mb-1 text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
           >
             &larr; Customers
           </button>

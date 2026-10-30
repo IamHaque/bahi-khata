@@ -73,7 +73,7 @@ export function SearchInput({
           type="button"
           onClick={clear}
           aria-label="Clear search"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         >
           <X className="size-3.5" />
         </button>

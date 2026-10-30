@@ -132,7 +132,7 @@ export function CustomerDetailPage() {
         <button
           type="button"
           onClick={() => refetchCustomer()}
-          className="ml-3 underline hover:no-underline"
+          className="ml-3 underline hover:no-underline pointer-coarse:min-h-11"
         >
           Retry
         </button>

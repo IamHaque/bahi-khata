@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { CustomerQuickAdd } from "@/features/customers/components/CustomerQuickAdd";
 import { AppError } from "@/lib/AppError";
 
@@ -178,5 +179,12 @@ describe("CustomerQuickAdd (L-07)", () => {
     expect((screen.getByLabelText("Amount") as HTMLInputElement).value).toBe(
       "1500",
     );
+  });
+
+  // L-14 — the quick-add card passes axe.
+  it("the quick-add card passes axe", async () => {
+    const { container } = renderQuickAdd();
+    await screen.findByLabelText("Amount");
+    await expectNoSeriousViolations(container);
   });
 });

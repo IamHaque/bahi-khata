@@ -106,7 +106,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
           <button
             type="button"
             className={cn(
-              "flex h-auto w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm opacity-80 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-foreground",
+              "flex h-auto w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm opacity-80 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-foreground pointer-coarse:min-h-11",
               collapsed && "justify-center px-0",
             )}
             aria-label={triggerLabel}
@@ -145,7 +145,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 onClick={() => pick(business.id)}
                 onKeyDown={(event) => onItemKeyDown(event, index)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted",
+                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11",
                   business.id === businessId && "font-medium",
                 )}
               >
@@ -171,7 +171,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 navigate(paths.businesses);
               }}
               onKeyDown={(event) => onItemKeyDown(event, ordered.length)}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
             >
               All businesses
             </button>
@@ -191,7 +191,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 onKeyDown={(event) =>
                   onItemKeyDown(event, ordered.length + 1)
                 }
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
               >
                 <Plus className="size-4 shrink-0" aria-hidden="true" />
                 Create business

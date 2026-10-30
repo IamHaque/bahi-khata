@@ -165,7 +165,7 @@ export function SettingsPage() {
                   type="button"
                   onClick={() => setMoreOpen((open) => !open)}
                   aria-expanded={moreOpen}
-                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-11"
                 >
                   More details
                   {moreOpen ? (

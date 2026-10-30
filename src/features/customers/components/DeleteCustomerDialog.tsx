@@ -97,13 +97,13 @@ export function DeleteCustomerDialog({
             href={paths.statement(businessId, customer.id)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
           >
             Download statement first
           </a>
           <button
             type="button"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
             onClick={() => {
               // The gentler path: same archive the row menu offers.
               onOpenChange(false);

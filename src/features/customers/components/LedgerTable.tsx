@@ -74,7 +74,7 @@ export function LedgerTable({
     <button
       type="button"
       onClick={() => setLimit((current) => current + PAGE_SIZE)}
-      className="w-full px-3 py-2.5 text-center text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="w-full px-3 py-2.5 text-center text-sm text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11"
     >
       Show earlier entries ({remaining})
     </button>

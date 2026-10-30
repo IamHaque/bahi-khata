@@ -5,6 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import {
   DeleteTransactionDialog,
   type DeletableTransaction,
@@ -251,5 +252,13 @@ describe("DeleteTransactionDialog (S-54)", () => {
     expect(
       within(dialog).queryByRole("button", { name: "Void instead" }),
     ).toBeNull();
+  });
+
+  // L-14 — the open dialog passes axe.
+  it("the open delete dialog passes axe", async () => {
+    renderDialog();
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("Delete this transaction?");
+    await expectNoSeriousViolations(dialog);
   });
 });

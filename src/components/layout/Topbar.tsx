@@ -95,7 +95,7 @@ export function Topbar({
           type="button"
           onClick={onOpenMenu}
           aria-label="Open menu"
-          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground lg:hidden"
+          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11 lg:hidden"
         >
           <Menu className="size-5" />
         </button>
@@ -105,7 +105,7 @@ export function Topbar({
           type="button"
           onClick={onToggleSidebar}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground lg:block"
+          className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11 lg:block"
         >
           {collapsed ? (
             <PanelLeftOpen className="size-5" />
@@ -126,7 +126,7 @@ export function Topbar({
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
+          className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11"
           aria-label="Search (Ctrl+K)"
         >
           <Search className="size-4" />
@@ -143,7 +143,7 @@ export function Topbar({
           <button
             type="button"
             onClick={() => openTransactionSheet()}
-            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash"
+            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash pointer-coarse:min-h-11"
             aria-label="Add transaction"
           >
             <Plus className="size-4" />
@@ -158,7 +158,7 @@ export function Topbar({
             type="button"
             onClick={() => navigate(paths.businesses)}
             aria-label={`Invitations (${invitationCount} pending)`}
-            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground"
+            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
           >
             <Mail className="size-5" />
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
@@ -182,7 +182,7 @@ export function Topbar({
               <button
                 type="button"
                 aria-label="User menu"
-                className="rounded-full transition-opacity hover:opacity-80"
+                className="rounded-full transition-opacity hover:opacity-80 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
               />
             }
           >
@@ -196,7 +196,7 @@ export function Topbar({
             </div>
             <button
               type="button"
-              className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground"
+              className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground pointer-coarse:min-h-11"
               onClick={() => {
                 setUserMenuOpen(false);
                 void handleSignOut();

@@ -310,7 +310,7 @@ function TypeChoice() {
 function DateChips() {
   const { setValue } = useFormContext();
   const chip =
-    'rounded-sm border border-input bg-card px-2.5 py-1 text-sm text-foreground transition-colors hover:bg-muted';
+    'rounded-sm border border-input bg-card px-2.5 py-1 text-sm text-foreground transition-colors hover:bg-muted pointer-coarse:min-h-11';
 
   return (
     <div className="flex flex-wrap items-center gap-2">

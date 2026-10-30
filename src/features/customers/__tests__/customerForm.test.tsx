@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
 import { paths, routePatterns } from "@/lib/paths";
@@ -477,5 +478,15 @@ describe("S-29 customer form", () => {
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
     expect(labels).toEqual(["View"]);
+  });
+
+  // L-14 — the open customer form dialog passes axe.
+  it("the open add-customer dialog passes axe", async () => {
+    renderPage();
+    await screen.findByText("Rahim Uddin");
+
+    const dialog = await openAddDialog();
+    await within(dialog).findByLabelText("Name");
+    await expectNoSeriousViolations(dialog);
   });
 });

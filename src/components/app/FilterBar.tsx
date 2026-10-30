@@ -28,7 +28,7 @@ export function FilterBar({ chips, onClearAll, children }: FilterBarProps) {
             type="button"
             onClick={chip.onRemove}
             aria-label={`Remove filter ${chip.label}`}
-            className="rounded-full p-0.5 transition-colors hover:bg-muted"
+            className="rounded-full p-0.5 transition-colors hover:bg-muted pointer-coarse:min-h-11 pointer-coarse:min-w-11"
           >
             <X className="size-3" />
           </button>
@@ -38,7 +38,7 @@ export function FilterBar({ chips, onClearAll, children }: FilterBarProps) {
         <button
           type="button"
           onClick={onClearAll}
-          className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-11"
         >
           Clear all
         </button>

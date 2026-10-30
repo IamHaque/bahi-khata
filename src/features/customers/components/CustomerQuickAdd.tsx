@@ -168,7 +168,7 @@ export function CustomerQuickAdd({
             <button
               type="button"
               onClick={() => setShowDate(true)}
-              className="text-sm text-muted-foreground underline hover:text-foreground"
+              className="text-sm text-muted-foreground underline hover:text-foreground pointer-coarse:min-h-11"
             >
               Change date
             </button>

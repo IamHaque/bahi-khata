@@ -61,7 +61,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
               aria-pressed={days === option}
               onClick={() => setDays(option)}
               className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
                 days === option
                   ? "border-foreground text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",

@@ -250,7 +250,7 @@ export function TransactionFilters({
                 })
               }
               className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
                 type === option.value
                   ? "border-foreground text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -306,7 +306,7 @@ export function TransactionFilters({
                 <button
                   type="button"
                   onClick={() => updateParams({ customer: null })}
-                  className="block w-full rounded px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent-wash"
+                  className="block w-full rounded px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent-wash pointer-coarse:min-h-11"
                 >
                   All customers
                 </button>
@@ -317,7 +317,7 @@ export function TransactionFilters({
                   type="button"
                   onClick={() => updateParams({ customer: customer.id })}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent-wash",
+                    "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent-wash pointer-coarse:min-h-11",
                     customer.id === customerId && "bg-accent-wash",
                   )}
                 >
@@ -403,7 +403,7 @@ export function TransactionFilters({
               })
             }
             className={cn(
-              "border-b-2 px-2 py-1.5 text-sm transition-colors",
+              "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
               view === option.value
                 ? "border-foreground text-foreground font-semibold"
                 : "border-transparent text-muted-foreground hover:text-foreground",

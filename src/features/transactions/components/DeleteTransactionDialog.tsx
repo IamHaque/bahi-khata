@@ -124,7 +124,7 @@ export function DeleteTransactionDialog({
           </p>
           <button
             type="button"
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
             onClick={() => {
               onOpenChange(false);
               onVoidInstead(transaction.id);
