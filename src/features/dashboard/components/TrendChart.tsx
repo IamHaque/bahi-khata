@@ -229,25 +229,27 @@ export function TrendChart({ businessId }: { businessId: string }) {
             </ResponsiveContainer>
           </div>
           {/* The same numbers, every day, for screen readers. */}
-          <table className="sr-only">
-            <caption>Daily charges and payments, last {days} days</caption>
-            <thead>
-              <tr>
-                <th scope="col">Day</th>
-                <th scope="col">Charges</th>
-                <th scope="col">Payments</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.activity_date}>
-                  <th scope="row">{row.activity_date}</th>
-                  <td>{formatMoney(row.charges)}</td>
-                  <td>{formatMoney(row.payments)}</td>
+          <div className="sr-only">
+            <table>
+              <caption>Daily charges and payments, last {days} days</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Day</th>
+                  <th scope="col">Charges</th>
+                  <th scope="col">Payments</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.activity_date}>
+                    <th scope="row">{row.activity_date}</th>
+                    <td>{formatMoney(row.charges)}</td>
+                    <td>{formatMoney(row.payments)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </Card>

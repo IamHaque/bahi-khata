@@ -28,3 +28,4 @@ post-v3.1 pass. B-01, B-04, B-06 and B-09 are done and kept as history.
 | B-20 | Multi-currency | v3.1 PRD 2.2 | One currency per business, `₹` throughout; a currency column + per-business formatter + symbol in the token table. |
 | B-21 | Offline / PWA | v3.1 PRD 2.2 | Service worker + optimistic queue; the RLS-write model makes offline-first hard (conflicts on balances). |
 | B-22 | A light/dark redesign beyond tokens | v3.1 PRD 2.2 | Both themes get the identical ledger treatment today; a redesign would be a fresh design pass, not a token swap. |
+| B-23 | Repo-wide source scan for bare […fr] grid tracks in gridGuard | Owner visual pass finding: bare […fr] grid tracks without minmax(0, …) cause layout widening when children have large content | Optional check in gridGuard.test.tsx scanning src/ for grid-cols-[.*fr] without minmax. |
