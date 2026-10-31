@@ -83,15 +83,17 @@ export function TransactionsPage() {
   const view: ViewMode =
     searchParams.get("view") === "summarized" ? "summarized" : "detailed";
   const rangeParam = searchParams.get("range");
+  const customFrom = searchParams.get("from") ?? "";
+  const customTo = searchParams.get("to") ?? "";
   const rangePreset: RangePreset =
     rangeParam === "today" ||
     rangeParam === "this-week" ||
     rangeParam === "last-30-days" ||
     rangeParam === "custom"
       ? rangeParam
-      : "this-month"; // the default range
-  const customFrom = searchParams.get("from") ?? "";
-  const customTo = searchParams.get("to") ?? "";
+      : customFrom || customTo
+        ? "custom"
+        : "this-month"; // the default range
   const typeParam = searchParams.get("type");
   const type: FilterType =
     typeParam === "charge" || typeParam === "payment" ? typeParam : "all";

@@ -1241,8 +1241,8 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-02 Table system: `DataTable` v2 and `RowActions` | Done | 1e608d4 | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
 | U-03 Migrate Transactions and Customers pages | Done | 8c62478 | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 219fadb | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
-| U-05 Remove the quick-add card | Done | 41f34a0 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
-| U-06 Dashboard activity chart, rebuilt | todo | | |
+| U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
+| U-06 Dashboard activity chart, rebuilt | Done | 60ac7bb | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
 | S-71 Analysis: the "who to chase" threshold | todo | | |
 | U-07 Who to chase (L-13) | todo | | |
 | S-72 Transaction revision history (B-08) | todo | | |
@@ -1324,4 +1324,18 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] Removed duplicate Add charge / Add payment buttons from CustomerDetailPage empty-ledger state; updated copy to "No entries yet. Use Add charge or Add payment above."
 - [x] CustomerHeader: Add charge and Add payment shown for Owner/Editor when not archived; on mobile (< 640px) sit under customer name, flex-1, 44px (h-11); on desktop sit under balance.
 - [x] Verified phone scenario with responsive tests; customerDetail.test.tsx passes (11/11).
+
+## U-06 scenarios (checklist)
+
+- [x] Dashboard layout updated: Row 1 Position sheet + Top debtors (2 cols), Row 2 Activity (full width), Row 3 Day book (full width); updated skeleton and gridGuard.
+- [x] Activity card header with segmented range control: 7 days · 30 days · 90 days · 12 months; default 30 days, synced to URL (?activity=30).
+- [x] Three summary tiles (Charged, Paid, Net) with swatches and comparison vs previous period (▲ 12% vs previous 30 days or — when previous is zero) computed from daily_activity(2 * days).
+- [x] Diverging bar chart: charges above zero (--receivable), payments below zero (--credit), heavier zero baseline (--foreground), dashed gridlines, symmetric Y axis with formatCompactInr ticks (1k, 50k, 1L, 10L, 1Cr), height 280px at md+, 220px below.
+- [x] Pure grouping function bucketActivity in src/features/dashboard/activity.ts with auto-coarsening rule (bars never narrower than 6px).
+- [x] Readout line under chart: highlights on hover/tap/keyboard with formatted date, Charged, Paid, Net, and "View entries" link with from and to params to transactionsPath (extended transactionsPath and TransactionsPage).
+- [x] Keyboard navigation on focusable chart region (role="group", label "Activity chart, use left and right arrow keys"): Left/Right, Home/End, Escape.
+- [x] Empty state ("No charges or payments in this period") when all zeros with range control usable.
+- [x] Screen reader accessibility: sr-only table, role="img" summary sentence, "Archived customers are not included" note.
+- [x] Tests pass: activity.test.ts (18/18), TrendChart.test.tsx (8/8), dashboardPage.test.tsx (26/26), gridGuard.test.tsx (2/2).
+
 

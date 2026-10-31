@@ -60,8 +60,16 @@ export const routePatterns = {
 
 export function transactionsPath(
   businessId: string,
-  params?: { range?: string },
+  params?: { range?: string; from?: string; to?: string },
 ): string {
-  const search = params?.range ? `?range=${params.range}` : "";
-  return `${paths.transactions(businessId)}${search}`;
+  const sp = new URLSearchParams();
+  if (params?.range) {
+    sp.set("range", params.range);
+  } else if (params?.from || params?.to) {
+    sp.set("range", "custom");
+  }
+  if (params?.from) sp.set("from", params.from);
+  if (params?.to) sp.set("to", params.to);
+  const search = sp.toString();
+  return `${paths.transactions(businessId)}${search ? `?${search}` : ""}`;
 }
