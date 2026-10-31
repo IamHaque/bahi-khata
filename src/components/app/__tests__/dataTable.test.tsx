@@ -5,7 +5,6 @@ import { renderApp } from "@/test/app-render";
 import { __setMatchMedia } from "@/test/setup";
 import {
   DataTable,
-  RowActionsMenu,
   type Column,
 } from "@/components/app/DataTable";
 
@@ -168,54 +167,6 @@ describe("DataTable", () => {
     }
   });
 });
-
-describe("RowActionsMenu", () => {
-  const items = [
-    { label: "Edit", onSelect: () => {} },
-    { label: "Archive", onSelect: () => {} },
-  ];
-
-  it("opens with arrow keys and moves through items", async () => {
-    renderApp(<RowActionsMenu items={items} triggerLabel="Actions for Asha" />);
-
-    const trigger = screen.getByRole("button", { name: "Actions for Asha" });
-    await userEvent.click(trigger);
-
-    const edit = await screen.findByRole("menuitem", { name: "Edit" });
-    expect(edit === document.activeElement).toBe(true);
-
-    await userEvent.keyboard("{ArrowDown}");
-    const archive = screen.getByRole("menuitem", { name: "Archive" });
-    expect(archive === document.activeElement).toBe(true);
-
-    await userEvent.keyboard("{ArrowUp}");
-    expect(edit === document.activeElement).toBe(true);
-  });
-
-  it("selects an item with Enter and closes", async () => {
-    const onSelect = vi.fn();
-    renderApp(
-      <RowActionsMenu
-        items={[{ label: "Edit", onSelect }]}
-        triggerLabel="Actions for Asha"
-      />,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "Actions for Asha" }));
-    await userEvent.keyboard("{Enter}");
-    expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("menuitem")).toBeNull();
-  });
-
-  it("closes on Escape", async () => {
-    renderApp(<RowActionsMenu items={items} triggerLabel="Actions for Asha" />);
-    await userEvent.click(screen.getByRole("button", { name: "Actions for Asha" }));
-    await screen.findByRole("menuitem", { name: "Edit" });
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("menuitem")).toBeNull();
-  });
-});
-
 
 describe("DataTable v2 (U-02)", () => {
   it("applies fit and fill column classes", () => {

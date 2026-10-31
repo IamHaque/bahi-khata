@@ -4,7 +4,7 @@ import { Mail, MapPin, Phone } from "lucide-react";
 import { Monogram } from "@/components/app/Monogram";
 import { Money } from "@/components/app/Money";
 import { TotalsRule } from "@/components/app/TotalsRule";
-import { RowActionsMenu, type RowActionItem } from "@/components/app/DataTable";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatRelative } from "@/lib/format";
 import type { Customer } from "@/types";
@@ -20,7 +20,8 @@ interface CustomerHeaderProps {
   canEdit: boolean;
   /** The hero's two primary actions: manageTransactions and not archived. */
   canWrite: boolean;
-  menuItems: RowActionItem[];
+  actions?: RowAction[];
+  menuItems?: RowAction[];
   onBack: () => void;
   onEdit: () => void;
   onAddCharge: () => void;
@@ -43,6 +44,7 @@ export function CustomerHeader({
   statementHref,
   canEdit,
   canWrite,
+  actions = [],
   menuItems,
   onBack,
   onEdit,
@@ -149,10 +151,10 @@ export function CustomerHeader({
                 Edit
               </Button>
             )}
-            {menuItems.length > 0 && (
-              <RowActionsMenu
+            {(actions.length > 0 || (menuItems && menuItems.length > 0)) && (
+              <RowActions
                 triggerLabel="Customer actions"
-                items={menuItems}
+                actions={actions.length > 0 ? actions : (menuItems ?? [])}
               />
             )}
           </div>

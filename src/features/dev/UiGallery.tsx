@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { z } from "zod";
-import { Ban, Loader2, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
+import { Ban, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { IconButton } from "@/components/app/IconButton";
 import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
 import { AgeFlag } from "@/components/app/AgeFlag";
-import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
+import { DataTable, type Column } from "@/components/app/DataTable";
+import { RowActions } from "@/components/app/RowActions";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
@@ -335,15 +336,17 @@ function TableSection() {
             onPageChange={noop}
             onPageSizeChange={noop}
             renderRowActions={(row) => (
-              <RowActionsMenu
+              <RowActions
                 triggerLabel={`Actions for ${row.name}`}
-                items={[
-                  { label: "View", onSelect: noop },
-                  { label: "Edit", onSelect: noop },
+                actions={[
+                  { id: "view", label: "View", icon: Eye, onSelect: noop },
+                  { id: "edit", label: "Edit", icon: Pencil, onSelect: noop },
                   {
+                    id: "archive",
                     label: "Archive",
+                    icon: Trash2,
                     onSelect: noop,
-                    variant: "destructive",
+                    destructive: true,
                   },
                 ]}
               />
@@ -369,15 +372,17 @@ function TableSection() {
             onPageChange={noop}
             onPageSizeChange={noop}
             renderRowActions={(row) => (
-              <RowActionsMenu
+              <RowActions
                 triggerLabel={`Actions for ${row.name}`}
-                items={[
-                  { label: "View", onSelect: noop },
-                  { label: "Edit", onSelect: noop },
+                actions={[
+                  { id: "view", label: "View", icon: Eye, onSelect: noop },
+                  { id: "edit", label: "Edit", icon: Pencil, onSelect: noop },
                   {
+                    id: "archive",
                     label: "Archive",
+                    icon: Trash2,
                     onSelect: noop,
-                    variant: "destructive",
+                    destructive: true,
                   },
                 ]}
               />

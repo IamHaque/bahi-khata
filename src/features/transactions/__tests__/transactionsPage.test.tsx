@@ -400,6 +400,7 @@ describe("S-35 transactions page v2", () => {
 
   it("row click opens the entry detail and sortable headers re-query server-side", async () => {
     renderPage();
+    await screen.findByText("Rice for the month");
 
     // Both money columns sort by the one amount key (L-09).
     await userEvent.click(screen.getByRole("columnheader", { name: "Charged" }));

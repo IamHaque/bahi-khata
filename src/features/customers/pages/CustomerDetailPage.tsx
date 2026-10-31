@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Archive, Trash2 } from "lucide-react";
 import { Can } from "@/components/app/Can";
-import type { RowActionItem } from "@/components/app/DataTable";
+import type { RowAction } from "@/components/app/RowActions";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ErrorState } from "@/components/app/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -177,20 +178,23 @@ export function CustomerDetailPage() {
   // v3 (S-55): Archive stays for active customers; Delete customer
   // joins it next to Archive and also stands alone on archived ones
   // (destroying works either way), always owner-only.
-  const customerMenuItems: RowActionItem[] = [];
+  const customerActions: RowAction[] = [];
   if (canArchive && !archived) {
-    customerMenuItems.push({
+    customerActions.push({
+      id: "archive",
       label: "Archive",
+      icon: Archive,
       onSelect: () => setArchiveOpen(true),
-      variant: "destructive",
+      destructive: true,
     });
   }
   if (can("deleteCustomer")) {
-    customerMenuItems.push({
+    customerActions.push({
+      id: "delete",
       label: "Delete customer",
+      icon: Trash2,
       onSelect: () => setDeleteCustomerOpen(true),
-      variant: "destructive",
-      separator: customerMenuItems.length > 0,
+      destructive: true,
     });
   }
 
@@ -222,7 +226,7 @@ export function CustomerDetailPage() {
         statementHref={paths.statement(businessId, customerId ?? "")}
         canEdit={canManageCustomers && !archived}
         canWrite={canWriteTransactions}
-        menuItems={customerMenuItems}
+        actions={customerActions}
         onBack={() => navigate(paths.customers(businessId))}
         onEdit={() => setEditOpen(true)}
         onAddCharge={addCharge}

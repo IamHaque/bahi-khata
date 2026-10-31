@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeftRight, Loader2, Undo2, User } from "lucide-react";
+import { ArrowLeftRight, Info, Loader2, Undo2, User } from "lucide-react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { DataTable, type Column } from "@/components/app/DataTable";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { EmptyState } from "@/components/app/EmptyState";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toggle } from "@/components/ui/toggle";
 import { toast } from "sonner";
@@ -16,21 +16,17 @@ import { useDeletionLog, useRestoreDeleted } from "../hooks";
 import type { DeletionLogEntry, DeletedItemsFilter } from "../api";
 
 /**
- * v3 (S-56) — the Owner's Recently deleted: everything hard-deleted in
- * this business, newest first, each row restorable in one atomic
- * server-side step. Reading is as sensitive as writing — the hook only
- * runs for a role that may (viewDeletedItems), and a member who types
- * the URL sees the no-access state instead of a broken table.
+ * v3 (S-56) / U-04 — Recently deleted on the shared table system.
+ * Item (fill: label, reason folded), Type (fit), Deleted by (fit, priority 2), Deleted (fit).
+ * Action Restore as the first inline action (with tooltip) and View details in the menu.
  */
 export function DeletedItemsPage() {
   const businessId = useScopedBusinessId() ?? "";
   const { role, can } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
-  // One row's Restore in flight at a time (the spinner is per-button).
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const restore = useRestoreDeleted(businessId);
 
-  // Filters live in the query string, like the other lists.
   const typeParam = searchParams.get("type");
   const entityType: DeletedItemsFilter | undefined =
     typeParam === "customer" || typeParam === "transaction"
@@ -38,14 +34,17 @@ export function DeletedItemsPage() {
       : undefined;
   const showRestored = searchParams.get("restored") === "1";
   const updateParams = (patch: Record<string, string | null>) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      for (const [key, value] of Object.entries(patch)) {
-        if (value === null || value === "") next.delete(key);
-        else next.set(key, value);
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === null || value === "") next.delete(key);
+          else next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const log = useDeletionLog(businessId, {
@@ -54,9 +53,6 @@ export function DeletedItemsPage() {
     limit: 200,
   });
 
-  // S-21/S-51: a known non-owner who types the URL gets the standard
-  // no-access state (role null = memberships still loading, so the
-  // skeleton below shows instead of a flash of "no access").
   if (role !== null && !can("viewDeletedItems")) {
     return (
       <div className="space-y-6">
@@ -77,15 +73,21 @@ export function DeletedItemsPage() {
     {
       key: "item",
       header: "Item",
+      width: "fill",
       render: (entry) => (
         <div className="flex items-start gap-2">
           {entry.entity_type === "customer" ? (
-            <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <User
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
           ) : (
-            <ArrowLeftRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <ArrowLeftRight
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
           )}
           <div>
-            {/* L-11: the removed item's name reads as struck out. */}
             <span className="line-through text-muted-foreground">
               {entry.label}
             </span>
@@ -95,6 +97,9 @@ export function DeletedItemsPage() {
                   {entry.summary.transaction_count} transactions
                 </p>
               )}
+            <p className="text-xs text-muted-foreground">
+              {entry.reason ?? "—"}
+            </p>
           </div>
         </div>
       ),
@@ -102,25 +107,33 @@ export function DeletedItemsPage() {
     {
       key: "type",
       header: "Type",
+      width: "fit",
       render: (entry) =>
         entry.entity_type === "customer" ? "Customer" : "Transaction",
     },
     {
       key: "deletedBy",
       header: "Deleted by",
+      width: "fit",
+      priority: 2,
       render: (entry) => entry.deleted_by_name ?? "Unknown",
     },
     {
       key: "deleted",
       header: "Deleted",
+      width: "fit",
       render: (entry) => formatRelative(entry.deleted_at),
     },
-    {
-      key: "reason",
-      header: "Reason",
-      render: (entry) => entry.reason ?? "—",
-    },
   ];
+
+  const handleRestore = (entry: DeletionLogEntry) => {
+    setRestoringId(entry.id);
+    restore.mutate(entry.id, {
+      onSuccess: () => toast.success(`${entry.label} restored`),
+      onError: (error) => toast.error(error.message),
+      onSettled: () => setRestoringId(null),
+    });
+  };
 
   const renderRowActions = (entry: DeletionLogEntry) => {
     if (entry.restored_at) {
@@ -132,31 +145,32 @@ export function DeletedItemsPage() {
       );
     }
     const busy = restoringId === entry.id;
+    const actions: RowAction[] = [
+      {
+        id: "restore",
+        label: `Restore ${entry.label}`,
+        ariaLabel: `Restore ${entry.label}`,
+        icon: busy ? Loader2 : Undo2,
+        disabled: busy,
+        onSelect: () => handleRestore(entry),
+      },
+      {
+        id: "details",
+        label: "View details",
+        icon: Info,
+        onSelect: () => {
+          toast.info(
+            `Deleted by ${entry.deleted_by_name ?? "Unknown"} on ${formatRelative(entry.deleted_at)}`,
+          );
+        },
+      },
+    ];
+
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={busy}
-        onClick={() => {
-          // This query build has no per-call onMutate, so the spinner
-          // starts synchronously; the settle callback clears it.
-          setRestoringId(entry.id);
-          restore.mutate(entry.id, {
-            onSuccess: () => toast.success(`${entry.label} restored`),
-            // The database's own message is the final copy (S-51's
-            // 55000 conflicts say what to fix).
-            onError: (error) => toast.error(error.message),
-            onSettled: () => setRestoringId(null),
-          });
-        }}
-      >
-        {busy ? (
-          <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" />
-        ) : (
-          <Undo2 className="mr-1 h-4 w-4" aria-hidden="true" />
-        )}
-        Restore
-      </Button>
+      <RowActions
+        actions={actions}
+        triggerLabel={`Actions for ${entry.label}`}
+      />
     );
   };
 
@@ -202,6 +216,15 @@ export function DeletedItemsPage() {
           error={log.error ? toAppError(log.error).message : null}
           onRetry={() => void log.refetch()}
           renderRowActions={renderRowActions}
+          mobile={(entry) => ({
+            title: entry.label,
+            subtitle: entry.reason ?? undefined,
+            trailing:
+              entry.entity_type === "customer" ? "Customer" : "Transaction",
+            meta: `Deleted ${formatRelative(entry.deleted_at)} by ${
+              entry.deleted_by_name ?? "Unknown"
+            }`,
+          })}
           emptyState={
             <EmptyState
               title="Nothing deleted"

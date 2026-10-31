@@ -20,6 +20,7 @@ export interface TableFooterProps {
   onShowMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
+  showMoreLabel?: string;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export function TableFooter({
   onShowMore,
   hasMore = false,
   loadingMore = false,
+  showMoreLabel,
   className,
 }: TableFooterProps) {
   if (totalCount === 0) return null;
@@ -60,7 +62,7 @@ export function TableFooter({
             disabled={loadingMore}
             onClick={onShowMore}
           >
-            {loadingMore ? "Loading…" : "Show more"}
+            {loadingMore ? "Loading…" : (showMoreLabel ?? "Show more")}
           </Button>
         )}
       </div>

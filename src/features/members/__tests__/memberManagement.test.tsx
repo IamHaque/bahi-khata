@@ -177,9 +177,8 @@ describe("S-25 owner changes a role", () => {
   it("changes Eli from Editor to Viewer from the row menu and confirms with a toast", async () => {
     renderMembers();
 
-    await openRowMenu("Eli the Editor");
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "Change to Viewer" }),
+      await screen.findByRole("button", { name: "Change to Viewer" }),
     );
 
     await waitFor(() =>
@@ -202,13 +201,13 @@ describe("S-25 owner changes a role", () => {
   it("offers the opposite role on a Viewer row", async () => {
     renderMembers();
 
-    await openRowMenu("Vic");
-
+    await screen.findByText("Vic");
+    const row = screen.getByText("Vic").closest("tr")!;
     expect(
-      await screen.findByRole("menuitem", { name: "Change to Editor" }),
+      within(row).getByRole("button", { name: "Change to Editor" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("menuitem", { name: "Change to Viewer" }),
+      within(row).queryByRole("button", { name: "Change to Viewer" }),
     ).toBeNull();
   });
 

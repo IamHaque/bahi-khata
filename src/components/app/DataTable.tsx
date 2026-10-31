@@ -16,17 +16,11 @@ import { ErrorState } from "./ErrorState";
 import { Skeleton } from "./Skeleton";
 import { cn } from "@/lib/utils";
 
-// Re-export RowActionsMenu and RowActionCluster for backwards compatibility (PRD U-02)
 export {
   RowActions,
   type RowAction,
   type RowActionsProps,
 } from "./RowActions";
-export {
-  RowActionsMenu,
-  RowActionCluster,
-  type RowActionItem,
-} from "./RowActionsCompat";
 
 export interface Column<T> {
   key: string;
@@ -74,8 +68,12 @@ export interface DataTableProps<T> {
   renderMobileCard?: (row: T) => React.ReactNode;
   mobile?: (row: T) => TableCardSpec;
   selectable?: TableSelectable<T>;
+  caption?: string;
   topRow?: React.ReactNode;
   totals?: React.ReactNode;
+  mobileTotals?: React.ReactNode;
+  getRowClassName?: (row: T) => string | undefined;
+  showMoreLabel?: string;
   footer?: React.ReactNode;
   footerMode?: "pagination" | "more";
   onShowMore?: () => void;
@@ -122,8 +120,12 @@ export function DataTable<T>({
   renderMobileCard,
   mobile,
   selectable,
+  caption,
   topRow,
   totals,
+  mobileTotals,
+  getRowClassName,
+  showMoreLabel,
   footer,
   footerMode = "pagination",
   onShowMore,
@@ -291,38 +293,41 @@ export function DataTable<T>({
     // Mobile cards layout (< 768 px)
     if (isMobile && (mobile || renderMobileCard)) {
       return (
-        <div className="space-y-2" role="list">
-          {rows.map((row) => {
-            const key = getRowKey(row);
-            if (mobile) {
-              const cardSpec = mobile(row);
-              const cardWithActions = renderRowActions
-                ? { ...cardSpec, actions: cardSpec.actions ?? renderRowActions(row) }
-                : cardSpec;
+        <div className="space-y-2 md:hidden">
+          <div className="space-y-2" role="list">
+            {rows.map((row) => {
+              const key = getRowKey(row);
+              if (mobile) {
+                const cardSpec = mobile(row);
+                const cardWithActions = renderRowActions
+                  ? { ...cardSpec, actions: cardSpec.actions ?? renderRowActions(row) }
+                  : cardSpec;
 
+                return (
+                  <TableCard
+                    key={key}
+                    card={cardWithActions}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    selected={isSelected(row)}
+                    onSelectChange={
+                      selectable
+                        ? (checked) => handleSelectRow(row, checked)
+                        : undefined
+                    }
+                    canSelect={
+                      selectable?.canSelect ? selectable.canSelect(row) : !!selectable
+                    }
+                  />
+                );
+              }
               return (
-                <TableCard
-                  key={key}
-                  card={cardWithActions}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  selected={isSelected(row)}
-                  onSelectChange={
-                    selectable
-                      ? (checked) => handleSelectRow(row, checked)
-                      : undefined
-                  }
-                  canSelect={
-                    selectable?.canSelect ? selectable.canSelect(row) : !!selectable
-                  }
-                />
+                <div key={key}>
+                  {renderMobileCard!(row)}
+                </div>
               );
-            }
-            return (
-              <div key={key}>
-                {renderMobileCard!(row)}
-              </div>
-            );
-          })}
+            })}
+          </div>
+          {mobileTotals}
           {footer}
         </div>
       );
@@ -332,6 +337,7 @@ export function DataTable<T>({
     return (
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table>
+          {caption && <caption className="sr-only">{caption}</caption>}
           <TableHeader>
             <TableRow className="h-9">
               {selectable && (
@@ -404,7 +410,9 @@ export function DataTable<T>({
                 );
               })}
               {renderRowActions && (
-                <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" />
+                <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -413,7 +421,10 @@ export function DataTable<T>({
             {rows.map((row) => (
               <TableRow
                 key={getRowKey(row)}
-                className={cn(onRowClick && "cursor-pointer hover:bg-muted/30")}
+                className={cn(
+                  onRowClick && "cursor-pointer hover:bg-muted/30",
+                  getRowClassName?.(row),
+                )}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {selectable && (
@@ -497,6 +508,7 @@ export function DataTable<T>({
         onShowMore={onShowMore}
         hasMore={hasMore}
         loadingMore={loadingMore}
+        showMoreLabel={showMoreLabel}
       />
     ) : null;
 

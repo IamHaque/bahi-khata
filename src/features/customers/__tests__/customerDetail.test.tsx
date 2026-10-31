@@ -635,15 +635,10 @@ describe("S-31 customer detail v2", () => {
       // No table — two-line list rows instead, each carrying its
       // column word and its balance.
       await waitFor(() => expect(screen.queryByRole("table")).toBeNull());
-      const chargeRow = screen
-        .getByRole("button", { name: "Void charge of ₹5,000.00" })
-        .closest("li")!;
-      within(chargeRow).getByText("Charged");
-      within(chargeRow).getByText(/balance/);
-      const paymentRow = screen
-        .getByRole("button", { name: "Void payment of ₹500.00" })
-        .closest("li")!;
-      within(paymentRow).getByText("Paid");
+      const [paymentRow, chargeRow] = screen.getAllByRole("listitem");
+      within(chargeRow!).getByText("Charged");
+      within(chargeRow!).getByText(/balance/);
+      within(paymentRow!).getByText("Paid");
       // The totals block replaces the stat cards here too.
       screen.getByText("Totals");
     } finally {

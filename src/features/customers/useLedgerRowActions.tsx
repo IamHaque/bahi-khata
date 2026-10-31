@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Ban, Pencil, RotateCcw, Trash2 } from "lucide-react";
-import { RowActionCluster } from "@/components/app/DataTable";
-import type { RowActionItem } from "@/components/app/DataTable";
-import { IconButton } from "@/components/app/IconButton";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { openTransactionEdit } from "@/features/transactions/sheetStore";
 import { useRestoreTransaction } from "@/features/transactions/hooks";
 import type { CustomerLedgerRow } from "@/features/transactions/api";
@@ -21,13 +19,9 @@ interface LedgerRowActionsOptions {
 }
 
 /**
- * L-07 (Do.1): the ledger row's actions — Edit in the shared sheet,
- * Void with its confirmation and optional reason, Restore (direct: it
- * only ever adds history back, so it confirms nothing) and the owner's
- * Delete (S-54) — kept in a small hook so the page stays under 450
- * lines. The void/delete dialogs hold their row in this state; the
- * page renders the dialogs themselves. Viewers and archived customers
- * have no actions at all.
+ * L-07 / U-04: the ledger row's actions — Edit in the shared sheet,
+ * Void with its confirmation and optional reason, Restore and the owner's
+ * Delete (S-54) via RowActions.
  */
 export function useLedgerRowActions({
   businessId,
@@ -41,15 +35,15 @@ export function useLedgerRowActions({
   const [deleteTx, setDeleteTx] = useState<CustomerLedgerRow | null>(null);
 
   const renderLedgerActions = (entry: LedgerEntry) => {
-    // The page hands its own rows to the table, so the audit columns
-    // (updated_by_name) ride along.
     const row = entry as CustomerLedgerRow;
     if (!canWrite) return null;
 
     if (row.status === "voided") {
-      const items: RowActionItem[] = [
+      const actions: RowAction[] = [
         {
+          id: "restore",
           label: `Restore ${row.type} of ${formatMoney(row.amount)}`,
+          icon: RotateCcw,
           onSelect: () =>
             restore.mutate(
               { id: row.id },
@@ -61,88 +55,36 @@ export function useLedgerRowActions({
             ),
         },
       ];
-      return (
-        <RowActionCluster items={items} triggerLabel="Ledger actions">
-          <IconButton
-            icon={<RotateCcw className="size-4" />}
-            label="Restore"
-            ariaLabel={`Restore ${row.type} of ${formatMoney(row.amount)}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              restore.mutate(
-                { id: row.id },
-                {
-                  onSuccess: () => toast.success("Transaction restored."),
-                  onError: () =>
-                    toast.error(
-                      "Could not restore the transaction. Try again.",
-                    ),
-                },
-              );
-            }}
-          />
-        </RowActionCluster>
-      );
+      return <RowActions actions={actions} triggerLabel="Ledger actions" />;
     }
 
-    const items: RowActionItem[] = [
+    const actions: RowAction[] = [
       {
+        id: "edit",
         label: `Edit ${row.type} of ${formatMoney(row.amount)}`,
+        icon: Pencil,
         onSelect: () => openTransactionEdit(row, sheetCustomer),
       },
       {
+        id: "void",
         label: `Void ${row.type} of ${formatMoney(row.amount)}`,
+        icon: Ban,
         onSelect: () => setVoidTx(row),
       },
+      ...(canDelete && !archived
+        ? [
+            {
+              id: "delete",
+              label: `Delete ${row.type} of ${formatMoney(row.amount)}`,
+              icon: Trash2,
+              destructive: true,
+              onSelect: () => setDeleteTx(row),
+            },
+          ]
+        : []),
     ];
-    if (canDelete && !archived) {
-      items.push({
-        label: `Delete ${row.type} of ${formatMoney(row.amount)}`,
-        onSelect: () => setDeleteTx(row),
-        variant: "destructive",
-        separator: true,
-      });
-    }
 
-    return (
-      <RowActionCluster items={items} triggerLabel="Ledger actions">
-        <IconButton
-          icon={<Pencil className="size-4" />}
-          label="Edit"
-          ariaLabel={`Edit ${row.type} of ${formatMoney(row.amount)}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            openTransactionEdit(row, sheetCustomer);
-          }}
-        />
-        <IconButton
-          icon={<Ban className="size-4" />}
-          label="Void"
-          ariaLabel={`Void ${row.type} of ${formatMoney(row.amount)}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setVoidTx(row);
-          }}
-        />
-        {/* v3 (S-54): after a divider — destructive, owner-only, and
-            never on an archived customer (no writes until restored). */}
-        {canDelete && !archived && (
-          <>
-            <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-            <IconButton
-              icon={<Trash2 className="size-4" />}
-              label="Delete"
-              ariaLabel={`Delete ${row.type} of ${formatMoney(row.amount)}`}
-              tone="destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteTx(row);
-              }}
-            />
-          </>
-        )}
-      </RowActionCluster>
-    );
+    return <RowActions actions={actions} triggerLabel="Ledger actions" />;
   };
 
   return { renderLedgerActions, voidTx, setVoidTx, deleteTx, setDeleteTx };

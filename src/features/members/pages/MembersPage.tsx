@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserPlus } from "lucide-react";
+import { ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import {
   DataTable,
-  RowActionsMenu,
   type Column,
 } from "@/components/app/DataTable";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Avatar } from "@/components/app/Avatar";
@@ -90,6 +90,7 @@ export function MembersPage() {
     {
       key: "member",
       header: "Member",
+      width: "fill",
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar name={displayName(row)} src={row.avatarUrl} size="sm" />
@@ -102,6 +103,11 @@ export function MembersPage() {
     {
       key: "email",
       header: "Email",
+      width: "fit",
+      priority: 2,
+      fold: (row) => (
+        <span className="text-xs text-muted-foreground">{row.email}</span>
+      ),
       render: (row) => (
         <span className="text-muted-foreground">{row.email}</span>
       ),
@@ -109,6 +115,7 @@ export function MembersPage() {
     {
       key: "role",
       header: "Role",
+      width: "fit",
       render: (row) => (
         <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
       ),
@@ -116,6 +123,8 @@ export function MembersPage() {
     {
       key: "joined",
       header: "Joined",
+      width: "fit",
+      priority: 2,
       render: (row) => (
         <span className="text-muted-foreground">
           {formatDate(row.joinedAt)}
@@ -128,6 +137,7 @@ export function MembersPage() {
     {
       key: "email",
       header: "Email",
+      width: "fill",
       render: (row) => (
         <span className="font-medium text-foreground">{row.email}</span>
       ),
@@ -135,6 +145,7 @@ export function MembersPage() {
     {
       key: "role",
       header: "Role",
+      width: "fit",
       render: (row) => (
         <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
       ),
@@ -142,6 +153,8 @@ export function MembersPage() {
     {
       key: "invited",
       header: "Invited",
+      width: "fit",
+      priority: 2,
       render: (row) => (
         <span className="text-muted-foreground">
           {formatDate(row.createdAt)}
@@ -238,38 +251,60 @@ export function MembersPage() {
           loading={isLoading}
           error={error ? "Could not load members. Try again." : null}
           onRetry={() => void refetch()}
+          mobile={(row) => ({
+            title: (
+              <div className="flex items-center gap-2">
+                <Avatar name={displayName(row)} src={row.avatarUrl} size="sm" />
+                <span className="font-medium text-foreground">{displayName(row)}</span>
+              </div>
+            ),
+            subtitle: row.email,
+            trailing: (
+              <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
+            ),
+            meta: `Joined ${formatDate(row.joinedAt)}`,
+          })}
           renderRowActions={
             // S-25: management actions are the owner's alone, and the
             // owner row itself is protected (no role change, no remove).
             isOwner
-              ? (row) =>
-                  row.role === "owner" ? null : (
-                    <RowActionsMenu
-                      items={[
-                        ...(row.role === "editor"
-                          ? [
-                              {
-                                label: "Change to Viewer",
-                                onSelect: () =>
-                                  void handleChangeRole(row, "viewer"),
-                              },
-                            ]
-                          : [
-                              {
-                                label: "Change to Editor",
-                                onSelect: () =>
-                                  void handleChangeRole(row, "editor"),
-                              },
-                            ]),
-                        {
-                          label: "Remove",
-                          variant: "destructive",
-                          onSelect: () => setRemoving(row),
-                        },
-                      ]}
+              ? (row) => {
+                  if (row.role === "owner") return null;
+                  const actions: RowAction[] = [
+                    ...(row.role === "editor"
+                      ? [
+                          {
+                            id: "change-role",
+                            label: "Change to Viewer",
+                            icon: ShieldCheck,
+                            onSelect: () =>
+                              void handleChangeRole(row, "viewer"),
+                          },
+                        ]
+                      : [
+                          {
+                            id: "change-role",
+                            label: "Change to Editor",
+                            icon: ShieldCheck,
+                            onSelect: () =>
+                              void handleChangeRole(row, "editor"),
+                          },
+                        ]),
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      destructive: true,
+                      icon: UserX,
+                      onSelect: () => setRemoving(row),
+                    },
+                  ];
+                  return (
+                    <RowActions
+                      actions={actions}
                       triggerLabel={`Actions for ${displayName(row)}`}
                     />
-                  )
+                  );
+                }
               : undefined
           }
         />
@@ -307,12 +342,21 @@ export function MembersPage() {
             columns={inviteColumns}
             rows={invitations ?? []}
             getRowKey={(row) => row.id}
+            mobile={(row) => ({
+              title: row.email,
+              trailing: (
+                <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
+              ),
+              meta: `Invited ${formatDate(row.createdAt)}`,
+            })}
             renderRowActions={(row) => (
-              <RowActionsMenu
-                items={[
+              <RowActions
+                actions={[
                   {
+                    id: "revoke",
                     label: "Revoke",
-                    variant: "destructive",
+                    destructive: true,
+                    icon: UserX,
                     onSelect: () => setRevoking(row),
                   },
                 ]}
