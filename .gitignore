@@ -37,3 +37,6 @@ dist-ssr
 
 # Supabase CLI temp
 supabase/.temp/
+
+# Local UI-check screenshots (L-14 audit evidence — reviewed, never committed)
+.local/
