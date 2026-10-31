@@ -108,6 +108,27 @@ Shared components (the `ui/` primitives plus the L-04 ledger set):
   `Skeleton`, `StatCard`, `Money`/`formatMoney`, `LedgerTable` (the L-07
   real-table ledger with caption, header cells and a Totals row).
 
+## Table anatomy (PRD v3.2 U-02, D-33)
+
+Every list and table follows one shared contract:
+1. **One component:** `DataTable` is the single table component across the app.
+2. **Column sizing & priority folding:**
+   - `width: "fit" | "fill"`: Exactly one `fill` column per table (the primary descriptive text); every other column is `fit` (`w-px whitespace-nowrap` shrink-to-fit for dates, money, badges, counts). No fixed column widths.
+   - `priority: 1 | 2 | 3`: Priority 3 hides below `xl` (1280px), priority 2 hides below `lg` (1024px).
+   - `fold?: (row) => ReactNode`: When priority 2 or 3 columns hide, their content folds into the `fill` column as a muted second line.
+3. **Density:**
+   - `"comfortable"` (default): `px-3 py-2.5`, `text-sm`.
+   - `"compact"`: `px-3 py-1.5`, `text-xs` (for Day book and embedded tables).
+   - Header row is `h-9`, sticky (`sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground`).
+4. **Mobile cards (< 768px):** Shared `mobile` spec renders rows through `TableCard` (`lead`, `title`, `subtitle`, `meta`, `trailing`, `lines`) with a single 44px More button on the right.
+5. **Row actions:** Rendered via `RowActions` (`src/components/app/RowActions.tsx`) with copy from `src/lib/actionLabels.ts`.
+   - Fine pointer at >= 768px: up to two non-destructive actions inline as `IconButton`s; remaining actions (including all destructive actions) collapse into a More actions menu.
+   - Coarse pointer (touch) or mobile card: exactly one More actions menu (44px touch target) holding all actions.
+   - Action ordering: Edit -> Void/Archive -> Restore/Unarchive -> [Divider] -> Delete.
+6. **Selection:** `selectable` prop adds a checkbox fit column and select-all header, plus checkbox support on mobile cards.
+7. **Footer & Totals:** `TableFooter` supports standard pagination (`Showing a–b of n`, rows per page, prev/next) and `mode="more"` (`Showing k of n`, "Show more" button). `totals` slot renders a `TotalsRule` within `tfoot`.
+8. **Top row slot:** `topRow` renders an optional `<tr>` above `tbody` for inline quick-entry.
+
 ## Permission matrix ↔ database agreement (S-21)
 
 `src/lib/permissions.ts` is the single UI source for PRD §3. The

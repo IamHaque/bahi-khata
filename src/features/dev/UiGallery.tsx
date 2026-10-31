@@ -251,6 +251,7 @@ const demoColumns: Column<DemoRow>[] = [
     key: "name",
     header: "Customer",
     sortable: true,
+    width: "fill",
     render: (row) => row.name,
     sortValue: (row) => row.name,
   },
@@ -259,6 +260,7 @@ const demoColumns: Column<DemoRow>[] = [
     header: "Balance",
     align: "right",
     sortable: true,
+    width: "fit",
     render: (row) => <BalanceBadge balance={row.balance} />,
     sortValue: (row) => row.balance,
   },
@@ -319,9 +321,10 @@ function TableSection() {
           />
         </div>
         <div>
-          <p className="mb-2 text-xs text-muted-foreground">Data + sort, paging, row actions</p>
+          <p className="mb-2 text-xs text-muted-foreground">Data + sort, paging, row actions (comfortable density)</p>
           <DataTable<DemoRow>
             {...shared}
+            density="comfortable"
             rows={demoRows}
             sortBy="name"
             sortDir="asc"
@@ -345,12 +348,44 @@ function TableSection() {
                 ]}
               />
             )}
-            renderMobileCard={(row) => (
-              <div className="flex items-center justify-between">
-                <span>{row.name}</span>
-                <BalanceBadge balance={row.balance} />
-              </div>
+            mobile={(row) => ({
+              title: row.name,
+              trailing: <BalanceBadge balance={row.balance} />,
+            })}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs text-muted-foreground">Compact density (Day book, embedded tables)</p>
+          <DataTable<DemoRow>
+            {...shared}
+            density="compact"
+            rows={demoRows}
+            sortBy="name"
+            sortDir="asc"
+            onSortChange={noop}
+            page={1}
+            pageSize={10}
+            totalCount={42}
+            onPageChange={noop}
+            onPageSizeChange={noop}
+            renderRowActions={(row) => (
+              <RowActionsMenu
+                triggerLabel={`Actions for ${row.name}`}
+                items={[
+                  { label: "View", onSelect: noop },
+                  { label: "Edit", onSelect: noop },
+                  {
+                    label: "Archive",
+                    onSelect: noop,
+                    variant: "destructive",
+                  },
+                ]}
+              />
             )}
+            mobile={(row) => ({
+              title: row.name,
+              trailing: <BalanceBadge balance={row.balance} />,
+            })}
           />
         </div>
       </div>

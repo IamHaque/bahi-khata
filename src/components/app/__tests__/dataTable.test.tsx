@@ -215,3 +215,93 @@ describe("RowActionsMenu", () => {
     expect(screen.queryByRole("menuitem")).toBeNull();
   });
 });
+
+
+describe("DataTable v2 (U-02)", () => {
+  it("applies fit and fill column classes", () => {
+    const v2Cols: Column<Row>[] = [
+      { key: "name", header: "Name", width: "fill", render: (r) => r.name },
+      { key: "amount", header: "Amount", width: "fit", render: (r) => `₹${r.amount}` },
+    ];
+    renderApp(<DataTable {...baseProps} columns={v2Cols} />);
+    const nameHeader = screen.getByRole("columnheader", { name: "Name" });
+    const amountHeader = screen.getByRole("columnheader", { name: "Amount" });
+
+    expect(nameHeader.className).toContain("w-full");
+    expect(amountHeader.className).toContain("w-px");
+  });
+
+  it("applies priority hiding classes and folds hidden column content into the fill column", () => {
+    const v2Cols: Column<Row>[] = [
+      { key: "name", header: "Name", width: "fill", render: (r) => r.name },
+      {
+        key: "amount",
+        header: "Amount",
+        priority: 2,
+        render: (r) => `₹${r.amount}`,
+        fold: (r) => `Folded amount: ₹${r.amount}`,
+      },
+    ];
+    renderApp(<DataTable {...baseProps} columns={v2Cols} />);
+    const amountHeader = screen.getByRole("columnheader", { name: "Amount" });
+    expect(amountHeader.className).toContain("hidden lg:table-cell");
+
+    expect(screen.getByText("Folded amount: ₹500")).toBeTruthy();
+  });
+
+  it("renders topRow and totals slots inside the table", () => {
+    renderApp(
+      <DataTable
+        {...baseProps}
+        topRow={<tr data-testid="test-top-row"><td>Top</td></tr>}
+        totals={<tr data-testid="test-totals"><td>Totals</td></tr>}
+      />,
+    );
+    expect(screen.getByTestId("test-top-row")).toBeTruthy();
+    expect(screen.getByTestId("test-totals")).toBeTruthy();
+  });
+
+  it("renders compact density padding when requested", () => {
+    renderApp(<DataTable {...baseProps} density="compact" />);
+    const cell = screen.getByText("Asha").closest("td");
+    expect(cell?.className).toContain("py-1.5");
+  });
+
+  it("supports selectable rows and select-all checkbox", async () => {
+    const user = userEvent.setup();
+    const onSelectChange = vi.fn();
+    renderApp(
+      <DataTable
+        {...baseProps}
+        selectable={{
+          getId: (r) => r.id,
+          selected: ["1"],
+          onChange: onSelectChange,
+        }}
+      />,
+    );
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes.length).toBe(3);
+    expect((checkboxes[1] as HTMLInputElement).checked).toBe(true);
+    expect((checkboxes[2] as HTMLInputElement).checked).toBe(false);
+
+    await user.click(checkboxes[2]!);
+    expect(onSelectChange).toHaveBeenCalledWith(["1", "2"]);
+  });
+
+  it("renders TableFooter in more mode", () => {
+    const onShowMore = vi.fn();
+    renderApp(
+      <DataTable
+        {...baseProps}
+        totalCount={10}
+        footerMode="more"
+        hasMore={true}
+        onShowMore={onShowMore}
+      />,
+    );
+    expect(screen.getAllByText("Showing 2 of 10").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Show more" })).toBeTruthy();
+  });
+});

@@ -1150,7 +1150,7 @@ correction the dialog reads 0 failing controls.
   version of this note wrongly called the parameter mandatory (inherited
   from V-07d); the migration text is the truth and PRD §9.5 agrees
   (client rollback = redeploy the previous build).
-- Every `(this commit)` placeholder in the story board is replaced with the
+- Every `c83578c` placeholder in the story board is replaced with the
   real short hash of the story's commit (this docs commit records them).
 
 ### One more browser find, fixed with the rest
@@ -1237,8 +1237,8 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | Story | Status | Commit | Notes |
 | --- | --- | --- | --- |
 | S-70 Branch, baseline, decisions | Done | 0186842 | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
-| U-01 Tooltips and `IconButton` | Done | (this commit) | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
-| U-02 Table system: `DataTable` v2 and `RowActions` | todo | | |
+| U-01 Tooltips and `IconButton` | Done | 5855dad | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
+| U-02 Table system: `DataTable` v2 and `RowActions` | Done | (this commit) | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
 | U-03 Migrate Transactions and Customers pages | todo | | |
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | todo | | |
 | U-05 Remove the quick-add card | todo | | |
@@ -1282,3 +1282,17 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] Replaced icon-only controls across Topbar (menu, collapse, theme toggle), SearchInput (clear X), FilterBar (remove chip X), DataTable (RowActionsMenu), Sidebar (collapsed rail items), and ledger / transaction row actions (Edit, Void, Restore, Delete).
 - [x] src/test/iconButtonGuard.test.tsx passes (4/4 tests: rendering, disabled trigger, destructive tone, no raw icon buttons missing accessible labels).
 - [x] docs/UI-CONTRACT.md updated with IconButton and tooltip specifications.
+
+## U-02 scenarios (checklist)
+
+- [x] DataTable v2 implements fit ("w-px whitespace-nowrap") and fill ("w-full min-w-0") column layout, with exactly one fill column per table.
+- [x] Responsive priority folding: priority 3 columns hide below xl (1280px), priority 2 columns hide below lg (1024px), and folded column content renders into the fill column as a muted second line.
+- [x] Density support: density="comfortable" (px-3 py-2.5) and density="compact" (px-3 py-1.5) with h-9 sticky header.
+- [x] Mobile card layout: mobile spec ({ lead, title, subtitle, meta, trailing, lines }) renders shared TableCard (< 768px) with 44px More actions button.
+- [x] RowActions pattern: max 2 non-destructive actions inline on fine pointer >= 768px; remaining/destructive actions fold into More actions menu; touch and mobile cards render single More menu. Destructive actions set apart by divider.
+- [x] Shared TableFooter: supports pagination controls and mode="more" ("Show more" button) with sticky/totals slot integration.
+- [x] Selection stub (selectable prop): adds checkbox column with select-all on table and selection checkbox on cards.
+- [x] Action copy unified in src/lib/actionLabels.ts.
+- [x] UiGallery updated to showcase both comfortable and compact DataTable densities.
+- [x] docs/UI-CONTRACT.md updated with Table anatomy section.
+- [x] Tests pass: dataTable.test.tsx (21/21) and RowActions.test.tsx (5/5).
