@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import { routePatterns } from "@/lib/paths";
 import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { MobileDrawer, Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -45,46 +46,48 @@ export function AppShell() {
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* S-40: keyboard users reach the page content without tabbing
-          through the whole sidebar. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium"
-      >
-        Skip to content
-      </a>
-      {/* Desktop sidebar — collapses to icon rail */}
-      <aside
-        className={cn(
-          "sticky top-0 hidden h-screen shrink-0 transition-[width] duration-150 lg:block print:hidden",
-          // L-05: the spine is 212px wide, so the active tab's edge is
-          // the main area's edge.
-          collapsed ? "w-16" : "w-[212px]",
-        )}
-      >
-        <Sidebar collapsed={collapsed} />
-      </aside>
-
-      {/* Mobile drawer — trigger lives in the Topbar */}
-      <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar
-          title={title}
-          collapsed={collapsed}
-          showAddTransaction={showAddTransaction}
-          onToggleSidebar={() => setCollapsed((c) => !c)}
-          onOpenMenu={() => setDrawerOpen(true)}
-        />
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-8 pb-[calc(2rem_+_env(safe-area-inset-bottom))] outline-none print:max-w-none print:px-0 print:py-0"
+    <TooltipProvider delay={400} closeDelay={0}>
+      <div className="flex min-h-screen bg-background">
+        {/* S-40: keyboard users reach the page content without tabbing
+            through the whole sidebar. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium"
         >
-          <Outlet />
-        </main>
+          Skip to content
+        </a>
+        {/* Desktop sidebar — collapses to icon rail */}
+        <aside
+          className={cn(
+            "sticky top-0 hidden h-screen shrink-0 transition-[width] duration-150 lg:block print:hidden",
+            // L-05: the spine is 212px wide, so the active tab's edge is
+            // the main area's edge.
+            collapsed ? "w-16" : "w-[212px]",
+          )}
+        >
+          <Sidebar collapsed={collapsed} />
+        </aside>
+
+        {/* Mobile drawer — trigger lives in the Topbar */}
+        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar
+            title={title}
+            collapsed={collapsed}
+            showAddTransaction={showAddTransaction}
+            onToggleSidebar={() => setCollapsed((c) => !c)}
+            onOpenMenu={() => setDrawerOpen(true)}
+          />
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-8 pb-[calc(2rem_+_env(safe-area-inset-bottom))] outline-none print:max-w-none print:px-0 print:py-0"
+          >
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

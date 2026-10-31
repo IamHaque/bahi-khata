@@ -1236,8 +1236,8 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 
 | Story | Status | Commit | Notes |
 | --- | --- | --- | --- |
-| S-70 Branch, baseline, decisions | Done | (this commit) | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
-| U-01 Tooltips and `IconButton` | todo | | |
+| S-70 Branch, baseline, decisions | Done | 0186842 | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
+| U-01 Tooltips and `IconButton` | Done | (this commit) | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
 | U-02 Table system: `DataTable` v2 and `RowActions` | todo | | |
 | U-03 Migrate Transactions and Customers pages | todo | | |
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | todo | | |
@@ -1274,3 +1274,11 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 ## Deviations (v3.2)
 
 - **V-01 Responsive audit baseline skipped**: Real-browser headless Chrome responsive audit was skipped for the S-70 baseline per explicit owner directive ("Skip the audit, continue. You seem to be stuck on it."). Test suite timeout was adjusted to 15000ms in `vitest.config.ts` and `transactionSheet.test.tsx` time-drift assertion was loosened to 120s to ensure reliable local test execution.
+
+## U-01 scenarios (checklist)
+
+- [x] Tooltip primitive wraps @base-ui/react/tooltip with flat panel styling (bg-popover border border-border rounded px-2 py-1 text-xs text-popover-foreground), 400ms open delay, 0ms close delay.
+- [x] IconButton renders shared Button with .touch-target hit area (44px), label tooltip, and ariaLabel accessible name. Disabled triggers remain accessible to hover and focus.
+- [x] Replaced icon-only controls across Topbar (menu, collapse, theme toggle), SearchInput (clear X), FilterBar (remove chip X), DataTable (RowActionsMenu), Sidebar (collapsed rail items), and ledger / transaction row actions (Edit, Void, Restore, Delete).
+- [x] src/test/iconButtonGuard.test.tsx passes (4/4 tests: rendering, disabled trigger, destructive tone, no raw icon buttons missing accessible labels).
+- [x] docs/UI-CONTRACT.md updated with IconButton and tooltip specifications.

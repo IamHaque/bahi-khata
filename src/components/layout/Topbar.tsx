@@ -22,7 +22,7 @@ import {
   useTransactionSheet,
 } from "@/features/transactions/sheetStore";
 import { paths } from "@/lib/paths";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/app/IconButton";
 import {
   Popover,
   PopoverContent,
@@ -91,28 +91,26 @@ export function Topbar({
     <header className="sticky top-0 z-10 border-b border-border bg-background print:hidden">
       <div className="flex min-h-14 items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
         {/* Hamburger — mobile only */}
-        <button
-          type="button"
+        <IconButton
+          icon={<Menu className="size-5" />}
+          label="Open menu"
           onClick={onOpenMenu}
-          aria-label="Open menu"
-          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11 lg:hidden"
-        >
-          <Menu className="size-5" />
-        </button>
+          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground lg:hidden"
+        />
 
         {/* Collapse — desktop only */}
-        <button
-          type="button"
+        <IconButton
+          icon={
+            collapsed ? (
+              <PanelLeftOpen className="size-5" />
+            ) : (
+              <PanelLeftClose className="size-5" />
+            )
+          }
+          label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={onToggleSidebar}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11 lg:block"
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="size-5" />
-          ) : (
-            <PanelLeftClose className="size-5" />
-          )}
-        </button>
+          className="hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground lg:block"
+        />
 
         {/* L-05: one page title. The top bar's copy is a paragraph for
             mobile only; from lg up the page's h1 is the only title and
@@ -167,14 +165,11 @@ export function Topbar({
           </button>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
+        <IconButton
+          icon={isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          label={isDark ? "Switch to light mode" : "Switch to dark mode"}
           onClick={() => setTheme(isDark ? "light" : "dark")}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </Button>
+        />
 
         <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
           <PopoverTrigger

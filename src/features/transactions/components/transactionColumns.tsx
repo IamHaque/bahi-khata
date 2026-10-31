@@ -5,6 +5,8 @@ import { Money } from "@/components/app/Money";
 import { Monogram } from "@/components/app/Monogram";
 import { RowActionCluster } from "@/components/app/DataTable";
 import type { RowActionItem } from "@/components/app/DataTable";
+import { Ban, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { IconButton } from "@/components/app/IconButton";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { TypeBadge } from "@/components/app/TypeBadge";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
@@ -280,19 +282,15 @@ export function buildDetailColumns({
       ];
       return (
         <RowActionCluster items={items} triggerLabel="Transaction actions">
-          <button
-            type="button"
+          <IconButton
+            icon={<RotateCcw className="size-4" />}
+            label="Restore"
+            ariaLabel={`Restore ${row.type} of ${formatMoney(row.amount)}`}
             onClick={(event) => {
               event.stopPropagation();
               onRestore(row);
             }}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-            </svg>
-          </button>
+          />
         </RowActionCluster>
       );
     }
@@ -318,49 +316,38 @@ export function buildDetailColumns({
 
     return (
       <RowActionCluster items={items} triggerLabel="Transaction actions">
-        <button
-          type="button"
+        <IconButton
+          icon={<Pencil className="size-4" />}
+          label="Edit"
+          ariaLabel={`Edit ${row.type} of ${formatMoney(row.amount)}`}
           onClick={(event) => {
             event.stopPropagation();
             onEdit(row);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={`Edit ${row.type} of ${formatMoney(row.amount)}`}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </button>
-        <button
-          type="button"
+        />
+        <IconButton
+          icon={<Ban className="size-4" />}
+          label="Void"
+          ariaLabel={`Void ${row.type} of ${formatMoney(row.amount)}`}
           onClick={(event) => {
             event.stopPropagation();
             onVoid(row);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={`Void ${row.type} of ${formatMoney(row.amount)}`}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-        </button>
+        />
         {/* v3 (S-54): after a divider — destructive, owner-only. */}
         {can("deleteTransaction") && (
           <>
             <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-            <button
-              type="button"
+            <IconButton
+              icon={<Trash2 className="size-4" />}
+              label="Delete"
+              ariaLabel={`Delete ${row.type} of ${formatMoney(row.amount)}`}
+              tone="destructive"
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(row);
               }}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label={`Delete ${row.type} of ${formatMoney(row.amount)}`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" />
-              </svg>
-            </button>
+            />
           </>
         )}
       </RowActionCluster>

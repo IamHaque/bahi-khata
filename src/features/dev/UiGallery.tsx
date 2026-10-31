@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Moon, Plus, Sun } from "lucide-react";
+import { Ban, Loader2, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/app/IconButton";
 import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
 import { AgeFlag } from "@/components/app/AgeFlag";
@@ -89,6 +90,12 @@ function ButtonsSection() {
         <Button variant="outline" size="sm">
           Small
         </Button>
+        <div className="flex items-center gap-2 border-l border-border pl-3">
+          <IconButton icon={<Pencil className="size-4" />} label="Edit" />
+          <IconButton icon={<Ban className="size-4" />} label="Void" />
+          <IconButton icon={<Trash2 className="size-4" />} label="Delete" tone="destructive" />
+          <IconButton icon={<Pencil className="size-4" />} label="Disabled" disabled />
+        </div>
       </div>
     </Section>
   );

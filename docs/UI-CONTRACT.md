@@ -18,6 +18,7 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 | Form control (input, select, textarea, checkbox, outline button) | `border border-input` | `border-border` (too faint for 3:1) |
 | Tinted chip | light `bg-TONE/10`, dark `dark:bg-TONE/8`, text `text-TONE` | `/12` or higher (the audit assumes 10 and 8) |
 | Popover, menu, dialog | `bg-popover border border-border`; dialogs add `border-t-2 border-t-foreground` | custom backgrounds |
+| Tooltip (U-01) | `bg-popover border border-border rounded px-2 py-1 text-xs text-popover-foreground` | `shadow-*`, `ring-*`, `rounded-xl` or larger |
 | Page title and section heading | `font-heading` | any other family |
 | Hero figure (balances, net position) | `font-display tabular-nums` | proportional digits |
 | All money | `<Money>` / `formatMoney` (guard test added in L-03) | hand formatting |
@@ -95,14 +96,14 @@ is **Particulars** (D-27).
 
 Shared components (the `ui/` primitives plus the L-04 ledger set):
 
-- Primitives: `Button`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
+- Primitives: `Button`, `IconButton`, `Tooltip`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
   `Card`, `Dialog`, `AlertDialog`, `Sheet`, `Popover`, `Menu`,
   `EntityDialog`, `ConfirmDialog`, `MoneyField`.
 - Ledger (L-04): `LeaderRow` (label + dotted leader + amount, never
   truncates the amount), `TotalsRule` (single rule above, double below),
   `Monogram` (initials avatar on a tone tint), `AgeFlag` (30+ day
   thresholds), `TallyMark`, `TypeBadge` (Charged/Paid), `BalanceBadge`.
-- App-level: `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
+- App-level: `IconButton` (44px touch hit area via `.touch-target`, accessible name + tooltip, disabled triggers supported), `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
   mobile cards), `SearchInput`, `FilterBar`, `EmptyState`, `ErrorState`,
   `Skeleton`, `StatCard`, `Money`/`formatMoney`, `LedgerTable` (the L-07
   real-table ledger with caption, header cells and a Totals row).

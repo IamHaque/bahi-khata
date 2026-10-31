@@ -1,5 +1,6 @@
 import { Link, matchPath, useLocation, useParams } from "react-router-dom";
 import { TallyMark } from "@/components/app/TallyMark";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -75,12 +76,13 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
           .filter((item) => item.visible)
           .map((item) => {
             const active = activePath === item.path;
-            return (
+            const link = (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
+                aria-label={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-l-sm px-3 py-2.5 transition-colors pointer-coarse:min-h-11",
                   collapsed && "justify-center px-0",
@@ -88,12 +90,21 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
                     ? "bg-background font-semibold text-foreground"
                     : "font-medium text-sidebar-foreground/80 hover:text-sidebar-foreground",
                 )}
-                title={collapsed ? item.label : undefined}
               >
                 <item.icon className="size-4 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </Link>
             );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.path}>
+                  <TooltipTrigger render={link} />
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+              );
+            }
+            return link;
           })}
       </nav>
     </div>

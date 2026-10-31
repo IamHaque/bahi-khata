@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, MoreHorizontal, SearchX } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -93,20 +94,28 @@ export function RowActionsMenu({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={triggerLabel}
-            onKeyDown={onTriggerKeyDown}
-            onClick={(event) => event.stopPropagation()}
-          />
-        }
-      >
-        <MoreHorizontal className="size-4" />
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={triggerLabel}
+                  className="touch-target"
+                  onKeyDown={onTriggerKeyDown}
+                  onClick={(event) => event.stopPropagation()}
+                />
+              }
+            >
+              <MoreHorizontal className="size-4" />
+            </PopoverTrigger>
+          }
+        />
+        <TooltipContent>{triggerLabel}</TooltipContent>
+      </Tooltip>
       <PopoverContent className="w-44 p-1">
         <ul role="menu" aria-label={triggerLabel}>
           {items.map((item, i) => (
