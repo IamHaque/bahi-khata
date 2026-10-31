@@ -702,7 +702,7 @@ describe("S-35 transactions page v2", () => {
       const amount = screen.getByText("+₹5,000.00");
       expect(amount.className).not.toContain("truncate");
       expect(screen.getByText("-₹500.00")).toBeTruthy();
-      expect(screen.getByText("Former member")).toBeTruthy();
+      expect(screen.getByText("by Former member")).toBeTruthy();
     } finally {
       __setMatchMedia(false);
     }

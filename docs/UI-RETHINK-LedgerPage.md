@@ -149,18 +149,18 @@ Hex values are what the canvas uses. OKLCH values are the exact conversions for 
 
 | Role (existing token)           | Light, "Columnar"                      | Dark, "Slate"                          |
 | ------------------------------- | -------------------------------------- | -------------------------------------- |
-| `--background` (Paper)          | `#E6ECE4` `oklch(0.936 0.012 138)`     | `#0D1613` `oklch(0.190 0.015 172)`     |
-| `--card`, `--popover` (Sheet)   | `#F4F7F1` `oklch(0.972 0.009 129)`     | `#14201C` `oklch(0.231 0.019 172)`     |
-| `--foreground` (Ink / Chalk)    | `#13203A` `oklch(0.247 0.053 263)`     | `#E8EDE6` `oklch(0.940 0.011 137)`     |
-| `--muted-foreground`            | `#4A5870` `oklch(0.458 0.043 261)`     | `#9DABA2` `oklch(0.728 0.020 158)`     |
+| `--background` (Paper)          | `#E6ECE4` `oklch(0.936 0.012 138)`     | `oklch(0.150 0.018 263)`                 |
+| `--card`, `--popover` (Sheet)   | `#F4F7F1` `oklch(0.972 0.009 129)`     | `oklch(0.190 0.017 263)`                 |
+| `--foreground` (Ink / Chalk)    | `#13203A` `oklch(0.247 0.053 263)`     | `oklch(0.930 0.010 263)`                 |
+| `--muted-foreground`            | `#4A5870` `oklch(0.458 0.043 261)`     | `oklch(0.680 0.018 263)`                 |
 | `--primary` (Parker blue)       | `#1D3FBF` `oklch(0.438 0.203 266)`     | `#93ABFF` `oklch(0.757 0.124 271)`     |
-| `--primary-foreground`          | Sheet `#F4F7F1`                        | Slate `#0D1613`                        |
+| `--primary-foreground`          | Sheet `#F4F7F1`                        | Background `oklch(0.150 0.018 263)`     |
 | `--receivable`                  | `#1B6B3A` `oklch(0.468 0.109 152)`     | `#72D391` `oklch(0.790 0.132 153)`     |
 | `--credit`                      | `#B03A1A` `oklch(0.515 0.160 35)`      | `#FF9C82` `oklch(0.789 0.125 36)`      |
 | `--warning` (age flag)          | `#7A5200` `oklch(0.471 0.099 76)`      | `#E3B04B` `oklch(0.785 0.131 82)`      |
-| `--sidebar` (spine)             | Ink `#13203A` (text `#C9D3E6`, 10.8:1) | `#0A100E` (text dust `#9DABA2`, 8.0:1) |
-| `--border` (rules, decorative)  | Ink at 16%                             | Chalk at 14%                           |
-| `--input` (control border, 3:1) | Ink mixed 55% into Sheet (3.65:1)      | Chalk mixed 55% into Sheet (5.18:1)    |
+| `--sidebar` (spine)             | Ink `#13203A` (text `#C9D3E6`, 10.8:1) | `oklch(0.120 0.014 263)` (text `oklch(0.680 0.018 263)`, 7.05:1) |
+| `--border` (rules, decorative)  | Ink at 16%                             | Foreground at 14% (hue 263)            |
+| `--input` (control border, 3:1) | Ink mixed 55% into Sheet (3.65:1)      | `oklch(0.648 0.018 263)` (5.67:1)       |
 | `--margin` (ledger margin rule) | Blue at 38%                            | Blue at 40%                            |
 
 Notes. (a) The receivable and credit hues are close to, but not identical to, the v2 tokens; their meaning is unchanged. The v2 credit colour fails AA on tinted chips (4.18 to 4.48 measured), the ledger credit colour passes. (b) Convert the dark spine hex with the same method when implementing, then update `scripts/contrast-audit.cjs` tables and re-run it with `scripts/check-token-sync.cjs`. (c) "Parker blue" is only a description; there is no trademark use.

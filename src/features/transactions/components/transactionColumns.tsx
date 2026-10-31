@@ -164,7 +164,7 @@ export function transactionMobileCard(
       </div>
 
       <p className="mt-0.5 text-xs text-muted-foreground">
-        by <span>{row.created_by_name ?? "Former member"}</span>
+        by {row.created_by_name ?? "Former member"}
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-3">

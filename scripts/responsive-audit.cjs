@@ -130,6 +130,18 @@ const SCENARIOS = [
 
   // Dashboard: with data, empty (first-run) and loading (skeleton) states.
   { id: "dashboard-data", path: "/b/b1", marker: "Top outstanding balances", focus: true },
+  {
+    id: "dashboard-chart-30",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^30 days$/ }],
+  },
+  {
+    id: "dashboard-chart-90",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^90 days$/ }],
+  },
   { id: "dashboard-empty", path: "/b/b1", marker: "Getting started", mode: "empty" },
   {
     id: "dashboard-loading",
@@ -726,8 +738,26 @@ function routeRest(urlObj, method, headers, postData) {
         return jsonResult(DASHBOARD_SUMMARY);
       case "customer_ledger":
         return jsonResult(LEDGER_C1);
-      case "daily_activity":
+      case "daily_activity": {
+        let pDays = 7;
+        try {
+          pDays = JSON.parse(postData || "{}").p_days ?? 7;
+        } catch {}
+        if (pDays > 7) {
+          const rows = [];
+          for (let i = pDays - 1; i >= 0; i--) {
+            const d = new Date(2026, 9, 15 - i);
+            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            rows.push({
+              activity_date: iso,
+              charges: (i % 3 === 0) ? 1200 : 0,
+              payments: (i % 5 === 0) ? 800 : 0,
+            });
+          }
+          return jsonResult(rows);
+        }
         return jsonResult(DAILY_ACTIVITY);
+      }
       case "my_invitations":
         return jsonResult(MY_INVITATIONS);
       case "business_exists":
