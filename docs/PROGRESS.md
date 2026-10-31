@@ -1240,8 +1240,8 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-01 Tooltips and `IconButton` | Done | 5855dad | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
 | U-02 Table system: `DataTable` v2 and `RowActions` | Done | 1e608d4 | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
 | U-03 Migrate Transactions and Customers pages | Done | 8c62478 | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
-| U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 8624868 | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
-| U-05 Remove the quick-add card | todo | | |
+| U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 219fadb | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
+| U-05 Remove the quick-add card | Done | 41f34a0 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
 | U-06 Dashboard activity chart, rebuilt | todo | | |
 | S-71 Analysis: the "who to chase" threshold | todo | | |
 | U-07 Who to chase (L-13) | todo | | |
@@ -1317,3 +1317,11 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] Recently deleted (`DeletedItemsPage.tsx`): Item (fill: icon, strike-through label, transaction count, reason), Type (fit), Deleted by (fit, priority 2), Deleted (fit). Actions via `RowActions`: Restore as first inline action (spins during restore, with tooltip), View details in More menu. Restored rows display "Restored {when} by {name}" in action cell.
 - [x] Deprecated components deleted: `RowActionsMenu` and `RowActionCluster` (`RowActionsCompat.tsx`) completely removed; all pages and UI gallery migrated to `RowActions`.
 - [x] Full verification: 81 test files, 641 tests passing (0 failing, 0 skipped), `npm run build` succeeds, `npm run lint` clean (0 errors), design tokens & contrast audits 100% pass.
+
+## U-05 scenarios (checklist)
+
+- [x] Deleted CustomerQuickAdd.tsx and its tests (CustomerQuickAdd.test.tsx); removed mount in CustomerDetailPage.tsx. Retained entry-reveal CSS in index.css.
+- [x] Removed duplicate Add charge / Add payment buttons from CustomerDetailPage empty-ledger state; updated copy to "No entries yet. Use Add charge or Add payment above."
+- [x] CustomerHeader: Add charge and Add payment shown for Owner/Editor when not archived; on mobile (< 640px) sit under customer name, flex-1, 44px (h-11); on desktop sit under balance.
+- [x] Verified phone scenario with responsive tests; customerDetail.test.tsx passes (11/11).
+

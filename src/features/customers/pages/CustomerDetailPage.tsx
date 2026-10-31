@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Archive, Trash2 } from "lucide-react";
-import { Can } from "@/components/app/Can";
 import type { RowAction } from "@/components/app/RowActions";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ErrorState } from "@/components/app/ErrorState";
@@ -16,7 +15,6 @@ import { ArchiveCustomerDialog } from "@/features/customers/components/ArchiveCu
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { CustomerHeader } from "@/features/customers/components/CustomerHeader";
-import { CustomerQuickAdd } from "@/features/customers/components/CustomerQuickAdd";
 import { LedgerTable } from "@/features/customers/components/LedgerTable";
 import { useCustomer, useSetCustomerArchived } from "@/features/customers/hooks";
 import type { CustomerListRow } from "@/features/customers/api";
@@ -240,18 +238,6 @@ export function CustomerDetailPage() {
         </TabsList>
 
         <TabsContent value="ledger" className="space-y-3">
-          {/* G-A2 is pending, so the baseline quick-add card ships
-              here; L-12's entry row takes the slot when the gate
-              approves (the card stays on as the mobile control). */}
-          <Can action="manageTransactions">
-            {!archived && (
-              <CustomerQuickAdd
-                customerId={customer.id}
-                businessId={businessId}
-              />
-            )}
-          </Can>
-
           <div className="flex flex-wrap items-center justify-between gap-2">
             <ToggleGroup
               // base-ui's group value is always an array of pressed
@@ -293,17 +279,8 @@ export function CustomerDetailPage() {
           ) : filtered.length === 0 ? (
             <EmptyState
               title="No transactions yet"
-              description="Add a charge or a payment to start this ledger."
-            >
-              {canWriteTransactions && (
-                <>
-                  <Button onClick={addCharge}>Add charge</Button>
-                  <Button variant="outline" onClick={addPayment}>
-                    Add payment
-                  </Button>
-                </>
-              )}
-            </EmptyState>
+              description="No entries yet. Use Add charge or Add payment above."
+            />
           ) : (
             <LedgerTable
               entries={filtered}

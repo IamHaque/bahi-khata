@@ -345,7 +345,7 @@ describe("S-31 customer detail v2", () => {
     within(customerHeader()).getByRole("button", { name: "Add charge" });
     within(customerHeader()).getByRole("button", { name: "Add payment" });
     // …and the quick-add card sits above the ledger.
-    screen.getByRole("region", { name: "New entry" });
+    expect(screen.queryByRole("region", { name: "New entry" })).toBeNull();
   });
 
   it("Add payment opens the shared sheet with Payment already selected (S-31 preset)", async () => {
@@ -593,7 +593,7 @@ describe("S-31 customer detail v2", () => {
     );
     within(customerHeader()).getByRole("button", { name: "Add charge" });
     screen.getByRole("button", { name: "Customer actions" });
-    screen.getByRole("region", { name: "New entry" });
+    expect(screen.queryByRole("region", { name: "New entry" })).toBeNull();
   });
 
   it("Viewer: everything readable, no write actions anywhere", async () => {
@@ -654,19 +654,20 @@ describe("S-31 customer detail v2", () => {
     await screen.findByRole("tab", { name: "Ledger" });
 
     await screen.findByText("No transactions yet");
+    screen.getByText("No entries yet. Use Add charge or Add payment above.");
     // The same two actions appear in the hero AND in the empty state;
     // the quick-add card's submit is a third "Add charge" (its own
     // default choice).
     expect(
       screen.getAllByRole("button", { name: "Add charge" }),
-    ).toHaveLength(3);
+    ).toHaveLength(1);
     expect(
       screen.getAllByRole("button", { name: "Add payment" }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     // The quick-add card is there, and the muted header line says
     // plainly that nothing has happened yet (the stat cards are gone;
     // the ledger's Totals row needs entries to sum).
-    screen.getByRole("region", { name: "New entry" });
+    expect(screen.queryByRole("region", { name: "New entry" })).toBeNull();
     screen.getByText(/no activity yet/);
   });
 
@@ -688,6 +689,7 @@ describe("S-31 customer detail v2", () => {
 
     // Second read succeeds: the empty state takes over.
     await screen.findByText("No transactions yet");
+    screen.getByText("No entries yet. Use Add charge or Add payment above.");
     expect(calls).toBe(2);
   });
 });
