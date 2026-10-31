@@ -178,7 +178,11 @@ describe("S-54 delete transaction entry points", () => {
     );
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "Delete charge of ₹500.00" }),
+      await screen.findByRole("button", { name: "Transaction actions" }),
+    );
+    const txMenu = await screen.findByRole("menu");
+    await userEvent.click(
+      within(txMenu).getByRole("menuitem", { name: /Delete/ }),
     );
     const dialog = await screen.findByRole("dialog");
     within(dialog).getByText("Delete this transaction?");

@@ -17,7 +17,7 @@ import {
   buildDetailColumns,
   buildSummaryColumns,
   toPeriodRows,
-  transactionMobileCard,
+  transactionMobileSpec,
 } from "@/features/transactions/components/transactionColumns";
 import {
   RANGE_LABELS,
@@ -370,9 +370,7 @@ export function TransactionsPage() {
           error={list.error ? list.error.message : null}
           onRetry={() => list.refetch()}
           renderRowActions={renderRowActions}
-          renderMobileCard={(row) =>
-            transactionMobileCard(row, businessId, renderRowActions(row))
-          }
+          mobile={(row) => transactionMobileSpec(row, businessId)}
           footer={<TransactionTotals total={totalRow} />}
           emptyState={hasFilters ? undefined : trueEmptyNode}
           noResultsState={hasFilters ? noResultsNode : undefined}

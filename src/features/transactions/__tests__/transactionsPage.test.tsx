@@ -332,7 +332,6 @@ describe("S-35 transactions page v2", () => {
     for (const header of [
       "Date",
       "Customer",
-      "Particulars",
       "Charged",
       "Paid",
       "Recorded by",

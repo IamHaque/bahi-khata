@@ -7,6 +7,7 @@ export const actionLabels = {
   unarchive: "Restore",
   more: "More actions",
   view: "View",
+  addTransaction: "Add transaction",
   copy: "Copy",
 } as const;
 

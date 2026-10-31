@@ -291,7 +291,7 @@ export function DataTable<T>({
     // Mobile cards layout (< 768 px)
     if (isMobile && (mobile || renderMobileCard)) {
       return (
-        <div className="space-y-2">
+        <div className="space-y-2" role="list">
           {rows.map((row) => {
             const key = getRowKey(row);
             if (mobile) {

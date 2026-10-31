@@ -392,9 +392,13 @@ describe("S-28 customers list", () => {
     );
   });
 
-  it("offers View, Edit, Add transaction, Archive and Delete to an Owner", async () => {
+  it("offers Edit, Add transaction, Archive and Delete to an Owner", async () => {
     renderPage();
     const asha = await findRowScope("Asha");
+
+    // v3.2 U-02/U-03: first two non-destructive actions render inline as IconButtons
+    expect(asha.getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(asha.getByRole("button", { name: "Add transaction" })).toBeTruthy();
 
     await userEvent.click(
       asha.getByRole("button", { name: "Actions for Asha" }),
@@ -403,33 +407,19 @@ describe("S-28 customers list", () => {
     const labels = within(menu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    // v3 (S-55): Delete joins the end of the Owner's active-row menu.
+    // Archive and Delete sit in the More actions menu
     expect(labels).toEqual([
-      "View",
-      "Edit",
-      "Add transaction",
       "Archive",
       "Delete",
     ]);
 
-    // Live since S-32: opens the shared sheet with this row's customer
-    // preselected (the sheet itself mounts in the Topbar).
-    expect(
-      (
-        within(menu).getByRole("menuitem", {
-          name: "Add transaction",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(false);
-    // Live since S-30: the archive column exists, so Archive opens the
-    // confirmation instead of pretending.
     expect(
       (within(menu).getByRole("menuitem", { name: "Archive" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
 
     // Edit opens the form dialog with this row's customer loaded.
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Edit" }));
+    await userEvent.click(asha.getByRole("button", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByRole("heading", { name: "Edit Customer" }),
@@ -439,36 +429,26 @@ describe("S-28 customers list", () => {
     ).toBe("Asha");
   });
 
-  it("navigates to the detail page from View", async () => {
+  it("navigates to the detail page from the customer link", async () => {
     renderPage();
     const rahim = await findRowScope("Rahim");
 
-    await userEvent.click(
-      rahim.getByRole("button", { name: "Actions for Rahim" }),
-    );
-    const menu = await screen.findByRole("menu");
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "View" }));
+    await userEvent.click(rahim.getByRole("link", { name: "Rahim" }));
 
     expect(screen.getByTestId("location").textContent).toBe(
       paths.customerDetail("b1", "c2"),
     );
   });
 
-  it("gives a Viewer only View and hides the create actions", async () => {
+  it("gives a Viewer no write actions and hides the create actions", async () => {
     businessApi.getMemberships.mockImplementation(async () =>
       membershipsFor("viewer"),
     );
     renderPage();
     const asha = await findRowScope("Asha");
 
-    await userEvent.click(
-      asha.getByRole("button", { name: "Actions for Asha" }),
-    );
-    const menu = await screen.findByRole("menu");
-    const labels = within(menu)
-      .getAllByRole("menuitem")
-      .map((item) => item.textContent);
-    expect(labels).toEqual(["View"]);
+    // v3.2 U-02: Viewers see no action column at all
+    expect(asha.queryByRole("button", { name: "Actions for Asha" })).toBeNull();
 
     expect(screen.queryByRole("button", { name: "Add customer" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Import CSV" })).toBeNull();

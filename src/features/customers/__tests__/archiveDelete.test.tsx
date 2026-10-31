@@ -348,15 +348,16 @@ describe("S-30 archive, restore and delete", () => {
     renderPage();
     await showArchivedFilter();
 
+    const scope = await findRowScope("Asha Verma");
+    expect(scope.getByRole("button", { name: "Restore" })).toBeTruthy();
+
     const menu = await openRowMenu("Asha Verma");
     const labels = within(menu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    // v3 (S-55): Delete is renamed and now on every row — last, after
-    // the divider.
-    expect(labels).toEqual(["View", "Restore", "Delete"]);
+    expect(labels).toEqual(["Delete"]);
 
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Restore" }));
+    await userEvent.click(scope.getByRole("button", { name: "Restore" }));
     await waitFor(() =>
       expect(customersApi.setCustomerArchived).toHaveBeenCalledWith(
         "c1",
@@ -507,24 +508,24 @@ describe("S-30 archive, restore and delete", () => {
     archiveAsha();
     renderPage();
 
-    // Active row: full working-set menu, Archive live (S-30).
+    // Active row: Edit & Add transaction inline, Archive in More menu
+    const karimScope = await findRowScope("Karim Chowdhury");
+    expect(karimScope.getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(karimScope.getByRole("button", { name: "Add transaction" })).toBeTruthy();
+
     const karimMenu = await openRowMenu("Karim Chowdhury");
     const activeLabels = within(karimMenu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    expect(activeLabels).toEqual([
-      "View",
-      "Edit",
-      "Add transaction",
-      "Archive",
-    ]);
+    expect(activeLabels).toEqual(["Archive"]);
 
     await showArchivedFilter();
-    const archivedMenu = await openRowMenu("Asha Verma");
-    const archivedLabels = within(archivedMenu)
-      .getAllByRole("menuitem")
-      .map((item) => item.textContent);
-    expect(archivedLabels).toEqual(["View", "Restore"]);
+    const ashaScope = await findRowScope("Asha Verma");
+    // Archived row offers Restore inline, no delete for Editor
+    expect(ashaScope.getByRole("button", { name: "Restore" })).toBeTruthy();
+    expect(
+      ashaScope.queryByRole("button", { name: "Actions for Asha Verma" }),
+    ).toBeNull();
   });
 
   it("gives a Viewer no archive, restore or delete action at all", async () => {
@@ -534,20 +535,17 @@ describe("S-30 archive, restore and delete", () => {
     archiveAsha();
     renderPage();
 
-    const activeMenu = await openRowMenu("Karim Chowdhury");
+    const karimScope = await findRowScope("Karim Chowdhury");
+    // v3.2 U-02: Viewers see no action column at all
     expect(
-      within(activeMenu)
-        .getAllByRole("menuitem")
-        .map((item) => item.textContent),
-    ).toEqual(["View"]);
+      karimScope.queryByRole("button", { name: "Actions for Karim Chowdhury" }),
+    ).toBeNull();
 
     await showArchivedFilter();
-    const archivedMenu = await openRowMenu("Asha Verma");
+    const ashaScope = await findRowScope("Asha Verma");
     expect(
-      within(archivedMenu)
-        .getAllByRole("menuitem")
-        .map((item) => item.textContent),
-    ).toEqual(["View"]);
+      ashaScope.queryByRole("button", { name: "Actions for Asha Verma" }),
+    ).toBeNull();
   });
 
   it("keeps the row in place and says so when the archive fails", async () => {

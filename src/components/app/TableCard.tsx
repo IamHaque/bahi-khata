@@ -32,6 +32,7 @@ export function TableCard({
 
   return (
     <div
+      role="listitem"
       className={cn(
         "relative rounded-lg border border-border bg-card p-3 transition-colors",
         onClick && "cursor-pointer hover:bg-muted/30",

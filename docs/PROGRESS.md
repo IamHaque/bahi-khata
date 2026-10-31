@@ -1238,8 +1238,8 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | --- | --- | --- | --- |
 | S-70 Branch, baseline, decisions | Done | 0186842 | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
 | U-01 Tooltips and `IconButton` | Done | 5855dad | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
-| U-02 Table system: `DataTable` v2 and `RowActions` | Done | (this commit) | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
-| U-03 Migrate Transactions and Customers pages | todo | | |
+| U-02 Table system: `DataTable` v2 and `RowActions` | Done | 1e608d4 | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
+| U-03 Migrate Transactions and Customers pages | Done | 8c62478 | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | todo | | |
 | U-05 Remove the quick-add card | todo | | |
 | U-06 Dashboard activity chart, rebuilt | todo | | |
@@ -1296,3 +1296,15 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] UiGallery updated to showcase both comfortable and compact DataTable densities.
 - [x] docs/UI-CONTRACT.md updated with Table anatomy section.
 - [x] Tests pass: dataTable.test.tsx (21/21) and RowActions.test.tsx (5/5).
+
+## U-03 scenarios (checklist)
+
+- [x] TransactionsPage (detailed view): Date (fit), Customer + Particulars merged into fill column (Monogram, customer link, note second line, "by {name}" folded below xl, Voided/Imported chips), Charged (fit), Paid (fit), Recorded by (priority 3, hides below xl and folds).
+- [x] TransactionsPage (summarized view): Period (fill), Entries (fit), Charged (fit), Paid (fit), Net (fit).
+- [x] TransactionsPage totals: rendered through the totals/footer slot without table width distortions.
+- [x] CustomersPage: Customer (fill: Monogram, name link, phone folded below lg, tags/archived line), Phone (fit, priority 2, folds below lg), Balance (fit with tone and words), Last activity (fit, priority 2), Added (fit, priority 3).
+- [x] RowActions pattern:
+  - Transactions: Edit & Void inline, Delete in More menu (destructive, owner-only); Restore inline on voided rows. Viewers see no action column.
+  - Customers: Edit & Add transaction inline, Archive & Delete in More menu; Restore inline on archived rows. Viewers see no action column.
+- [x] Shared mobile spec: page-local card renderers replaced with shared TableCard layout across both Transactions and Customers pages.
+- [x] Test suite updated for markup changes: 81 test files, 644 tests passing (0 failing, 0 skipped).

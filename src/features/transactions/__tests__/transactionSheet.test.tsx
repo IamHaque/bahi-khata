@@ -429,11 +429,7 @@ describe("S-32 transaction sheet", () => {
     renderWithTopbar(paths.customers("b1"));
     const asha = await findRowScope("Asha Verma");
     await userEvent.click(
-      asha.getByRole("button", { name: "Actions for Asha Verma" }),
-    );
-    const menu = await screen.findByRole("menu");
-    await userEvent.click(
-      within(menu).getByRole("menuitem", { name: "Add transaction" }),
+      asha.getByRole("button", { name: "Add transaction" }),
     );
 
     const dialog = await screen.findByRole("dialog");
