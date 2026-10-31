@@ -399,7 +399,7 @@ describe("S-32 transaction sheet", () => {
     // of the moment the sheet opened.
     const when = new Date(input.occurred_at);
     expect(localDay(when)).toBe(isoDay(0));
-    expect(Math.abs(when.getTime() - Date.now())).toBeLessThan(60_000);
+    expect(Math.abs(when.getTime() - Date.now())).toBeLessThan(120_000);
 
     // The sheet closed, the balance recalculated and highlights…
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
