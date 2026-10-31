@@ -1031,8 +1031,17 @@ supabase migration repair --status applied 20261108000000
 
 ### (f) Deploy the new client afterwards
 
-The old client keeps working against the new schema in the meantime, so
-deploy the v3 frontend only after (a)-(e) are done and verified.
+Deploy the v3 frontend only after (a)-(e) are done and verified.
+
+**Compatibility correction (L-14 audit / V-07d):** an earlier version of
+this step claimed "the old client keeps working against the new schema in
+the meantime". That is **not** true for the dashboard: the v3 migration
+**drops** the uuid-only `dashboard_summary(uuid)` overload and replaces it
+with the two-argument `dashboard_summary(uuid, text)` (the timezone
+parameter is mandatory — the function cannot resolve without it). After
+step (c), the **old** client's dashboard summary call fails, so keep the
+window between (c) and the frontend deploy short; every other page of the
+old client keeps working.
 
 Note: do **not** replay the whole chain on an already-migrated database.
 Each migration is idempotent when re-applied after itself, but the
