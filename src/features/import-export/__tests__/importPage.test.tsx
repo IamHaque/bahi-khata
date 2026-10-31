@@ -415,4 +415,25 @@ describe("ImportPage (S-38)", () => {
     );
     expect(await screen.findByText("Choose a CSV file")).toBeTruthy();
   });
+
+  it("shows the three leader rows and the all-or-nothing sentence (L-11)", async () => {
+    renderPage();
+
+    await uploadLines([
+      HEADER,
+      "Asha Verma,01711 111111,charge,1500,2024-01-15,",
+      ",017,charge,100,2024-01-01,", // row 3: no name
+    ]);
+
+    // The review step leads with the three counts…
+    expect(await screen.findByText("Valid transactions")).toBeTruthy();
+    expect(screen.getByText("Customers")).toBeTruthy();
+    expect(screen.getByText("Problems")).toBeTruthy();
+    // …and the sentence that explains the all-or-nothing commit.
+    expect(
+      screen.getByText(
+        "Nothing is saved until you click Import. It is all-or-nothing.",
+      ),
+    ).toBeTruthy();
+  });
 });

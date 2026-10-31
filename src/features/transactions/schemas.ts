@@ -14,9 +14,17 @@ import type { Transaction } from "@/types";
  * the "required" message comes from.
  */
 
-/** Today as an ISO day in the USER's timezone, not the server's UTC day. */
-function todayISO(): string {
+/** Today as an ISO day in the USER's timezone, not the server's UTC day.
+ *  Exported for L-10's Today/Yesterday date chips. */
+export function todayISO(): string {
   return localDay(new Date());
+}
+
+/** Yesterday as an ISO day in the USER's timezone (L-10's date chip). */
+export function yesterdayISO(): string {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return localDay(yesterday);
 }
 
 /** The ISO day ("2026-10-17") of an instant in the user's timezone. */

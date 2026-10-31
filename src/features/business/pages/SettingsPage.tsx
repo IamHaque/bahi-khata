@@ -129,73 +129,96 @@ export function SettingsPage() {
         description="Business details and who can change them."
       />
 
-      {isOwner ? (
-        <FormProvider {...form}>
-          <form
-            onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-            className="max-w-2xl space-y-4"
-            noValidate
+      {/* L-11: each section reads as title and one-line description on
+          the left, its form on the right, split by the ledger rule. */}
+      <section
+        aria-labelledby="settings-details-heading"
+        className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_minmax(0,1fr)]"
+      >
+        <div>
+          <h2
+            id="settings-details-heading"
+            className="font-heading text-base font-semibold text-foreground"
           >
-            <TextField
-              name="name"
-              label="Name"
-              placeholder="e.g. Rahim Traders"
-            />
+            Business details
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Name, type and contact details.
+          </p>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => setMoreOpen((open) => !open)}
-              aria-expanded={moreOpen}
-              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              More details
-              {moreOpen ? (
-                <ChevronUp className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
-            </button>
-
-            {moreOpen && (
-              <div className="space-y-4">
-                <SelectField
-                  name="businessType"
-                  label="Business type"
-                  placeholder="Not specified"
-                  options={businessTypeOptions}
-                />
+        <div className="w-full max-w-xl">
+          {isOwner ? (
+            <FormProvider {...form}>
+              <form
+                onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
+                className="space-y-4"
+                noValidate
+              >
                 <TextField
-                  name="phone"
-                  label="Phone"
-                  placeholder="+91 98765 43210"
+                  name="name"
+                  label="Name"
+                  placeholder="e.g. Rahim Traders"
                 />
-                <TextField
-                  name="email"
-                  label="Email"
-                  placeholder="orders@rahimtraders.example"
-                />
-                <TextAreaField
-                  name="address"
-                  label="Address"
-                  placeholder="Shop address"
-                />
-                <TextAreaField
-                  name="notes"
-                  label="Notes"
-                  placeholder="Anything useful later"
-                />
-              </div>
-            )}
 
-            <Button type="submit" disabled={updateBusiness.isPending}>
-              {updateBusiness.isPending && <Loader2 className="animate-spin" />}
-              Save changes
-            </Button>
-          </form>
-        </FormProvider>
-      ) : (
-        <ReadonlyDetails business={business} />
-      )}
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((open) => !open)}
+                  aria-expanded={moreOpen}
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-11"
+                >
+                  More details
+                  {moreOpen ? (
+                    <ChevronUp className="size-4" />
+                  ) : (
+                    <ChevronDown className="size-4" />
+                  )}
+                </button>
+
+                {moreOpen && (
+                  <div className="space-y-4">
+                    <SelectField
+                      name="businessType"
+                      label="Business type"
+                      placeholder="Not specified"
+                      options={businessTypeOptions}
+                    />
+                    <TextField
+                      name="phone"
+                      label="Phone"
+                      placeholder="+91 98765 43210"
+                    />
+                    <TextField
+                      name="email"
+                      label="Email"
+                      placeholder="orders@rahimtraders.example"
+                    />
+                    <TextAreaField
+                      name="address"
+                      label="Address"
+                      placeholder="Shop address"
+                    />
+                    <TextAreaField
+                      name="notes"
+                      label="Notes"
+                      placeholder="Anything useful later"
+                    />
+                  </div>
+                )}
+
+                <Button type="submit" disabled={updateBusiness.isPending}>
+                  {updateBusiness.isPending && (
+                    <Loader2 className="animate-spin" />
+                  )}
+                  Save changes
+                </Button>
+              </form>
+            </FormProvider>
+          ) : (
+            <ReadonlyDetails business={business} />
+          )}
+        </div>
+      </section>
 
       {/* S-39: every member — Viewers included — may take a backup.
           It sits OUTSIDE the owner conditional on purpose. */}
@@ -215,37 +238,45 @@ function BackupSection({ businessId }: { businessId: string }) {
   );
   return (
     <section
-      aria-label="Backup"
-      className="max-w-2xl space-y-3 rounded-lg border border-border p-4"
+      aria-labelledby="settings-backup-heading"
+      className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_minmax(0,1fr)]"
     >
       <div>
-        <h3 className="text-sm font-medium text-foreground">Backup</h3>
+        <h2
+          id="settings-backup-heading"
+          className="font-heading text-base font-semibold text-foreground"
+        >
+          Backup
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Download every customer and transaction in this business as two
           CSV files: customers.csv and transactions.csv.
         </p>
       </div>
-      <Button
-        variant="outline"
-        disabled={Boolean(progress)}
-        onClick={() =>
-          void run((onProgress) =>
-            downloadBusinessBackup(businessId, onProgress),
-          )
-        }
-      >
-        <Download className="size-4" />
-        {progress
-          ? `Preparing… ${progress.done}/${progress.total}`
-          : "Download backup"}
-      </Button>
+
+      <div className="w-full max-w-xl">
+        <Button
+          variant="outline"
+          disabled={Boolean(progress)}
+          onClick={() =>
+            void run((onProgress) =>
+              downloadBusinessBackup(businessId, onProgress),
+            )
+          }
+        >
+          <Download className="size-4" />
+          {progress
+            ? `Preparing… ${progress.done}/${progress.total}`
+            : "Download backup"}
+        </Button>
+      </div>
     </section>
   );
 }
 
 function ReadonlyDetails({ business }: { business: Business }) {
   return (
-    <div className="max-w-2xl">
+    <div>
       <dl className="rounded-lg border border-border">
         <DetailRow label="Name" value={business.name} />
         <DetailRow label="Business type" value={business.business_type} />
@@ -263,7 +294,7 @@ function ReadonlyDetails({ business }: { business: Business }) {
 
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[180px_1fr] sm:gap-4">
+    <div className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-4">
       <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
       <dd className="text-sm text-foreground">
         {value || <span className="text-muted-foreground">—</span>}

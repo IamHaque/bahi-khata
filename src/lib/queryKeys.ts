@@ -90,3 +90,15 @@ export const importKeys = {
   customers: (businessId: string) =>
     [...scope(businessId), "import", "customers"] as const,
 };
+
+// S-51 (v3): the Recently deleted page — the deletion log listing, with
+// an optional filter (e.g. "transaction" | "customer"). Under the
+// business prefix so deleting the business clears it with one removal.
+export const deletionLogKeys = {
+  all: (businessId?: string) => [...scope(businessId), "deletion-log"],
+  list: (businessId?: string, filter?: string) => [
+    ...deletionLogKeys.all(businessId),
+    "list",
+    filter ?? "all",
+  ],
+};

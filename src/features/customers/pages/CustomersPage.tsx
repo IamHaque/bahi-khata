@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Download, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatRelative } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
@@ -25,7 +25,6 @@ import { CustomerFormDialog } from "@/features/customers/components/CustomerForm
 import { ArchiveCustomerDialog } from "@/features/customers/components/ArchiveCustomerDialog";
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { PageHeader } from "@/components/app/PageHeader";
-import { StatCard } from "@/components/app/StatCard";
 import { SearchInput } from "@/components/app/SearchInput";
 import { FilterBar, type FilterChip } from "@/components/app/FilterBar";
 import {
@@ -35,8 +34,10 @@ import {
   type RowActionItem,
 } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
-import { Avatar } from "@/components/app/Avatar";
-import { BalanceBadge } from "@/components/app/BalanceBadge";
+import { LeaderRow } from "@/components/app/LeaderRow";
+import { Monogram } from "@/components/app/Monogram";
+import { Money } from "@/components/app/Money";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Customer } from "@/types";
 
@@ -79,6 +80,24 @@ function parseSort(raw: string | null): {
   return { sort: "name", dir: "asc" };
 }
 
+/** The direction a balance points — the monogram tone and the amount
+ *  colour both follow it (D-24). */
+function balanceTone(balance: number): "receivable" | "credit" | "neutral" {
+  return balance > 0 ? "receivable" : balance < 0 ? "credit" : "neutral";
+}
+
+const toneClass = {
+  receivable: "text-receivable",
+  credit: "text-credit",
+  neutral: "text-foreground",
+} as const;
+
+/** The words under the amount: the colour already says it, the words
+ *  make it explicit for everyone. */
+function balanceWords(balance: number): string {
+  return balance > 0 ? "owes you" : balance < 0 ? "you owe" : "Settled";
+}
+
 const columns: Array<Column<CustomerListRow>> = [
   {
     key: "name",
@@ -86,9 +105,12 @@ const columns: Array<Column<CustomerListRow>> = [
     sortable: true,
     render: (row) => (
       <div className="flex items-center gap-3">
-        <Avatar name={row.name} size="sm" />
+        <Monogram name={row.name} tone={balanceTone(row.balance)} />
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{row.name}</p>
+          {row.phone && (
+            <p className="truncate text-xs text-muted-foreground">{row.phone}</p>
+          )}
           {row.archived_at ? (
             /* Archived rows say so where the tags usually sit, so the
                name cell's text (and tests that find rows by name) stay
@@ -109,6 +131,9 @@ const columns: Array<Column<CustomerListRow>> = [
   {
     key: "phone",
     header: "Phone",
+    // L-08: the phone rides under the name; the column keeps the
+    // comparison view at md and up and steps aside below it.
+    className: "hidden md:table-cell",
     render: (row) =>
       row.phone ?? <span className="text-muted-foreground">—</span>,
   },
@@ -117,14 +142,24 @@ const columns: Array<Column<CustomerListRow>> = [
     header: "Balance",
     align: "right",
     sortable: true,
-    render: (row) => <BalanceBadge balance={row.balance} />,
+    render: (row) => (
+      <div className="flex flex-col items-end">
+        <Money
+          amount={Math.abs(row.balance)}
+          className={toneClass[balanceTone(row.balance)]}
+        />
+        <span className="text-xs text-muted-foreground">
+          {balanceWords(row.balance)}
+        </span>
+      </div>
+    ),
   },
   {
     key: "lastActivity",
     header: "Last activity",
     render: (row) =>
       row.last_activity ? (
-        formatDate(row.last_activity)
+        formatRelative(row.last_activity)
       ) : (
         <span className="text-muted-foreground">—</span>
       ),
@@ -133,7 +168,14 @@ const columns: Array<Column<CustomerListRow>> = [
     key: "created",
     header: "Added",
     sortable: true,
-    render: (row) => formatDate(row.created_at),
+    // L-08: hidden below lg; and when Added lands on Last activity's
+    // day the row has already said it — the cell stays empty.
+    className: "hidden lg:table-cell",
+    render: (row) =>
+      row.last_activity &&
+      formatDate(row.last_activity) === formatDate(row.created_at) ? null : (
+        formatDate(row.created_at)
+      ),
   },
 ];
 
@@ -233,9 +275,9 @@ export function CustomersPage() {
 
   const rowMenuItems = (row: CustomerListRow): RowActionItem[] => {
     // Archived rows keep history but leave the working set: no edit, no
-    // add-transaction — restore first. Delete permanently appears only
-    // on archived rows and only for the owner (the matrix, S-21), which
-    // makes archive the required first step toward destruction.
+    // add-transaction — restore first. v3 (S-55): Delete is no longer
+    // archived-only — every row offers it, last and behind a divider,
+    // and only for the owner (the matrix, S-21).
     const archived = row.archived_at != null;
     const items: RowActionItem[] = [
       {
@@ -278,11 +320,12 @@ export function CustomersPage() {
         });
       }
     }
-    if (archived && can("deleteCustomer")) {
+    if (can("deleteCustomer")) {
       items.push({
-        label: "Delete permanently",
+        label: "Delete",
         onSelect: () => setDialog({ kind: "delete", customer: row }),
         variant: "destructive",
+        separator: true,
       });
     }
     return items;
@@ -296,24 +339,30 @@ export function CustomersPage() {
   );
 
   const renderMobileCard = (row: CustomerListRow) => (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-card p-3">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
       <button
         type="button"
-        className="min-w-0 flex-1 text-left"
+        className="min-w-0 flex-1 text-left pointer-coarse:min-h-11"
         onClick={() => navigate(paths.customerDetail(businessId, row.id))}
       >
-        <div className="flex items-center gap-2">
-          <Avatar name={row.name} size="sm" />
-          <span className="truncate font-medium text-foreground">{row.name}</span>
-          {row.archived_at && (
-            <span className="text-xs text-muted-foreground">Archived</span>
-          )}
-        </div>
-        {row.phone && (
-          <p className="mt-1 text-sm text-muted-foreground">{row.phone}</p>
-        )}
-        <div className="mt-2">
-          <BalanceBadge balance={row.balance} />
+        {/* L-08: each customer is a LeaderRow — the list keeps its
+            listitem role legal inside the button that carries the
+            row's navigation. */}
+        <div role="list" className="w-full">
+          <LeaderRow
+            leading={<Monogram name={row.name} tone={balanceTone(row.balance)} />}
+            label={row.name}
+            sub={
+              row.archived_at
+                ? row.phone
+                  ? `${row.phone} · Archived`
+                  : "Archived"
+                : row.phone ?? undefined
+            }
+            amount={row.balance}
+            tone={balanceTone(row.balance)}
+            className="py-0"
+          />
         </div>
       </button>
       <div onClick={(event) => event.stopPropagation()}>{renderRowActions(row)}</div>
@@ -342,6 +391,11 @@ export function CustomersPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Customers" description="Everyone in this business">
+        {can("manageCustomers") && (
+          <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
+            <Plus className="size-4" /> Add customer
+          </Button>
+        )}
         <Button
           variant="outline"
           disabled={Boolean(progress)}
@@ -368,36 +422,35 @@ export function CustomersPage() {
             <Upload className="size-4" /> Import CSV
           </Button>
         )}
-        {can("manageCustomers") && (
-          <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
-            <Plus className="size-4" /> Add customer
-          </Button>
-        )}
       </PageHeader>
 
-      {/* Summary strip — over every customer, not just the filtered page. */}
-      <section aria-label="Customer summary" className="grid gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Customers"
-          value={data ? data.allTotal : "—"}
-        />
-        <StatCard
-          label="Owes you"
-          value={balancesLoaded ? formatMoney(owesYou) : "—"}
-          valueClassName="text-receivable"
-        />
-        <StatCard
-          label="You owe"
-          value={balancesLoaded ? formatMoney(youOwe) : "—"}
-          valueClassName="text-credit"
-        />
-      </section>
+      {/* The position sheet — over every customer, not just the
+          filtered page (L-08: one sheet, two leader rows). */}
+      <Card role="region" aria-label="Customer summary" className="p-6">
+        <p className="text-sm text-muted-foreground">
+          Customers {data ? data.allTotal : "—"}
+        </p>
+        {balancesLoaded ? (
+          <div className="mt-1" role="list">
+            <LeaderRow
+              size="lg"
+              tone="receivable"
+              label="Owes you"
+              amount={owesYou}
+            />
+            <LeaderRow size="lg" tone="credit" label="You owe" amount={youOwe} />
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">—</p>
+        )}
+      </Card>
 
       <FilterBar chips={chips} onClearAll={clearFilters}>
         <SearchInput
           id="customer-search"
           label="Search customers by name or phone"
-          placeholder="Search by name or phone…"
+          placeholder="Search name or phone"
+          className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-sm"
           value={q}
           onValueChange={(value) =>
             updateParams({ q: value || null }, { replace: true })
@@ -406,7 +459,7 @@ export function CustomersPage() {
         <div
           role="group"
           aria-label="Filter customers by status"
-          className="flex flex-wrap gap-1"
+          className="flex w-full flex-wrap gap-1 sm:w-auto"
         >
           {STATUS_OPTIONS.map((option) => (
             <button
@@ -419,10 +472,10 @@ export function CustomersPage() {
                 })
               }
               className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
                 status === option.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:bg-accent-wash hover:text-foreground",
+                  ? "border-foreground text-foreground font-semibold"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {option.label}

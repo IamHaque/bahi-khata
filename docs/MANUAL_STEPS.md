@@ -5,51 +5,56 @@ file is the ordered, copy-paste procedure for everything that needs a human
 with dashboard or CLI access. Each entry names the exact files, the order,
 and how to verify success.
 
-**Current state (2026-10-15, branch `feat/v2-multi-business` — 43/43
-stories Done):** the existing project still holds the v1 schema and
-data. The product owner decided on a fresh start (existing business
-data deleted, Google accounts kept). **Run the SYNC section below first
-— it is the entire remaining procedure in one ordered runbook.**
+**Current state (v3.1, 2026-10-29, branch `feat/v3`):** the database
+schema is the **three-file v3.1 chain** described in section 0 below
+(consolidated baseline + two v3 migrations). The pre-v3 chain (v1
+baselines + `0001`-`0010`) is **archived** in
+`supabase/migrations_archive/` - those files were consolidated into
+`20261017000000_bahikhata_consolidated_schema.sql` and must not be
+replayed. For a **new** project: apply the three files in filename
+order (the "v3 database rollout" section near the end of this file has
+the full runbook, post-deploy checklist and rollback). Everything
+earlier in this document (the SYNC runbook and the per-story S-xx
+sections) is **history** - the record of how the v2 build was applied
+- kept for reference, not a current procedure.
 
 ---
 
-## 0. How to apply migrations (reference)
+## 0. How to apply migrations (v3.1 chain - current)
 
-Migrations live in `supabase/migrations/` and are numbered in the order they
-must be applied:
+Migrations live in `supabase/migrations/` and are applied in filename
+order (all three are idempotent, safe to re-run after themselves):
 
 | File | Story | Purpose |
 | --- | --- | --- |
-| `20260913152312_remote_schema.sql` | v1 (already applied) | customers, transactions, enums, wide-open RLS |
-| `20260913170000_add_balance_rpc_functions.sql` | v1 (already applied) | balance RPC functions |
-| `0001_multi_business_schema.sql` | S-05 | additive multi-business schema |
-| `0002_membership_rls.sql` | S-06 | membership-based RLS, RPCs, secure views |
-| `0002b_my_invitations.sql` | S-24 | `my_invitations()` — invitee's pending invitations with display names |
-| `0003_*.sql` | S-20 | enforce tenancy (drops old policies, makes business_id mandatory) |
-| `0004_*.sql` | S-30 | permanent customer delete RPC |
-| `0005_*.sql` | S-34 | void_reason column |
-| `0006_*.sql` | S-31 | customer_ledger RPC |
-| `0007_*.sql` | S-37 | daily_activity RPC |
-| `0008_*.sql` | S-38 | import RPC |
-| `0009_void_reason_column.sql` | bugfix (DEV-15) | the `transactions.void_reason` column 0005 always assumed — found on first execution, added here |
-| `0010_respond_invitation_status_cast.sql` | bugfix (DEV-22) | `respond_to_invitation`'s CASE→text status assignment against the `invitation_status` enum — found by the test suite on first execution, fixed here |
+| `20261017000000_bahikhata_consolidated_schema.sql` | S-50 | consolidated multi-business schema: tables, membership RLS, RPCs, views (the whole pre-v3 chain in one file) |
+| `20261101000000_v3_deletion_log_and_integrity.sql` | S-50 | `deletion_log`, `delete_transaction()`, snapshotting `delete_customer_permanently()`, `restore_deleted()`, actor-stamp triggers, `dashboard_summary` timezone, EXECUTE revocations |
+| `20261108000000_v31_last_payment_at.sql` | S-53 | `last_payment_at` on the `customer_balances` view |
+
+The archived pre-v3 files (`supabase/migrations_archive/`) are kept as
+history only - see the warning in the "v3 database rollout" section:
+the consolidated schema cannot be re-applied once the v3 migration has
+changed `delete_customer_permanently()`'s return type.
 
 **To apply a migration:**
 
 - *SQL Dashboard:* open the SQL Editor, paste the file contents, run.
 - *CLI:* `supabase db push` (after `supabase link --project-ref <ref>`).
 
-**Warning — do not run the baseline migrations against a database that
-already has these tables without diffing first.** The v1 files are written
-with `create if not exists` / duplicate-object guards, so they are safe to
-re-run on the live project, but always run `supabase db diff` (or compare
-the table list in the dashboard with `docs/ARCHITECTURE-BASELINE.md` §5)
-before applying anything to an existing database. Never apply migrations to
-production without a backup (see the backup step in each S-entry below).
+**Warning - never apply migrations to production without a backup**
+(see the backup step in the "v3 database rollout" section). The full
+rollout runbook with per-step verification queries is that same
+section; the SQL tests run with `npm run test:sql` against a scratch
+Postgres only.
 
 ---
 
-## SYNC — bring the existing v1 project to v2 (fresh start, decided 2026-10-15)
+## SYNC - bring the existing v1 project to v2 (fresh start, decided 2026-10-15)
+
+> **History (S-67):** this runbook was executed in the v2 build; its
+> migrations are now archived (`supabase/migrations_archive/`) and
+> superseded by the three-file v3.1 chain (section 0). Kept as the
+> record of how the v1 project was brought to v2 — do not re-run it.
 
 The Supabase project the v1 app used still has the v1 schema (the two
 baseline migrations were exported from it — never apply those two files
@@ -397,13 +402,21 @@ working until 0004 is in. Prerequisites: migrations 0001-0003b applied.
      balance and the Archived marker; "Customers" strip count excludes
      it; Ctrl/Cmd+K palette no longer finds her; clear the filter >
      **Restore** from the menu: she is back in the active list.
-   - Archived row > **Delete permanently**: confirm stays disabled
+   - Archived row > **Delete** (renamed from "Delete permanently" by
+     v3.1 S-55 — see the note below): confirm stays disabled
      until the exact name is typed > confirm: row and her transactions
      are gone (detail URL 404s/empty, transactions list has no rows
      for her).
 4. As Editor: Archive and Restore work; the archived row's menu has
-   **no** Delete permanently. As Viewer: both active and archived row
+   **no** Delete. As Viewer: both active and archived row
    menus show only View.
+
+> **v3.1 note:** this checklist was written for the v2 UI, where the
+> action was labelled "Delete permanently" and existed only on archived
+> rows. Since S-55 the label is **Delete**, it appears on every row
+> (active and archived), and it is recoverable — the delete writes to
+> `deletion_log` and can be undone (10 s toast) or restored from
+> **Recently deleted**. Re-running the old checklist today: use "Delete".
 
 ---
 
@@ -964,3 +977,166 @@ supabase client is imported only by `lib/supabase.ts` + `*/api.ts`, no
 HTML sink exists in `src/`, and a markup-laden business name renders
 as literal text. `docs/SECURITY.md` documents the threat model and
 this mapping.
+
+
+---
+
+## v3 database rollout (S-50)
+
+v3 replaces the v1/v2 migration chain with three consolidated migrations.
+They are additive and idempotent, but run them in this order, once.
+
+### (a) Take a backup first
+
+1. In the app: Settings -> Download backup (exports the data as JSON).
+2. In the Supabase dashboard: Database -> Backups, and confirm a
+   same-day backup exists (or create one via "Download snapshot").
+
+### (b) Apply the consolidated schema
+
+In the Supabase SQL editor, run the whole file
+`supabase/migrations/20261017000000_bahikhata_consolidated_schema.sql`.
+It is safe on the live database: idempotent throughout, and it refuses
+to proceed (with a clear error) if any customer or transaction still
+has no `business_id` — fix those rows and re-run.
+
+### (c) Apply the two v3 migrations
+
+In order:
+
+1. `supabase/migrations/20261101000000_v3_deletion_log_and_integrity.sql`
+2. `supabase/migrations/20261108000000_v31_last_payment_at.sql`
+
+### (d) Verify
+
+Run these in the SQL editor; expected results in brackets:
+
+```sql
+select count(*) from pg_policies where schemaname='public';
+-- [19]
+
+select count(*) from pg_proc
+ where pronamespace='public'::regnamespace
+   and proname in ('delete_transaction','restore_deleted');
+-- [2]
+
+select has_function_privilege('anon','public.restore_deleted(uuid)','execute');
+-- [false]
+
+select count(*) from information_schema.columns
+ where table_schema='public' and table_name='customer_balances'
+   and column_name='last_payment_at';
+-- [1]
+```
+
+### (e) Only if the project uses the Supabase CLI migration history
+
+```bash
+supabase migration list
+# For every version shown in the REMOTE column that belongs to the old
+# v1/v2 chain (0001 ... 20260913170000):
+supabase migration repair --status reverted <old version>
+# Then mark the new chain as applied:
+supabase migration repair --status applied 20261017000000
+supabase migration repair --status applied 20261101000000
+supabase migration repair --status applied 20261108000000
+```
+
+### (f) Deploy the new client afterwards
+
+Deploy the v3 frontend only after (a)-(e) are done and verified.
+
+**Compatibility note (L-14 audit / corrected in S-67):** the v3 migration
+drops the uuid-only `dashboard_summary(uuid)` overload and replaces it
+with `dashboard_summary(uuid, text)` — **but `p_timezone` has a
+`default 'UTC'`**, so a one-argument call still resolves (the migration's
+own comment says that is intentional). The old client therefore keeps
+working against the v3.1 database — its dashboard "today" KPI stays cut
+in UTC (the old behaviour), while the new client sends the browser's
+zone and gets the correct local day. Same for
+`delete_customer_permanently`, which now returns the deletion-log id the
+old client ignores. This matches PRD §9.5: rolling back the **client**
+is just redeploying the previous build.
+
+Note: do **not** replay the whole chain on an already-migrated database.
+Each migration is idempotent when re-applied after itself, but the
+consolidated schema cannot be re-applied once the v3 migration has
+changed `delete_customer_permanently()` to return the deletion-log id
+(vanilla Postgres rule: a function's return type cannot change in place).
+This is expected and affects nothing in normal operation — every
+migration runs exactly once, in order.
+
+### (g) Node/devDependency note for the deploy (S-45)
+
+The five dev-only packages (`jsdom`, `@testing-library/*`, `shadcn`,
+`@types/*` tooling) moved to `devDependencies` in S-45. `npm run build`
+needs them. Vercel installs devDependencies during build **by default**,
+so nothing to do — **unless** the project sets `NODE_ENV=production` at
+install time (`npm ci --omit=dev`), which would break the build. If the
+deploy fails with a missing dev tool, remove that setting (or add
+`NPM_FLAGS=--include=dev`).
+
+### (h) SQL-suite record (S-50 / S-68)
+
+The consolidated 19-section suite **was executed** against a scratch
+Postgres during S-50 (a human-provided Neon serverless project,
+PostgreSQL 18.6, as role `postgres` with the CI Supabase stub): **all 19
+sections pass**, each migration idempotent when re-applied after itself.
+Re-run any time with:
+
+```bash
+DATABASE_URL=postgresql://…/scratch npm run test:sql
+```
+
+The runner installs the stub, applies the three migrations in filename
+order, then runs `supabase/tests/bahikhata_consolidated_tests.sql`.
+**Never point it at a real Supabase project** — it replaces roles and
+the `auth` schema.
+
+## Post-deploy checklist (run after every step (c), and at S-68)
+
+Run these in the SQL editor against the live database after the
+migrations; expected results in brackets:
+
+```sql
+-- 1. The three new policies + RLS count is what the suite pinned
+select count(*) from pg_policies where schemaname='public';
+-- [19]
+
+-- 2. Both new v3 functions exist
+select count(*) from pg_proc
+ where pronamespace='public'::regnamespace
+   and proname in ('delete_transaction','restore_deleted');
+-- [2]
+
+-- 3. No signed-out execution of the restore function
+select has_function_privilege('anon','public.restore_deleted(uuid)','execute');
+-- [false]
+
+-- 4. The v3.1 balance column is present
+select count(*) from information_schema.columns
+ where table_schema='public' and table_name='customer_balances'
+   and column_name='last_payment_at';
+-- [1]
+
+-- 5. The deletion log exists, is Owner-readable, and clients cannot write it
+select count(*) from information_schema.tables
+ where table_schema='public' and table_name='deletion_log';
+-- [1]
+select count(*) from pg_policies
+ where schemaname='public' and tablename='deletion_log' and cmd='SELECT';
+-- [1] (the Owner-read policy; there are NO write policies)
+
+-- 6. dashboard_summary takes the timezone parameter
+select count(*) from pg_proc
+ where pronamespace='public'::regnamespace
+   and proname='dashboard_summary'
+   and pg_get_function_identity_arguments(oid)='p_business_id uuid, p_timezone text';
+-- [1]
+```
+
+Then walk the 10-point smoke checklist in `docs/PRD-v3.1.md` §9.4 (as
+Owner, Editor and Viewer where it applies) and record the result in
+`docs/PROGRESS.md` next to S-68. Rollback: §9.5 — client rollback is a
+redeploy of the previous Vercel build; database rollback is the backup
+from step (a).

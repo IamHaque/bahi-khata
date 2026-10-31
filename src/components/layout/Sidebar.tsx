@@ -1,4 +1,5 @@
 import { Link, matchPath, useLocation, useParams } from "react-router-dom";
+import { TallyMark } from "@/components/app/TallyMark";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -19,9 +20,11 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
   const { businessId } = useParams();
   const location = useLocation();
   // S-38: the Import link is role-gated — hidden for viewers entirely.
+  // S-51: Recently deleted is Owner-only, the same mechanism.
   const { can } = usePermissions();
   const navItems = buildNavItems(businessId ?? null, {
     canImport: can("importTransactions"),
+    canViewDeleted: can("viewDeletedItems"),
   });
 
   // Most-specific match wins. NavLink's default prefix matching lights
@@ -40,11 +43,32 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
     );
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card">
+    <div
+      className={cn(
+        "flex h-full flex-col bg-sidebar py-5 pl-3 text-sidebar-foreground",
+        // L-05: the spine is 212px and borderless so the active tab
+        // touches the main area; the collapsed rail keeps its 64px.
+        collapsed ? "w-16 pl-0" : "w-[212px]",
+      )}
+    >
+      {/* L-05: brand row - the tally mark and the product name. */}
+      <div
+        className={cn(
+          "mb-2 flex items-center gap-3 pl-3",
+          collapsed && "justify-center pl-0",
+        )}
+      >
+        <TallyMark className="size-7 shrink-0 text-sidebar-foreground" />
+        {!collapsed && (
+          <span className="font-heading text-xl font-bold text-sidebar-foreground">
+            BahiKhata
+          </span>
+        )}
+      </div>
       <BusinessSwitcher collapsed={collapsed} />
 
       <nav
-        className="flex-1 space-y-1 px-2 py-2"
+        className="flex-1 space-y-1 py-2"
         aria-label="Main navigation"
       >
         {navItems
@@ -58,11 +82,11 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors pointer-coarse:min-h-11",
+                  "flex items-center gap-3 rounded-l-sm px-3 py-2.5 transition-colors pointer-coarse:min-h-11",
                   collapsed && "justify-center px-0",
                   active
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground hover:bg-accent-wash hover:text-foreground",
+                    ? "bg-background font-semibold text-foreground"
+                    : "font-medium text-sidebar-foreground/80 hover:text-sidebar-foreground",
                 )}
                 title={collapsed ? item.label : undefined}
               >
@@ -84,7 +108,7 @@ interface MobileDrawerProps {
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-64 p-0">
+      <SheetContent side="left" className="w-[212px] p-0">
         <SheetTitle className="sr-only">Navigation menu</SheetTitle>
         <Sidebar
           collapsed={false}

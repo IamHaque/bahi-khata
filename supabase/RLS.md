@@ -1,42 +1,20 @@
 # Row-Level Security (RLS) Policies
 
-> **Status:** Verified against live database on 2026-09-13 via SQL Editor queries.
+> **Superseded (S-67).** This file described the **v1 single-business**
+> policies ("any authenticated user can read every customer"). Those
+> policies were dropped by S-20's contract phase; the app has been
+> multi-business with membership-scoped RLS since v2, and v3.1 adds the
+> deletion log, actor-stamping and new Owner-only functions.
+>
+> **The current RLS documentation lives in `docs/RLS.md`.** The proofs
+> live in `supabase/tests/bahikhata_consolidated_tests.sql`.
 
-Both tables have RLS **enabled** with **PERMISSIVE** policies granting `ALL` operations to the `authenticated` role.
-
----
-
-## `customers`
-
-| Policy Name | Operations | Role | USING (read filter) | WITH CHECK (write filter) |
-|---|---|---|---|---|
-| `Authenticated users can manage customers` | SELECT, INSERT, UPDATE, DELETE | `authenticated` | `true` (no filter) | `true` (no filter) |
-
-**Plain English:** Any authenticated user can read, create, edit, and delete any row in the `customers` table. There is no row-level filtering — every signed-in user sees and can modify every customer.
-
-**Implication:** This is a single-business app (per Section 7 of the original PRD). If multiple businesses ever share one Supabase project, this policy would need to be scoped per business/team. For now it is intentionally wide-open for all authenticated users.
+The raw v1 SQL below is kept only as historical reference; it is no
+longer what the database runs.
 
 ---
 
-## `transactions`
-
-| Policy Name | Operations | Role | USING (read filter) | WITH CHECK (write filter) |
-|---|---|---|---|---|
-| `Authenticated users can manage transactions` | SELECT, INSERT, UPDATE, DELETE | `authenticated` | `true` (no filter) | `true` (no filter) |
-
-**Plain English:** Any authenticated user can read, create, edit, and delete any row in the `transactions` table. There is no row-level filtering — every signed-in user sees and can modify every transaction.
-
----
-
-## Finding: No Gap Detected
-
-Both tables follow the same single-business, all-authenticated-users-equal-access model described in Section 7 of the original PRD. No policies are broader than intended — there are no anonymous-access policies and no policies that bypass authentication.
-
-**Not flagged as a gap** because the intent matches the design. If the app scope ever changes (multi-tenancy, role-based access), these policies will need tightening.
-
----
-
-## Raw SQL (for reference)
+## Raw SQL (v1, historical)
 
 ```sql
 -- Enable RLS

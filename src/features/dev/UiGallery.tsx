@@ -7,12 +7,20 @@ import { toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
+import { AgeFlag } from "@/components/app/AgeFlag";
 import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
+import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
+import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import { EmptyState } from "@/components/app/EmptyState";
 import { EntityDialog } from "@/components/app/EntityDialog";
 import { ErrorState } from "@/components/app/ErrorState";
 import { FilterBar } from "@/components/app/FilterBar";
+import { LeaderRow } from "@/components/app/LeaderRow";
+import { Monogram } from "@/components/app/Monogram";
+import { TallyMark } from "@/components/app/TallyMark";
+import { TotalsRule } from "@/components/app/TotalsRule";
+import { TypeBadge } from "@/components/app/TypeBadge";
 import { Money } from "@/components/app/Money";
 import { PageHeader } from "@/components/app/PageHeader";
 import { SearchInput } from "@/components/app/SearchInput";
@@ -34,7 +42,7 @@ import { SegmentedField } from "@/components/app/fields/SegmentedField";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h2 className="font-heading text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h2>
       <div className="rounded-xl border border-border bg-card p-4">
@@ -427,7 +435,8 @@ const entitySchema = z.object({ name: z.string().min(1, "Name is required") });
 function DialogsSection() {
   const [entityOpen, setEntityOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [typedOpen, setTypedOpen] = useState(false);
+  const [customerDeleteOpen, setCustomerDeleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <Section title="Dialogs and toasts">
@@ -439,8 +448,18 @@ function DialogsSection() {
         <Button variant="outline" onClick={() => setConfirmOpen(true)}>
           Archive customer (ConfirmDialog)
         </Button>
-        <Button variant="destructive" onClick={() => setTypedOpen(true)}>
-          Delete permanently (typed confirmation)
+        <Button
+          variant="destructive"
+          onClick={() => setCustomerDeleteOpen(true)}
+          // L-14: this specimen's long label would force the page wider
+          // than 360 px — Button is shrink-0 with whitespace-nowrap, so
+          // allow wrapping AND cap the box at the container width.
+          className="max-w-full whitespace-normal"
+        >
+          Delete customer (v3 typed confirmation + Undo)
+        </Button>
+        <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          Delete transaction (v3 delete + Undo)
         </Button>
         <Button
           variant="outline"
@@ -480,14 +499,31 @@ function DialogsSection() {
         onConfirm={() => toastSuccess("Customer archived")}
       />
 
-      <ConfirmDialog
-        open={typedOpen}
-        onOpenChange={setTypedOpen}
-        title="Delete Rahim Traders permanently?"
-        description="This removes the customer and every transaction."
-        confirmLabel="Delete permanently"
-        typingConfirmation="Rahim Traders"
-        onConfirm={() => toastSuccess("Customer deleted permanently")}
+      {/* v3 (S-55): the gentler delete — recovery copy, the softer
+          paths inside, typed name, 10s Undo. */}
+      <DeleteCustomerDialog
+        open={customerDeleteOpen}
+        onOpenChange={setCustomerDeleteOpen}
+        businessId="b1"
+        customer={{ id: "gallery-c1", name: "Rahim Traders" }}
+      />
+
+      {/* v3 (S-54): the delete dialog with the balance sentence and the
+          Void instead escape hatch (both onVoidInstead branches). */}
+      <DeleteTransactionDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        businessId="b1"
+        transaction={{
+          id: "gallery-t1",
+          type: "charge",
+          amount: 50000,
+          occurred_at: "2026-10-20T10:00:00+00:00",
+          customer_name: "Rahim Uddin",
+          balance_before: 100000,
+          balance_after: 50000,
+        }}
+        onVoidInstead={() => toastSuccess("Void instead (demo)")}
       />
     </Section>
   );
@@ -496,6 +532,106 @@ function DialogsSection() {
 /* ------------------------------------------------------------------ */
 /* Gallery page                                                        */
 /* ------------------------------------------------------------------ */
+
+// L-04: every new ledger primitive in one place. The gallery is checked
+// in both themes; all colours come from tokens, so one render covers both.
+function PrimitivesSection() {
+  return (
+    <Section title="Ledger primitives (L-04)">
+      <div className="space-y-5">
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            LeaderRow - three tones, with Monogram and AgeFlag
+          </p>
+          <div role="list" className="divide-t divide-border">
+            <LeaderRow
+              leading={<Monogram name="Rahim Uddin" tone="receivable" />}
+              trailing={<AgeFlag days={41} />}
+              label="Rahim Uddin"
+              sub="paid today"
+              amount={237439}
+              tone="receivable"
+            />
+            <LeaderRow
+              leading={<Monogram name="Asha Verma" tone="credit" />}
+              trailing={<AgeFlag days={30} />}
+              label="Asha Verma"
+              sub="last paid 30 days ago"
+              amount={-1250}
+              tone="credit"
+            />
+            <LeaderRow
+              leading={<Monogram name="Settled Singh" />}
+              label="Settled Singh"
+              sub="nothing due"
+              amount={0}
+            />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            TotalsRule - a single rule above, a double rule below
+          </p>
+          <TotalsRule>
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">Net position</span>
+              <Money amount={236189} />
+            </div>
+          </TotalsRule>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">TallyMark</p>
+            <TallyMark className="size-8 text-foreground" />
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">TypeBadge</p>
+            <div className="flex gap-2">
+              <TypeBadge type="charge" />
+              <TypeBadge type="payment" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            BalanceBadge - owes you, you owe, settled
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <BalanceBadge balance={237439} />
+            <BalanceBadge balance={-1250} />
+            <BalanceBadge balance={0} />
+            <BalanceBadge balance={237439} size="lg" />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">
+            Avatar - a working photo and a broken URL (falls back to initials)
+          </p>
+          <div className="flex items-center gap-2">
+            <Avatar name="Asha Verma" src="https://example.invalid/a.png" />
+            <Avatar name="Rahim Uddin" src="https://example.invalid/b.png" size="sm" />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">EmptyState - ruled paper</p>
+          <EmptyState
+            title="Nothing deleted"
+            description="Deleted customers and transactions appear here so you can restore them."
+          >
+            <Button variant="outline" size="sm">
+              Reload
+            </Button>
+          </EmptyState>
+        </div>
+      </div>
+    </Section>
+  );
+}
 
 export function UiGallery() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -506,7 +642,7 @@ export function UiGallery() {
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground">
               UI Gallery
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -526,6 +662,7 @@ export function UiGallery() {
 
         <ButtonsSection />
         <DisplaySection />
+        <PrimitivesSection />
         <CardsSection />
         <StatesSection />
         <ControlsSection />

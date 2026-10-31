@@ -103,6 +103,17 @@ describe("EmptyState", () => {
     expect(screen.getByText("Add your first one")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add customer" })).toBeTruthy();
   });
+
+  it("centres the icon and description with mx-auto and block", () => {
+    const { container } = renderApp(
+      <EmptyState title="No customers yet" description="Add your first one" />,
+    );
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("class")).toContain("block");
+    expect(svg?.getAttribute("class")).toContain("mx-auto");
+    const desc = screen.getByText("Add your first one");
+    expect(desc.className).toContain("mx-auto");
+  });
 });
 
 describe("ErrorState", () => {

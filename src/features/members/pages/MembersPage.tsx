@@ -296,7 +296,7 @@ export function MembersPage() {
       {/* Pending invitations: owner-only, both by permission and by RLS */}
       {isOwner && (invitations?.length ?? 0) > 0 && (
         <section aria-label="Pending invitations" className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="font-heading text-sm font-semibold text-foreground">
             Pending invitations
           </h3>
           <p className="text-sm text-muted-foreground">

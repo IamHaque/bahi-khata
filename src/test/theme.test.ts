@@ -49,10 +49,11 @@ describe("theme tokens", () => {
     expect(css).toContain("prefers-reduced-motion: reduce");
   });
 
-  it("loads exactly one UI font", () => {
+  it("loads exactly two fonts: Public Sans for text and Bricolage Grotesque for headings and figures", () => {
     const fontImports = css.match(/@fontsource-variable\//g) ?? [];
-    expect(fontImports).toHaveLength(1);
+    expect(fontImports).toHaveLength(2);
     expect(css).toContain("@fontsource-variable/public-sans");
+    expect(css).toContain("@fontsource-variable/bricolage-grotesque");
   });
 
   it("enables tabular numerals for money", () => {

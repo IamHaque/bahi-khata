@@ -107,6 +107,11 @@ export function CustomerFormDialog({
         autoFocus
       />
 
+      {/* L-10 (3): Name then Phone are the two fields an entry starts
+          with — both stay on the surface; the rest remain behind the
+          disclosure. Validation timing is untouched (onTouched). */}
+      <TextField name="phone" label="Phone" placeholder="01711 000000" />
+
       <DuplicateHint
         businessId={businessId}
         editingId={customer?.id ?? null}
@@ -118,7 +123,6 @@ export function CustomerFormDialog({
           Additional details
         </summary>
         <div className="mt-3 space-y-4">
-          <TextField name="phone" label="Phone" placeholder="01711 000000" />
           <TextField
             name="email"
             label="Email"

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   customerKeys,
   dashboardKeys,
+  deletionLogKeys,
   importKeys,
   transactionKeys,
 } from "@/lib/queryKeys";
@@ -21,6 +22,9 @@ describe("query key hygiene", () => {
       ["dashboardKeys.daily(b1, 7)", dashboardKeys.daily("b1", 7)],
       ["dashboardKeys.feed(b1)", dashboardKeys.feed("b1")],
       ["importKeys.customers(b1)", importKeys.customers("b1")],
+      ["deletionLogKeys.all(b1)", deletionLogKeys.all("b1")],
+      ["deletionLogKeys.list(b1)", deletionLogKeys.list("b1")],
+      ["deletionLogKeys.list(b1, customer)", deletionLogKeys.list("b1", "customer")],
     ];
 
     for (const [label, key] of scoped) {
@@ -36,6 +40,23 @@ describe("query key hygiene", () => {
       "transactions",
       "customer",
       "c1",
+    ]);
+  });
+
+  it("the deletion log filter defaults to 'all' and separates per filter (S-51)", () => {
+    expect(deletionLogKeys.list("b1")).toEqual([
+      "business",
+      "b1",
+      "deletion-log",
+      "list",
+      "all",
+    ]);
+    expect(deletionLogKeys.list("b1", "transaction")).toEqual([
+      "business",
+      "b1",
+      "deletion-log",
+      "list",
+      "transaction",
     ]);
   });
 });

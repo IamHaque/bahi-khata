@@ -477,11 +477,18 @@ describe("business scoping (required — S-20)", () => {
     ]);
   });
 
-  it("dashboard totals come from dashboard_summary(businessId)", async () => {
+  it("dashboard totals come from dashboard_summary(businessId) with the caller's zone (S-52)", async () => {
     await getDashboardSummary("b1");
+    // v3 replaced the uuid-only overload with (uuid, text): "today" is
+    // cut in the caller's timezone, so every call must send the zone.
     expect(state.rpcCalls).toEqual([
-      { fn: "dashboard_summary", args: { p_business_id: "b1" } },
+      {
+        fn: "dashboard_summary",
+        args: { p_business_id: "b1", p_timezone: expect.any(String) },
+      },
     ]);
+    const [call] = state.rpcCalls;
+    expect(call?.args.p_timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   });
 
   it("unwraps dashboard_summary's set-of response (one-row array)", async () => {

@@ -3,7 +3,6 @@ import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMemberships } from "@/features/business/hooks";
 import { paths } from "@/lib/paths";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -102,11 +101,12 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button
+          // L-05: the trigger sits under the brand row as plain text on
+          // the spine - no border, a soft white hover, muted at rest.
+          <button
             type="button"
-            variant="ghost"
             className={cn(
-              "h-auto w-full justify-start gap-2 px-3 py-2",
+              "flex h-auto w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm opacity-80 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-foreground pointer-coarse:min-h-11",
               collapsed && "justify-center px-0",
             )}
             aria-label={triggerLabel}
@@ -128,7 +128,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
               </>
             )}
-          </Button>
+          </button>
         }
       />
       <PopoverContent align="start" side="bottom" className="w-64 p-1">
@@ -145,7 +145,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 onClick={() => pick(business.id)}
                 onKeyDown={(event) => onItemKeyDown(event, index)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted",
+                  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11",
                   business.id === businessId && "font-medium",
                 )}
               >
@@ -171,7 +171,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 navigate(paths.businesses);
               }}
               onKeyDown={(event) => onItemKeyDown(event, ordered.length)}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
             >
               All businesses
             </button>
@@ -191,7 +191,7 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
                 onKeyDown={(event) =>
                   onItemKeyDown(event, ordered.length + 1)
                 }
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
               >
                 <Plus className="size-4 shrink-0" aria-hidden="true" />
                 Create business

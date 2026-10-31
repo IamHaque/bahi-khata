@@ -1,25 +1,40 @@
-# BahiKhata v2 — UI Contract
+# BahiKhata v3.1 - UI Contract
 
-## Theme decision (S-08)
+## Tokens and class rules (PRD v3.1 sections 5.2 and 5.6 — applied in L-01 and S-67)
 
-- **Preset:** no external preset (tweakcn / ui.shadcn.com/themes) was copied.
-  Token values were derived directly from PRD 4.5 semantics (indigo/blue
-  `primary`, green `receivable`, red-orange `credit`, neutral `settled`)
-  as OKLCH, then machine-verified for WCAG AA contrast.
-- **Source of truth:** `docs/PRD-v2.md` §4.5 (semantic tokens, radius,
-  surfaces) + `docs/ARCHITECTURE-BASELINE.md` §8 (existing token
-  architecture, kept). Contrast verified 2026-10-12 with a script
-  computing WCAG relative luminance from OKLCH; all 36 token/background
-  pairs pass AA (≥4.5:1 text, ≥3:1 borders) on card and page
-  backgrounds in both themes.
-- **Architecture:** CSS variables in `src/index.css` (`:root` + `.dark`),
-  mapped into Tailwind 4 via `@theme inline`. Dark mode via the `.dark`
-  class; `ThemeContext` supports `system | light | dark` (PRD scenario
-  asks for next-themes — deviation DEV-3: the existing custom context was
-  extended with a `system` option instead of adopting next-themes).
-- **Font:** Public Sans Variable (the family already wired in v1);
-  the unused `@fontsource-variable/geist` package was removed (S-08).
-  Tabular numerals enabled globally via `.tabular-nums`.
+Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by 82 automated contrast checks).
+
+| Need | Use | Never |
+|---|---|---|
+| Page canvas ("Paper") | `bg-background` | hard-coded colours |
+| Panel, ledger, table container ("Sheet") | `bg-card border border-border` | `shadow-*`, `ring-*`, gradients, `rounded-xl` or larger |
+| Sidebar ("spine") | `bg-sidebar text-sidebar-foreground` | `bg-card` |
+| Active spine item (the tab that joins the page) | `bg-background text-foreground font-semibold` | outlines, left bars |
+| Row rule, divider | `border-t border-border` | `border-input` on dividers |
+| Table header strip | `bg-muted/60 text-xs font-medium text-muted-foreground` | upper-case, letter-spaced labels |
+| Ledger margin rule (between Date and Particulars) | `margin-rule` (or `border-l-2 border-margin`) | red |
+| A total (single rule above, double rule below) | `totals-rule` | box borders |
+| Name joined to an amount | `leader` on the row and `<i className="leader-dots" aria-hidden="true" />` between | CSS tricks that hide the amount |
+| Form control (input, select, textarea, checkbox, outline button) | `border border-input` | `border-border` (too faint for 3:1) |
+| Tinted chip | light `bg-TONE/10`, dark `dark:bg-TONE/8`, text `text-TONE` | `/12` or higher (the audit assumes 10 and 8) |
+| Popover, menu, dialog | `bg-popover border border-border`; dialogs add `border-t-2 border-t-foreground` | custom backgrounds |
+| Page title and section heading | `font-heading` | any other family |
+| Hero figure (balances, net position) | `font-display tabular-nums` | proportional digits |
+| All money | `<Money>` / `formatMoney` (guard test added in L-03) | hand formatting |
+
+`scripts/contrast-audit.cjs` audits text, tinted chips and control borders in both themes (82 checks); `scripts/check-token-sync.cjs` keeps it in step with `src/index.css`. Both run in CI.
+
+## Hard rules (v3.1)
+
+- **All money** goes through `formatMoney` / the `<Money>` component —
+  never hand-formatted. Enforced by `src/__tests__/noRawMoney.test.ts`
+  (fails on any raw `₹` interpolation in `src/`).
+- **No shadows on panels, tables or cards** (D-26): flat surfaces carry
+  hairline rules, never `shadow-*` / `ring-*`. Overlays (dialogs, the
+  bottom sheet) keep their existing elevation treatment.
+- **Two fonts** (D-25): Public Sans for all text and every money figure,
+  Bricolage Grotesque (`font-heading` / `font-display`) for headings and
+  hero figures. The v2 "one UI font" rule is retired.
 
 ## Consistency checklist (copied from PRD §8 — owned by S-13)
 
@@ -36,8 +51,8 @@
   Irreversible actions use the typed-confirmation variant. Never a bare OK.
 - **Feedback:** every mutation shows a toast. Success is past tense
   ('Customer archived'). Errors say what failed and what to do ('Could
-  not archive customer. Try again.'). Undo is offered for archive and
-  void.
+  not archive customer. Try again.'). Undo is offered for archive, void
+  and delete (delete's Undo calls `restore_deleted` for 10 seconds).
 - **Money and dates:** only `formatMoney`, `Money`, `formatDate` and
   `formatRelative`. Amounts are right-aligned, tabular, never truncated.
 - **Color:** semantic tokens only. Balance meaning always has a text
@@ -49,18 +64,25 @@
 - **Paths and keys:** links from `paths.ts`, query keys from
   `queryKeys.ts` with the business prefix.
 
-## Copy glossary (copied from PRD §8 — owned by S-13)
+## Copy glossary (PRD v3.1 §5.6 — applied in S-67, replaces the v2 table)
 
-| Concept                     | Use                           | Never                               |
-| --------------------------- | ----------------------------- | ----------------------------------- |
-| Customer owes the business  | Owes you                      | Receivable, Debit, Due (in UI text) |
-| Business owes the customer  | You owe                       | Payable, Credit balance             |
-| Zero balance                | Settled                       | Zero, Paid up                       |
-| Hide a customer, reversible | Archive                       | Delete                              |
-| Remove a customer forever   | Delete permanently            | Remove                              |
-| Cancel a transaction        | Void                          | Delete                              |
-| Workspace                   | Business                      | Tenant, Workspace, Organization     |
-| Shared access               | Member, Editor, Viewer, Owner | Admin, User                         |
+| Concept | Use | Never |
+| --------------------------- | ----------------------------- | ----------------------------- |
+| Customer owes the business | Owes you | Receivable, Debit, Due (in UI text) |
+| Business owes the customer | You owe | Payable, Credit balance |
+| Dashboard totals | Owed to you, You owe, Net position | Receivable, Payable |
+| Zero balance | Settled | Zero, Paid up |
+| Ledger columns | Date, Particulars, Charged, Paid, Balance | Debit, Credit, Dr, Cr |
+| Hide a customer, reversible | Archive | Delete |
+| Remove a customer from the ledger (restorable by the Owner) | Delete | Remove, Delete permanently |
+| Cancel a transaction but keep it visible | Void | Delete |
+| Remove a transaction from the ledger (Owner only, restorable) | Delete | Remove, Erase |
+| Bring back a deleted item | Restore | Undelete, Recover |
+| Workspace | Business | Tenant, Workspace, Organization |
+| Shared access | Member, Editor, Viewer, Owner | Admin, User |
+
+The note field keeps the label **Note** in forms; its ledger column header
+is **Particulars** (D-27).
 
 ## Component gallery (owned by S-13)
 
@@ -70,6 +92,20 @@
 - Every shared component appears there in its states; `src/features/dev/
   __tests__/uiGallery.test.tsx` renders the gallery in both themes and
   fails on any console error or warning.
+
+Shared components (the `ui/` primitives plus the L-04 ledger set):
+
+- Primitives: `Button`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
+  `Card`, `Dialog`, `AlertDialog`, `Sheet`, `Popover`, `Menu`,
+  `EntityDialog`, `ConfirmDialog`, `MoneyField`.
+- Ledger (L-04): `LeaderRow` (label + dotted leader + amount, never
+  truncates the amount), `TotalsRule` (single rule above, double below),
+  `Monogram` (initials avatar on a tone tint), `AgeFlag` (30+ day
+  thresholds), `TallyMark`, `TypeBadge` (Charged/Paid), `BalanceBadge`.
+- App-level: `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
+  mobile cards), `SearchInput`, `FilterBar`, `EmptyState`, `ErrorState`,
+  `Skeleton`, `StatCard`, `Money`/`formatMoney`, `LedgerTable` (the L-07
+  real-table ledger with caption, header cells and a Totals row).
 
 ## Permission matrix ↔ database agreement (S-21)
 

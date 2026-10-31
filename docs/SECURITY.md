@@ -52,3 +52,50 @@ manual steps in `docs/MANUAL_STEPS.md` ("S-42"). Until a human runs
 them, the SQL proofs are reviewed evidence, not executed evidence — the
 client-hygiene/content-safety proofs above *are* executed on every
 commit.
+
+*(v3.1 update: the consolidated 19-section suite WAS executed against a
+scratch Postgres during S-50 — all sections pass; see
+`docs/PROGRESS.md` S-50 and the post-deploy checklist in
+`docs/MANUAL_STEPS.md`. The Google sign-in flow remains unautomatable.)*
+
+## v3.1 control statements (S-67)
+
+### Audit fields are written by the database
+
+`created_by`, `updated_by` and `voided_by` are never trusted from the
+client: before-insert/before-update triggers on `transactions` and
+`customers` stamp the authenticated caller's id (decision D-21, closes
+F-04). An Editor can no longer attribute an entry to the Owner. Trusted
+paths are unaffected — admin/service sessions (no `auth.uid()`) keep
+what they supply, and `restore_deleted()` marks its own transaction so
+restored rows keep their **original** authors (D-18). Proven by the SQL
+suite's stamp sections.
+
+### Deletion is recoverable and logged
+
+Nothing a user deletes just disappears. Every delete writes a full row
+snapshot to `deletion_log` **before** the delete (D-13); only SECURITY
+DEFINER functions can write that table, and only the business Owner can
+read it (no client write policies; INSERT/UPDATE/DELETE revoked from
+`authenticated`, everything from `anon`). The UI offers an Undo toast
+for 10 seconds (`restore_deleted`) and the **Recently deleted** page
+for everything else, with no time limit. Restores are exact: same ids,
+authors, timestamps and archive state; a transaction cannot come back
+before its customer.
+
+### No function is executable by signed-out users
+
+Every RPC has `EXECUTE` revoked from `anon` **and** `PUBLIC` (v3.1
+privileges section). A signed-out caller cannot call
+`dashboard_summary`, `restore_deleted`, `delete_transaction` or any
+other function; the suite asserts
+`has_function_privilege('anon', …)` is false.
+
+### Production dependencies are audited in CI
+
+`npm audit --omit=dev` runs in CI and fails the build on any finding in
+the production tree. The five dev-only packages moved to
+`devDependencies` in S-45 (jsdom, `@testing-library/*`, `shadcn`) are
+therefore out of scope for the production audit; the count is 0.
+`npm audit` without `--omit=dev` still reports dev-tooling findings —
+that is expected and not a production risk.

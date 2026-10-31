@@ -1,12 +1,40 @@
 #!/usr/bin/env node
 /**
- * S-41 responsive audit — real-browser layout evidence.
- * ==========================================================
+ * S-41 / L-14 responsive + touch + focus audit — real-browser evidence.
+ * ====================================================================
  * Loads the REAL app in headless Chrome over the REAL Vite dev server and
- * measures, per route × viewport width:
- *   - no horizontal page scroll  (documentElement.scrollWidth <= innerWidth + 1)
+ * MEASURES (never infers from class names), per route × viewport width ×
+ * colour theme:
+ *   - no horizontal page scroll  (documentElement.scrollWidth <= innerWidth + 1,
+ *     and the layout viewport must not expand to absorb overflow)
+ *   - the widest offending descendant when it fails (so the fix is locatable)
  *   - no truncated amount        (₹-amount elements clipped by overflow-x)
  *   - a per-route content marker is present (catches redirects/error pages)
+ *
+ * L-14 additions (the "measured, not inferred" requirement):
+ *   - viewports 360, 390, 768, 1024, 1440; light AND dark
+ *   - at 360 and 390 TOUCH emulation is enabled and the script ASSERTS
+ *     matchMedia('(pointer: coarse)').matches === true, otherwise every
+ *     touch-target number would be meaningless. Result is printed.
+ *   - every visible interactive element (button, link outside running text,
+ *     input, select, textarea, [role=tab|radio|switch|menuitem|option|button])
+ *     is hit-tested at the CENTRE and the FOUR CORNERS of a 44x44 box centred
+ *     on it via document.elementFromPoint. A CSS `::after` overlay counts,
+ *     because pseudo-elements hit-test as their originating element (which
+ *     getBoundingClientRect would miss). Exempt: disabled, sr-only, inline
+ *     links inside a sentence, off-screen, and anything under an intentional
+ *     fixed overlay (modal backdrop / sticky chrome).
+ *   - SECTION 4 (keyboard, focus, motion): real Tab-key traversal reading
+ *     document.activeElement + its computed outline/box-shadow; dialog focus
+ *     TRAP + Escape + focus-RETURN-to-trigger; prefers-reduced-motion emulation
+ *     asserting the `.entry-reveal` rule resolves to `animation-name: none`.
+ *
+ * States covered (not only happy paths): dashboard with data / empty / loading,
+ * customers (data / empty), customer detail with entries / with none,
+ * transactions detailed / summarized, transaction detail, statement, import,
+ * Recently deleted, members, settings, businesses, onboarding, login, UI
+ * gallery — plus dialogs and sheets OPENED BY CLICKING THEIR TRIGGER
+ * (add transaction, add customer, delete transaction, delete customer, invite).
  *
  * REQUIREMENT: the Vite dev server must ALREADY be running at
  * http://localhost:5173 (`npm run dev` in another terminal). This script
@@ -32,9 +60,11 @@
  * silently to derive the `sb-<ref>-auth-token` storage key. No env value,
  * token or key is ever printed, logged, written to the report or committed.
  *
- * OUTPUT: a markdown evidence table + an unmatched-request list on stdout,
- * plus a full JSON report and 360px/FAIL screenshots under a temp dir
- * (never inside the repository).
+ * OUTPUT: a markdown evidence table + an unmatched-request list + the touch
+ * and focus summaries on stdout, plus a full JSON report and screenshots
+ * under a temp dir (never inside the repository). Set AUDIT_SHOTS_DIR to
+ * also copy the 390/1440 light+dark screenshots somewhere reviewable
+ * (e.g. .local/ui-checks, which is git-ignored).
  */
 
 "use strict";
@@ -51,12 +81,21 @@ const path = require("node:path");
 const DEV_ORIGIN = "http://localhost:5173";
 const DEBUG_PORT = 9333;
 // Debug subset support (used during development of this script):
-// AUDIT_ROUTES="/businesses" AUDIT_WIDTHS=360 narrows the matrix.
-const WIDTHS = [360, 768, 1024, 1440];
+// AUDIT_ROUTES="/businesses" AUDIT_WIDTHS=360 AUDIT_THEMES=light narrows the
+// matrix; AUDIT_IDS="dashboard-data,dashboard-empty" picks scenarios by id.
+const WIDTHS = [360, 390, 768, 1024, 1440];
 if (process.env.AUDIT_WIDTHS) {
   WIDTHS.length = 0;
   WIDTHS.push(...process.env.AUDIT_WIDTHS.split(",").map((w) => Number(w.trim())));
 }
+const THEMES = ["light", "dark"];
+if (process.env.AUDIT_THEMES) {
+  THEMES.length = 0;
+  THEMES.push(...process.env.AUDIT_THEMES.split(",").map((t) => t.trim()));
+}
+// Widths at which touch emulation is switched on and 44x44 targets are
+// enforced. The addendum names 360 and 390.
+const TOUCH_WIDTHS = [360, 390];
 const VIEWPORT_HEIGHT = 900;
 const ROOT = path.resolve(__dirname, "..");
 
@@ -68,25 +107,131 @@ const CHROME_CANDIDATES = [
 ];
 
 /**
- * Every audited route with an honest content marker (unique text that only
- * renders when the page itself — not an error or redirect — is on screen).
+ * Every audited route AND STATE, with an honest content marker (unique text
+ * that only renders when the page itself — not an error or redirect — is on
+ * screen), or a `markerSelector` for states where the marker is structural
+ * (a loading skeleton has no settled text).
+ *
+ * Options:
+ *   mode:           "normal" | "empty" (fixture lists emptied, dashboard
+ *                   zeroed to a first-run business) | "hold" (supabase
+ *                   requests left pending so loading skeletons stay put)
+ *   role:           "owner" makes the signed-in user the b1 OWNER for this
+ *                   scenario (unlocks Invite, Delete transaction/customer)
+ *   markerSelector: CSS selector that must exist when the marker text cannot
+ *   open:           steps clicked after load to reach a dialog/sheet/tab
+ *   dialog:         the opened surface is a modal — run trap/Escape/return
+ *   focus:          run the keyboard tab-order + focus-ring traversal
  */
-const ROUTES = [
-  { path: "/__ui", marker: "UI Gallery" },  { path: "/businesses", marker: "Businesses you own and share with you." },
-  { path: "/onboarding/business", marker: "Create your business" },
-  { path: "/b/b1", marker: "Top outstanding balances" },
-  { path: "/b/b1/customers", marker: "Everyone in this business" },
-  { path: "/b/b1/customers/c1", marker: "Current Balance" },
-  { path: "/b/b1/customers/import", marker: "Download template" },
-  { path: "/b/b1/customers/c1/statement", marker: "Statement for" },
-  { path: "/b/b1/transactions", marker: "Every entry across customers" },
-  { path: "/b/b1/transactions/t1", marker: "Transaction Detail" },
-  { path: "/b/b1/members", marker: "Who can see and change this business's data." },
-  { path: "/b/b1/settings", marker: "Backup" },
-  // /login goes last on purpose: a seeded session on /login redirects away,
-  // so the key is cleared right before this navigation.
-  { path: "/login", marker: "Continue with Google", noSession: true },
+const SCENARIOS = [
+  { id: "login", path: "/login", marker: "Continue with Google", noSession: true },
+  { id: "businesses", path: "/businesses", marker: "Businesses you own and share with you." },
+  { id: "onboarding", path: "/onboarding/business", marker: "Create your business" },
+
+  // Dashboard: with data, empty (first-run) and loading (skeleton) states.
+  { id: "dashboard-data", path: "/b/b1", marker: "Top outstanding balances", focus: true },
+  {
+    id: "dashboard-chart-30",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^30 days$/ }],
+  },
+  {
+    id: "dashboard-chart-90",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^90 days$/ }],
+  },
+  { id: "dashboard-empty", path: "/b/b1", marker: "Getting started", mode: "empty" },
+  {
+    id: "dashboard-loading",
+    path: "/b/b1",
+    marker: null,
+    markerSelector: '[aria-label="Loading dashboard"]',
+    mode: "hold",
+  },
+
+  // Customers: with results and with none.
+  { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business" },
+  { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
+
+  // Customer detail: with ledger entries and with none. ("Current Balance"
+  // was L-07-renamed to "Owes you / You owe / Settled" — the marker tracks
+  // the rendered text, not the stale S-41 wording.)
+  { id: "customer-detail", path: "/b/b1/customers/c1", marker: "Owes you", focus: true },
+  {
+    id: "customer-detail-empty",
+    path: "/b/b1/customers/c1",
+    marker: "Owes you",
+    mode: "empty",
+  },
+  { id: "statement", path: "/b/b1/customers/c1/statement", marker: "Statement for" },
+  { id: "import", path: "/b/b1/customers/import", marker: "Download template" },
+
+  // Transactions: detailed and summarized views.
+  { id: "transactions-detailed", path: "/b/b1/transactions", marker: "Every entry across customers" },
+  {
+    id: "transactions-summarized",
+    path: "/b/b1/transactions",
+    marker: "Every entry across customers",
+    open: [{ role: "tab", name: /Summarized/ }],
+  },
+  { id: "transaction-detail", path: "/b/b1/transactions/t1", marker: "Transaction Detail" },
+
+  { id: "deleted-items", path: "/b/b1/deleted", marker: "Recently deleted", role: "owner" },
+  { id: "members", path: "/b/b1/members", marker: "Who can see and change this business's data." },
+  { id: "settings", path: "/b/b1/settings", marker: "Backup", focus: true },
+  { id: "ui-gallery", path: "/__ui", marker: "UI Gallery" },
+
+  // Dialogs and sheets OPENED BY CLICKING THEIR TRIGGER (L-14: the touch
+  // audit must see the controls that only exist inside them).
+  {
+    id: "sheet-add-transaction",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^Add transaction$/ }],
+    dialog: true,
+    focus: true,
+  },
+  {
+    id: "dialog-add-customer",
+    path: "/b/b1",
+    marker: "Top outstanding balances",
+    open: [{ role: "button", name: /^Add customer$/ }],
+    dialog: true,
+  },
+  {
+    id: "dialog-delete-transaction",
+    path: "/b/b1/transactions",
+    marker: "Every entry across customers",
+    role: "owner",
+    open: [{ role: "button", name: /^Delete (charge|payment)/ }],
+    dialog: true,
+  },
+  {
+    id: "dialog-delete-customer",
+    path: "/b/b1/customers/c1",
+    marker: "Owes you",
+    role: "owner",
+    open: [
+      { role: "button", name: /Customer actions/ },
+      { role: "menuitem", name: /^Delete customer$/ },
+    ],
+    dialog: true,
+  },
+  {
+    id: "dialog-invite",
+    path: "/b/b1/members",
+    marker: "Who can see and change this business's data.",
+    role: "owner",
+    open: [{ role: "button", name: /^Invite$/ }],
+    dialog: true,
+  },
 ];
+
+const ACTIVE_SCENARIOS = process.env.AUDIT_IDS
+  ? SCENARIOS.filter((s) => process.env.AUDIT_IDS.split(",").map((x) => x.trim()).includes(s.id))
+  : SCENARIOS;
 
 // ---------------------------------------------------------------------------
 // .env (read silently — values are NEVER printed or written anywhere)
@@ -462,6 +607,20 @@ const DASHBOARD_SUMMARY = [
   },
 ];
 
+// L-14: the first-run dashboard summary a brand-new business returns —
+// zeroed figures and customer_count 0 so FirstRunCard renders.
+const ZERO_SUMMARY = [
+  {
+    total_receivable: 0,
+    total_credit: 0,
+    open_accounts: 0,
+    today_count: 0,
+    today_net: 0,
+    customer_count: 0,
+    top_debtors: [],
+  },
+];
+
 const DAILY_ACTIVITY = [
   { activity_date: "2026-10-09", charges: 126200.5, payments: 700 },
   { activity_date: "2026-10-10", charges: 0, payments: 0 },
@@ -486,6 +645,18 @@ function logInterception(entry) {
   if (interceptionLog.length < 400) interceptionLog.push(entry);
 }
 const pageErrors = [];
+
+// L-14: per-scenario fixture state, set from the Node side before each
+// navigation. "empty" returns empty lists (and a zeroed, first-run dashboard
+// summary) so the EMPTY states are audited; "hold" leaves supabase requests
+// pending so the LOADING skeletons stay on screen; `roleOverride` makes the
+// signed-in user the business owner so owner-only controls (Invite, Delete
+// transaction, Delete customer) can be opened and measured.
+let fixtureMode = "normal";
+let roleOverride = null;
+// Request ids left pending while a "hold" (loading-skeleton) scenario runs;
+// released with an empty body before the next navigation so nothing leaks.
+const heldRequests = [];
 
 function jsonResult(body, extraHeaders) {
   return {
@@ -556,13 +727,37 @@ function routeRest(urlObj, method, headers, postData) {
   // --- rpc endpoints -------------------------------------------------------
   if (pathname.startsWith("/rpc/")) {
     const rpc = pathname.slice("/rpc/".length);
+    // L-14 empty state: a brand-new business has no activity at all, and its
+    // dashboard summary is a zeroed first-run payload (customer_count 0).
+    if (fixtureMode === "empty") {
+      if (rpc === "dashboard_summary") return jsonResult([ZERO_SUMMARY]);
+      return jsonResult([]);
+    }
     switch (rpc) {
       case "dashboard_summary":
         return jsonResult(DASHBOARD_SUMMARY);
       case "customer_ledger":
         return jsonResult(LEDGER_C1);
-      case "daily_activity":
+      case "daily_activity": {
+        let pDays = 7;
+        try {
+          pDays = JSON.parse(postData || "{}").p_days ?? 7;
+        } catch {}
+        if (pDays > 7) {
+          const rows = [];
+          for (let i = pDays - 1; i >= 0; i--) {
+            const d = new Date(2026, 9, 15 - i);
+            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            rows.push({
+              activity_date: iso,
+              charges: (i % 3 === 0) ? 1200 : 0,
+              payments: (i % 5 === 0) ? 800 : 0,
+            });
+          }
+          return jsonResult(rows);
+        }
         return jsonResult(DAILY_ACTIVITY);
+      }
       case "my_invitations":
         return jsonResult(MY_INVITATIONS);
       case "business_exists":
@@ -597,9 +792,17 @@ function routeRest(urlObj, method, headers, postData) {
       return jsonResult(FAKE_USER);
 
     case "/business_members": {
+      // L-14: `roleOverride` makes the signed-in user the b1 owner so the
+      // owner-only surfaces (Invite, Delete transaction/customer) render.
+      const withRole = (rows) =>
+        roleOverride
+          ? rows.map((r) => (r.business_id === "b1" ? { ...r, role: roleOverride } : r))
+          : rows;
       if (select.includes("business:businesses")) {
-        return jsonResult(MEMBERSHIP_ROWS);
+        // The shell reads this to place the active business — always kept.
+        return jsonResult(withRole(MEMBERSHIP_ROWS));
       }
+      if (fixtureMode === "empty") return jsonResult([]);
       if (select.includes("user_id")) {
         return jsonResult(MEMBER_ROWS_B1);
       }
@@ -612,6 +815,7 @@ function routeRest(urlObj, method, headers, postData) {
       return jsonResult(PROFILES);
 
     case "/business_invitations": {
+      if (fixtureMode === "empty") return isCountHead ? headCount(0) : jsonResult([]);
       if (isCountHead) return headCount(MEMBERSHIPS_INVITATIONS.length);
       if (select.includes("email")) {
         return jsonResult(BUSINESS_INVITATIONS_B1);
@@ -629,6 +833,12 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customers": {
+      // L-14 empty: no customers in the lists, but a detail page's
+      // single-object read still resolves — so the empty LEDGER state is
+      // audited rather than a 404.
+      if (fixtureMode === "empty" && !wantsObject) {
+        return isCountHead ? headCount(0) : jsonResult([]);
+      }
       if (isCountHead && (select === "id" || select === "id,name,phone,archived_at")) {
         return headCount(CUSTOMERS.length);
       }
@@ -660,6 +870,7 @@ function routeRest(urlObj, method, headers, postData) {
 
     case "/customer_balances": {
       if (select.includes("customer_id")) {
+        if (fixtureMode === "empty") return jsonResult([]);
         return jsonResult(
           CUSTOMERS.map((c) => ({
             customer_id: c.id,
@@ -673,6 +884,11 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/transactions": {
+      // L-14 empty: lists are empty; the transaction-detail single read
+      // still resolves so that page renders.
+      if (fixtureMode === "empty" && !wantsObject) {
+        return isCountHead ? headCount(0) : jsonResult([]);
+      }
       if (isCountHead) return headCount(TRANSACTIONS.length);
       if (select.includes("customers(name")) {
         // getTransactionById: "*, customers(name, phone)" + .single()
@@ -767,6 +983,12 @@ function fixtureFor(urlString, method, headers, postData) {
         fixture = jsonResult({});
       }
     } else if (urlObj.pathname.startsWith("/rest/v1/")) {
+      // L-14 loading state: hold ONLY the dashboard's data (the RPCs) so the
+      // shell, boot gate and page chrome render and only the summary/activity
+      // skeleton stays on screen. Everything else passes through.
+      if (fixtureMode === "hold" && urlObj.pathname.startsWith("/rest/v1/rpc/")) {
+        return { hold: true };
+      }
       fixture = routeRest(urlObj, method, headers, postData);
     } else {
       unmatchedRequests.add(`${method} ${urlObj.pathname} (unknown supabase path) — served []`);
@@ -916,6 +1138,8 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
   const AMOUNT_RE = /₹\\s?[\\d,]/;
   const truncated = [];
   const outside = [];
+  let widestWidth = 0;
+  let widest = null;
   const all = Array.from(document.querySelectorAll("body *"));
   for (const el of all) {
     const cs = getComputedStyle(el);
@@ -938,7 +1162,11 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
       });
     }
     if (rect.width > 0 && (rect.right > REQUESTED + 1 || rect.left < -1)) {
-      outside.push({ el, tag: el.tagName, cls: String(el.className || "").slice(0, 160), right: Math.round(rect.right), left: Math.round(rect.left), text: (el.textContent || "").trim().slice(0, 60) });
+      outside.push({ el, tag: el.tagName, cls: String(el.className || "").slice(0, 160), right: Math.round(rect.right), left: Math.round(rect.left), width: Math.round(rect.width), text: (el.textContent || "").trim().slice(0, 60) });
+      if (rect.width > widestWidth) {
+        widestWidth = rect.width;
+        widest = { tag: el.tagName, cls: String(el.className || "").slice(0, 160), width: Math.round(rect.width), text: (el.textContent || "").trim().slice(0, 60) };
+      }
     }
   }
   // Keep only outermost offenders (skip elements whose parent is also listed).
@@ -955,11 +1183,240 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
     pathname: location.pathname,
     truncatedAmounts: truncated.slice(0, 10),
     overflowing: outermost,
+    widest,
   };
 })()`;
 
 const MARKER_SOURCE = (marker) =>
   `(() => ({ found: !!(document.body && document.body.innerText.indexOf(${JSON.stringify(marker)}) !== -1) }))()`;
+
+const SELECTOR_SOURCE = (selector) =>
+  `(() => ({ found: !!document.querySelector(${JSON.stringify(selector)}) }))()`;
+
+/** Click the first visible element whose role + accessible name matches a
+ *  scenario's `open` step (regex source). Used to reach dialogs, sheets and
+ *  tabs that only exist after an interaction. */
+const CLICK_SOURCE = (step) => {
+  const selByRole = {
+    menuitem: '[role="menuitem"]',
+    tab: '[role="tab"]',
+    option: '[role="option"]',
+    button: 'button, [role="button"], a[href], [role="tab"]',
+  }[step.role] || 'button, [role="button"], a[href]';
+  return `(() => {
+    const nameRe = new RegExp(${JSON.stringify(step.name.source)}, ${JSON.stringify(step.name.flags || "")});
+    const cands = Array.from(document.querySelectorAll(${JSON.stringify(selByRole)}));
+    const el = cands.find((c) => {
+      if (c.disabled || c.getAttribute("aria-disabled") === "true") return false;
+      const r = c.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return false;
+      const label = (c.getAttribute("aria-label") || c.textContent || "").trim();
+      return nameRe.test(label);
+    });
+    if (!el) return { found: false };
+    el.scrollIntoView({ block: "center" });
+    el.click();
+    return { found: true, label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 60) };
+  })()`;
+};
+
+/** L-14 touch-target proof: hit-test the CENTRE and FOUR CORNERS of a 44x44
+ *  box centred on every visible interactive element. A `::after` overlay
+ *  counts, because pseudo-elements hit-test as their originating element.
+ *  Runs only when the pointer is actually coarse (asserted upstream). */
+const HITTEST_SOURCE = `(() => {
+  const MIN = 44;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const isCoarse = window.matchMedia("(pointer: coarse)").matches;
+  if (!isCoarse) return { enforced: false, reason: "pointer is not coarse", checked: 0, failures: [] };
+  // When a modal/sheet is open, only the surface itself is interactive —
+  // everything behind it is exempt as "covered by an intentional overlay".
+  const modalRoot =
+    document.querySelector("[data-slot$='-content'][data-open], [data-slot='sheet-content'][data-open], [role='dialog']:not([hidden])") ||
+    null;
+  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"]';
+  const els = Array.from(document.querySelectorAll(SEL));
+  const failures = [];
+  let checked = 0;
+  for (const el of els) {
+    if (el.disabled || el.getAttribute("aria-disabled") === "true") continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    if (parseFloat(cs.opacity || "1") < 0.1) continue;
+    let rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) continue;
+    // sr-only / visually hidden
+    if (rect.width <= 2 && rect.height <= 2) continue;
+    if (rect.bottom <= 0 || rect.top >= vh || rect.right <= 0 || rect.left >= vw) continue;
+    if (modalRoot && !modalRoot.contains(el)) continue;
+    // Content inside a COLLAPSED <details> is hidden by Chrome via
+    // content-visibility: hidden — it keeps a synthesized layout box but is
+    // neither rendered nor hit-testable (a real finger can never meet it).
+    // Such fields are not touch targets; only the open disclosure's fields
+    // are. checkVisibility() also reports false for content-visibility:hidden.
+    const details = el.closest("details");
+    if (details && !details.open && !details.querySelector("summary")?.contains(el)) continue;
+    if (typeof el.checkVisibility === "function" && !el.checkVisibility()) continue;
+    // Inline link embedded in a sentence: exempt (WCAG target size has an
+    // inline exception).
+    if (el.tagName === "A" && cs.display === "inline") {
+      const parent = el.parentElement;
+      if (parent) {
+        const own = (parent.textContent || "").length;
+        const mine = (el.textContent || "").length;
+        if (own > mine + 2) continue;
+      }
+    }
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    // Inset the corner sample by 1px: an exact 44x44 target's outer edge is
+    // exclusive to it, so sampling at precisely ±22 would resolve to the
+    // parent and produce a false failure. ±21 keeps sub-44 targets failing
+    // while letting a true 44px target pass.
+    const H = MIN / 2 - 1;
+    const points = [
+      [cx, cy],
+      [cx - H, cy - H],
+      [cx + H, cy - H],
+      [cx - H, cy + H],
+      [cx + H, cy + H],
+    ];
+    checked++;
+    const misses = [];
+    let tested = 0;
+    let covered = 0;
+    for (const [x, y] of points) {
+      if (x < 0 || y < 0 || x >= vw || y >= vh) continue; // corner off-screen
+      tested++;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && (hit === el || el.contains(hit))) continue; // self / child / ::after
+      // The element's own rect is authoritative for coverage. If the point is
+      // strictly INSIDE the element's box yet elementFromPoint walked up to an
+      // ancestor (paint/rounding anomaly), the element does occupy that pixel —
+      // count it as covered. This rescues exact-44px targets while a sub-44
+      // target still misses (its corners fall on/over its own edges).
+      const insideOwn =
+        x > rect.left && x < rect.right && y > rect.top && y < rect.bottom;
+      if (hit && insideOwn && hit.contains(el)) continue;
+      if (hit && insideOwn === false && getComputedStyle(hit).position === "fixed") {
+        covered++; // sticky/fixed chrome overlaying it
+        continue;
+      }
+      if (!hit) { misses.push({ x: Math.round(x), y: Math.round(y), hit: null }); continue; }
+      misses.push({ x: Math.round(x), y: Math.round(y), hit: hit.tagName + "." + String(hit.className || "").slice(0, 50) });
+    }
+    if (tested - covered <= 0) { checked--; continue; } // fully covered/off-screen
+    if (misses.length > 0) {
+      failures.push({
+        tag: el.tagName,
+        role: el.getAttribute("role") || "",
+        cls: String(el.className || "").slice(0, 120),
+        label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 50),
+        w: Math.round(rect.width),
+        h: Math.round(rect.height),
+        rect: {
+          top: Math.round(rect.top),
+          bottom: Math.round(rect.bottom),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+        },
+        misses,
+      });
+    }
+  }
+  return { enforced: true, isCoarse, checked, totalFailures: failures.length, failures: failures.slice(0, 40) };
+})()`;
+
+/** Section 4 — read the focused element and whether a focus ring is visible. */
+const FOCUS_SOURCE = `(() => {
+  const el = document.activeElement;
+  if (!el || el === document.body || el === document.documentElement) {
+    return { tag: el ? el.tagName : "NONE", name: "", focusRing: false, ringDetail: "no element focused" };
+  }
+  const cs = getComputedStyle(el);
+  const outlineWidth = parseFloat(cs.outlineWidth) || 0;
+  const outlineVisible = cs.outlineStyle !== "none" && outlineWidth > 0;
+  const shadow = cs.boxShadow || "none";
+  const ringVisible = shadow !== "none";
+  let focusVisible = false;
+  try { focusVisible = el.matches(":focus-visible"); } catch {}
+  let focusMatched = false;
+  try { focusMatched = el.matches(":focus"); } catch {}
+  return {
+    tag: el.tagName,
+    role: el.getAttribute("role") || "",
+    name: (el.getAttribute("aria-label") || el.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 44),
+    id: el.id || "",
+    type: el.getAttribute("type") || "",
+    isActive: document.activeElement === el,
+    focusMatched,
+    cls: String(el.className || "").slice(0, 70),
+    focusRing: outlineVisible || ringVisible,
+    focusVisible,
+    ringVar: (cs.getPropertyValue("--tw-ring-shadow") || "").slice(0, 40),
+    borderColor: cs.borderColor,
+    outline: outlineVisible ? cs.outline.slice(0, 40) : "none",
+    boxShadow: ringVisible ? shadow.slice(0, 50) : "none",
+    insideDialog: !!el.closest("[data-slot$='-content'], [data-slot='sheet-content'], [role='dialog']"),
+  };
+})()`;
+
+const DIALOG_PRESENT_SOURCE = `(() => {
+  const d = document.querySelector("[data-slot$='-content'][data-open], [data-slot='sheet-content'][data-open], [role='dialog']:not([hidden])");
+  return { present: !!d };
+})()`;
+
+/** Focus the first focusable element inside the open dialog/sheet so the
+ *  Escape key deterministically targets it (Escape is scoped to the focused
+ *  surface). Returns whether anything was focused. */
+const FOCUS_FIRST_IN_DIALOG_SOURCE = `(() => {
+  const d = document.querySelector("[data-slot$='-content'][data-open], [data-slot='sheet-content'][data-open], [role='dialog']:not([hidden])");
+  if (!d) return { focused: false };
+  const sel = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  const el = d.querySelector(sel);
+  if (el) { el.focus(); return { focused: true, tag: el.tagName }; }
+  d.focus && d.focus();
+  return { focused: false };
+})()`;
+
+/** Section 4 — reduced motion. Injects a probe carrying `.entry-reveal` so
+ *  the real computed value of the rule can be asserted in the browser (no
+ *  component currently renders the class: L-12's LedgerEntryRow is gated). */
+const MOTION_SOURCE = `(() => {
+  const probe = document.createElement("div");
+  probe.className = "entry-reveal";
+  probe.style.cssText = "position:absolute;top:-9999px;left:-9999px;width:8px;height:8px;";
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const name = cs.animationName;
+  const dur = cs.animationDuration;
+  probe.remove();
+  return {
+    reduced: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    animationName: name,
+    animationDuration: dur,
+  };
+})()`;
+
+/** Press a real Tab key through CDP and read back the focused element. */
+async function tabOnce(cdp) {
+  await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9, text: "\t" });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 });
+  await sleep(70);
+  return evaluate(cdp, FOCUS_SOURCE);
+}
+
+async function pressEscape(cdp) {
+  await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+  await sleep(150);
+}
+
+async function pressEnter(cdp) {
+  await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+  await sleep(150);
+}
 
 async function evaluate(cdp, expression) {
   const result = await cdp.send("Runtime.evaluate", {
@@ -1055,6 +1512,12 @@ async function main() {
           await cdp.send("Fetch.continueRequest", { requestId });
           return;
         }
+        if (fixture.hold) {
+          // L-14 loading state: leave the request pending (never continue it
+          // to the real network) so the skeleton stays on screen.
+          heldRequests.push(requestId);
+          return;
+        }
         // Every intercepted response needs CORS headers — the supabase
         // origin differs from the dev server origin, so without them the
         // browser discards the (fixture) answer.
@@ -1118,204 +1581,375 @@ async function main() {
 
     const results = [];
     let firstLoad = true;
-    const activeRoutes = process.env.AUDIT_ROUTES
-      ? ROUTES.filter((r) =>
-          process.env.AUDIT_ROUTES.split(",").includes(r.path),
-        )
-      : ROUTES;
+    const touchTotals = { controlsChecked: 0, controlsFailing: 0, cellsWithFailures: 0, pointerAssertions: [] };
+    const focusFindings = [];
+    const motionFindings = [];
 
-    for (const route of activeRoutes) {
-      const row = { route: route.path, marker: route.marker, widths: {} };
+    // Screenshots the owner asked for: one per scenario at 390 and 1440 in
+    // both themes, into a git-ignored review folder when AUDIT_SHOTS_DIR is
+    // set (e.g. .local/ui-checks). Never committed.
+    const reviewDir = process.env.AUDIT_SHOTS_DIR
+      ? path.resolve(ROOT, process.env.AUDIT_SHOTS_DIR)
+      : null;
+    if (reviewDir) fs.mkdirSync(reviewDir, { recursive: true });
+
+    // Fulfil anything a previous "hold" (loading) scenario left pending so
+    // requests never leak to the real network or to the next page.
+    const releaseHeld = async () => {
+      for (const id of heldRequests) {
+        try {
+          await cdp.send("Fetch.fulfillRequest", {
+            requestId: id,
+            responseCode: 200,
+            responseHeaders: [
+              { name: "content-type", value: "application/json" },
+              { name: "access-control-allow-origin", value: "*" },
+            ],
+            body: Buffer.from("[]", "utf8").toString("base64"),
+          });
+        } catch {
+          /* target gone */
+        }
+      }
+      heldRequests.length = 0;
+    };
+
+    const navigateAndSettle = async (scenario, width, theme) => {
+      if (scenario.noSession) {
+        try {
+          await evaluate(
+            cdp,
+            `(() => { try { localStorage.removeItem(${JSON.stringify(storageKey)}); } catch (e) {} return true; })()`,
+          );
+        } catch {
+          /* about:blank */
+        }
+      }
+      const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 90000 : 45000);
+      await cdp.send("Page.navigate", { url: DEV_ORIGIN + scenario.path });
+      let ok = true;
+      try {
+        await loadWait;
+      } catch {
+        ok = false;
+      }
+      firstLoad = false;
+      if (!ok) return false;
+
+      const markerWait = scenario.markerSelector
+        ? SELECTOR_SOURCE(scenario.markerSelector)
+        : MARKER_SOURCE(scenario.marker);
+      let found = await waitFor(cdp, markerWait, 30000);
+      await sleep(700); // settle transitions (S-41: no animation waits)
+
+      // Colour theme: next-themes follows the emulated prefers-color-scheme;
+      // record honestly and force the class only as a fallback.
+      let themeApplied = "next-themes";
+      const darkNow = await evaluate(cdp, `(() => document.documentElement.classList.contains("dark"))()`);
+      if (theme === "dark" && !darkNow) {
+        await evaluate(cdp, `(() => { document.documentElement.classList.add("dark"); return true; })()`);
+        themeApplied = "forced-class";
+      } else if (theme === "light" && darkNow) {
+        await evaluate(cdp, `(() => { document.documentElement.classList.remove("dark"); return true; })()`);
+        themeApplied = "forced-class";
+      }
+
+      // Reach tabs / menus / dialogs / sheets listed in `open`.
+      if (scenario.open) {
+        for (const step of scenario.open) {
+          await evaluate(cdp, CLICK_SOURCE(step));
+          await sleep(500);
+        }
+        if (!found) found = await waitFor(cdp, markerWait, 8000);
+        await sleep(400);
+      }
+      if (!found) found = await waitFor(cdp, markerWait, 8000);
+      return { ok: true, found, themeApplied };
+    };
+
+    for (const scenario of ACTIVE_SCENARIOS) {
+      const row = { id: scenario.id, route: scenario.path, mode: scenario.mode || "normal", cells: {} };
       for (const width of WIDTHS) {
+        await releaseHeld();
+        const touch = TOUCH_WIDTHS.includes(width);
         await cdp.send("Emulation.setDeviceMetricsOverride", {
           width,
           height: VIEWPORT_HEIGHT,
           deviceScaleFactor: 1,
-          mobile: width === 360,
+          mobile: touch,
+          ...(touch ? { screenWidth: width, screenHeight: VIEWPORT_HEIGHT } : {}),
+        });
+        await cdp.send("Emulation.setTouchEmulationEnabled", {
+          enabled: touch,
+          maxTouchPoints: touch ? 5 : 1,
         });
 
-        if (route.noSession) {
-          // A leftover seeded session would bounce /login to "/", so clear
-          // it right before this navigation.
-          try {
-            await evaluate(
-              cdp,
-              `(() => { try { localStorage.removeItem(${JSON.stringify(storageKey)}); } catch (e) {} return true; })()`,
-            );
-          } catch {
-            /* about:blank */
+        for (const theme of THEMES) {
+          fixtureMode = scenario.mode || "normal";
+          roleOverride = scenario.role || null;
+          await cdp.send("Emulation.setEmulatedMedia", {
+            features: [
+              { name: "prefers-color-scheme", value: theme },
+              { name: "prefers-reduced-motion", value: "no-preference" },
+            ],
+          });
+
+          const cellKey = `${width}/${theme}`;
+          const nav = await navigateAndSettle(scenario, width, theme);
+          if (nav === false) {
+            row.cells[cellKey] = { status: "NOT VERIFIED", detail: "navigation failed" };
+            continue;
           }
-        }
 
-        const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 90000 : 45000);
-        await cdp.send("Page.navigate", { url: DEV_ORIGIN + route.path });
-        try {
-          await loadWait;
-        } catch (err) {
-          row.widths[width] = {
-            status: "NOT VERIFIED",
-            detail: `navigation failed: ${err.message}`,
-          };
-          continue;
-        }
-        firstLoad = false;
-
-        const markerFound = await waitFor(
-          cdp,
-          MARKER_SOURCE(route.marker),
-          30000,
-        );
-        // Let transitions/animations settle (S-41: no animation waits).
-        await sleep(700);
-
-        const measurement = await evaluate(cdp, MEASURE_SOURCE(width));
-        if (process.env.AUDIT_PROBE) {
-          const probe = await evaluate(
-            cdp,
-            `(() => {
-              const out = [];
-              const limit = ${width};
-              for (const el of document.querySelectorAll("*")) {
-                const r = el.getBoundingClientRect();
-                if (r.width === 0 || r.right <= limit + 1) continue;
-                const cs = getComputedStyle(el);
-                if (cs.visibility === "hidden" || cs.display === "none") continue;
-                out.push(
-                  el.tagName +
-                    ' cls="' + String(el.className || "").slice(0, 90) + '"' +
-                    " w=" + Math.round(r.width) +
-                    " right=" + Math.round(r.right) +
-                    " ovf=" + cs.overflowX +
-                    " txt=" + (el.textContent || "").trim().slice(0, 30),
-                );
-                let p = el.parentElement;
-                let depth = 0;
-                while (p && depth < 4) {
-                  const pr = p.getBoundingClientRect();
-                  out.push(
-                    "  ^ " + p.tagName + ' cls="' + String(p.className || "").slice(0, 90) + '"' +
-                      " right=" + Math.round(pr.right) +
-                      (p.classList && p.classList.contains("flex-wrap") ? " [WRAPS]" : ""),
-                  );
-                  p = p.parentElement;
-                  depth++;
-                }
-                if (out.length > 40) break;
-              }
-              return out.length ? out.join("\\n") : "(no overflowing elements)";
-            })()`,
-          );
-          console.log("--- PROBE overflowing @ " + width + "px / " + route.path + " ---");
-          console.log(probe);
-          console.log("---");
-        }
-        const finalMarker = markerFound
-          ? true
-          : await waitFor(cdp, MARKER_SOURCE(route.marker), 8000);
-
-        const screenshot = async (label) => {
-          try {
-            const shot = await cdp.send("Page.captureScreenshot", {
-              format: "jpeg",
-              quality: 60,
-            });
-            const file = path.join(
-              shotsDir,
-              `${routeSlug(route.path)}-${width}${label ? `-${label}` : ""}.jpg`,
-            );
-            fs.writeFileSync(file, Buffer.from(shot.data, "base64"));
-            return file;
-          } catch {
-            return null;
+          let pointerCoarse = null;
+          if (touch) {
+            pointerCoarse = await evaluate(cdp, `(() => window.matchMedia("(pointer: coarse)").matches)()`);
+            touchTotals.pointerAssertions.push({ scenario: scenario.id, width, coarse: pointerCoarse });
           }
-        };
 
-        let status;
-        let detail = "";
-        if (!finalMarker) {
-          status = "REDIRECTED/BLANK";
-          let bodyText = "";
-          try {
-            bodyText = (
-              await evaluate(
-                cdp,
-                `(() => (document.body ? document.body.innerText.slice(0, 200) : ""))()`,
-              )
-            ) || "";
-          } catch {
-            /* ignore */
-          }
-          detail = `content marker not found ("${route.marker.slice(0, 40)}…"), landed on ${measurement.pathname}; body: ${JSON.stringify(bodyText.slice(0, 120))}`;
-        } else if (
-          measurement.scrollWidth <= measurement.innerWidth + 1 &&
-          !measurement.viewportExpanded
-        ) {
-          if (measurement.truncatedAmounts.length === 0) {
-            status = "PASS";
-          } else {
-            status = "FAIL";
-            detail =
-              measurement.truncatedAmounts
+          const measurement = await evaluate(cdp, MEASURE_SOURCE(width));
+
+          // ---- Overflow / truncation status ----
+          let status;
+          let detail = "";
+          if (!nav.found) {
+            status = "REDIRECTED/BLANK";
+            const bodyText = (await evaluate(cdp, `(() => (document.body ? document.body.innerText.slice(0, 160) : ""))()`)) || "";
+            detail = `content marker not found, landed on ${measurement.pathname}; body: ${JSON.stringify(bodyText.slice(0, 120))}`;
+          } else if (measurement.scrollWidth <= measurement.innerWidth + 1 && !measurement.viewportExpanded) {
+            if (measurement.truncatedAmounts.length === 0) {
+              status = "PASS";
+            } else {
+              status = "FAIL";
+              detail = measurement.truncatedAmounts
                 .map((t) => `truncated amount <${t.tag.toLowerCase()} class="${t.cls}"> "${t.text}"`)
                 .join("; ");
+            }
+          } else {
+            status = "FAIL";
+            const overflowDetail = measurement.overflowing.length > 0
+              ? measurement.overflowing.map((o) => `<${o.tag.toLowerCase()} class="${o.cls}"> right=${o.right}`).join("; ")
+              : "no outermost offender found";
+            detail = measurement.viewportExpanded
+              ? `content wider than ${width}px: layout viewport expanded to ${measurement.innerWidth}; ${overflowDetail}`
+              : `scrollWidth ${measurement.scrollWidth} > innerWidth ${measurement.innerWidth}; ${overflowDetail}`;
+            if (measurement.widest) {
+              detail += `; widest: <${measurement.widest.tag.toLowerCase()} class="${measurement.widest.cls}"> w=${measurement.widest.width} "${measurement.widest.text}"`;
+            }
+            if (measurement.truncatedAmounts.length > 0) {
+              detail += `; truncated: ${measurement.truncatedAmounts.map((t) => `"${t.text}"`).join(", ")}`;
+            }
           }
-        } else {
-          status = "FAIL";
-          const overflowDetail =
-            measurement.overflowing.length > 0
-              ? measurement.overflowing
-                  .map((o) => `<${o.tag.toLowerCase()} class="${o.cls}"> right=${o.right}`)
-                  .join("; ")
-              : "no single offender found";
-          detail = measurement.viewportExpanded
-            ? `content wider than ${width}px: layout viewport expanded to ${measurement.innerWidth}; ${overflowDetail}`
-            : `scrollWidth ${measurement.scrollWidth} > innerWidth ${measurement.innerWidth}; ${overflowDetail}`;
-          if (measurement.truncatedAmounts.length > 0) {
-            detail += `; truncated: ${measurement.truncatedAmounts.map((t) => `"${t.text}"`).join(", ")}`;
-          }
-        }
 
-        let shotFile = null;
-        if (width === 360 || status !== "PASS") {
-          shotFile = await screenshot(
-            status === "PASS" ? "" : status.toLowerCase().replace(/[^a-z]+/g, "-"),
-          );
+          // ---- Touch-target hit test (touch widths only) ----
+          let hit = null;
+          if (touch) {
+            // A dialog/sheet slides in; let it fully settle so the hit test
+            // measures the resting geometry, not a mid-transition frame.
+            if (scenario.dialog) await sleep(400);
+            hit = await evaluate(cdp, HITTEST_SOURCE);
+            if (hit && hit.enforced) {
+              touchTotals.controlsChecked += hit.checked;
+              touchTotals.controlsFailing += hit.totalFailures;
+              if (hit.totalFailures > 0) {
+                touchTotals.cellsWithFailures += 1;
+                if (status === "PASS") status = "FAIL";
+                detail = (detail ? detail + "; " : "") +
+                  `${hit.totalFailures} touch target(s) < 44x44: ` +
+                  hit.failures.slice(0, 4)
+                    .map((f) => `<${f.tag.toLowerCase()}${f.role ? `[${f.role}]` : ""} ${Math.round(f.w)}x${Math.round(f.h)} "${f.label}"> misses ${f.misses.length}/5`)
+                    .join(", ");
+              }
+            }
+          }
+
+          // ---- Screenshot (390 + 1440 both themes for the owner, plus any FAIL) ----
+          let shotFile = null;
+          const wantShot = (width === 390 || width === 1440) || status !== "PASS";
+          if (wantShot) {
+            try {
+              const shot = await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 60 });
+              const name = `${scenario.id}-${width}-${theme}.jpg`;
+              shotFile = path.join(shotsDir, name);
+              fs.writeFileSync(shotFile, Buffer.from(shot.data, "base64"));
+              if (reviewDir && (width === 390 || width === 1440)) {
+                fs.writeFileSync(path.join(reviewDir, name), Buffer.from(shot.data, "base64"));
+              }
+            } catch {
+              shotFile = null;
+            }
+          }
+
+          row.cells[cellKey] = {
+            status,
+            detail,
+            theme,
+            themeApplied: nav.themeApplied,
+            pointerCoarse,
+            innerWidth: measurement.innerWidth,
+            scrollWidth: measurement.scrollWidth,
+            truncatedAmounts: measurement.truncatedAmounts,
+            overflowing: measurement.overflowing,
+            widest: measurement.widest,
+            touch: hit,
+            pathname: measurement.pathname,
+            screenshot: shotFile,
+          };
         }
-        row.widths[width] = {
-          status,
-          detail,
-          innerWidth: measurement.innerWidth,
-          scrollWidth: measurement.scrollWidth,
-          truncatedAmounts: measurement.truncatedAmounts,
-          overflowing: measurement.overflowing,
-          pathname: measurement.pathname,
-          screenshot: shotFile,
-        };
       }
       results.push(row);
     }
 
+    // ---- Section 4: keyboard, focus, dialog trap/Escape/return, motion ----
+    await releaseHeld();
+    await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false, maxTouchPoints: 1 });
+    for (const scenario of ACTIVE_SCENARIOS.filter((s) => s.focus || s.dialog)) {
+      for (const width of [1440, 390]) {
+        await cdp.send("Emulation.setDeviceMetricsOverride", {
+          width, height: VIEWPORT_HEIGHT, deviceScaleFactor: 1, mobile: width < 768,
+        });
+        await cdp.send("Emulation.setEmulatedMedia", {
+          features: [
+            { name: "prefers-color-scheme", value: "light" },
+            { name: "prefers-reduced-motion", value: "no-preference" },
+          ],
+        });
+        fixtureMode = scenario.mode || "normal";
+        roleOverride = scenario.role || null;
+        const nav = await navigateAndSettle(scenario, width, "light");
+        if (nav === false || !nav.found) continue;
+
+        if (scenario.focus) {
+          const steps = [];
+          for (let i = 0; i < 14; i++) steps.push(await tabOnce(cdp));
+          focusFindings.push({ scenario: scenario.id, kind: "tab-order", width, steps });
+        }
+
+        if (scenario.dialog) {
+          const present = await evaluate(cdp, DIALOG_PRESENT_SOURCE);
+          const trapSteps = [];
+          for (let i = 0; i < 12; i++) trapSteps.push(await tabOnce(cdp));
+          const allInside = trapSteps.every((s) => s && s.insideDialog);
+          const anyOutside = trapSteps.find((s) => s && !s.insideDialog);
+          // Deterministic Escape: focus inside the dialog, then press it.
+          await evaluate(cdp, FOCUS_FIRST_IN_DIALOG_SOURCE);
+          await sleep(80);
+          await pressEscape(cdp);
+          let afterEscape = await evaluate(cdp, DIALOG_PRESENT_SOURCE);
+          let escapeOn = 1;
+          if (afterEscape.present) {
+            // A nested popup (combobox etc.) may swallow the first Escape —
+            // focus the surface again and retry once, recording which press
+            // actually closed it (a defect only if NEITHER does).
+            await evaluate(cdp, FOCUS_FIRST_IN_DIALOG_SOURCE);
+            await sleep(80);
+            await pressEscape(cdp);
+            afterEscape = await evaluate(cdp, DIALOG_PRESENT_SOURCE);
+            escapeOn = afterEscape.present ? "none" : 2;
+          }
+          const focusAfter = await evaluate(cdp, FOCUS_SOURCE);
+          focusFindings.push({
+            scenario: scenario.id, kind: "dialog", width,
+            opened: present.present,
+            trapHeld: allInside,
+            trapEscapee: anyOutside ? { tag: anyOutside.tag, name: anyOutside.name, cls: anyOutside.cls } : null,
+            escapeClosed: !afterEscape.present,
+            escapeOn,
+            focusAfterEscape: focusAfter,
+          });
+        }
+      }
+    }
+
+    // Reduced motion: prove the `.entry-reveal` rule resolves to `none` under
+    // `prefers-reduced-motion: reduce` (and animates otherwise) in the browser.
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: VIEWPORT_HEIGHT, deviceScaleFactor: 1, mobile: false });
+    fixtureMode = "normal";
+    roleOverride = null;
+    await navigateAndSettle({ path: "/b/b1", marker: "Top outstanding balances" }, 1440, "light");
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [
+        { name: "prefers-color-scheme", value: "light" },
+        { name: "prefers-reduced-motion", value: "reduce" },
+      ],
+    });
+    await sleep(200);
+    const underReduce = await evaluate(cdp, MOTION_SOURCE);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [
+        { name: "prefers-color-scheme", value: "light" },
+        { name: "prefers-reduced-motion", value: "no-preference" },
+      ],
+    });
+    await sleep(200);
+    const underNormal = await evaluate(cdp, MOTION_SOURCE);
+    motionFindings.push({ underReduce, underNormal });
+
     // ---- Report ----------------------------------------------------------
-    const widthsHeader = WIDTHS.map((w) => `${w} px`).join(" | ");
+    const widthsHeader = WIDTHS.map((w) => `${w} px${TOUCH_WIDTHS.includes(w) ? " (touch)" : ""}`).join(" | ");
     const divider = ["---", ...WIDTHS.map(() => "---")].join(" | ");
     const lines = [];
-    lines.push(`| Route | ${widthsHeader} |`);
+    lines.push(`| Route/state | ${widthsHeader} |`);
     lines.push(`| ${divider} |`);
     for (const row of results) {
       const cells = WIDTHS.map((w) => {
-        const cell = row.widths[w];
-        if (!cell) return "NOT VERIFIED";
-        if (cell.status === "PASS") return "PASS";
-        if (cell.status === "NOT VERIFIED") return "NOT VERIFIED";
-        return `${cell.status} (${cell.detail})`;
+        // Aggregate the themes: PASS only if every audited theme passes.
+        const parts = THEMES.map((t) => row.cells[`${w}/${t}`]).filter(Boolean);
+        if (parts.length === 0) return "NOT VERIFIED";
+        const failing = parts.filter((p) => p.status !== "PASS");
+        if (failing.length === 0) return "PASS";
+        const worst = failing[0];
+        return `${worst.status} (${worst.detail.slice(0, 90)})`;
       });
-      lines.push(`| \`${row.route}\` | ${cells.join(" | ")} |`);
+      lines.push(`| \`${row.id}\` (${row.mode}) | ${cells.join(" | ")} |`);
     }
 
     console.log("");
-    console.log("=== S-41 RESPONSIVE AUDIT — EVIDENCE TABLE ===");
+    console.log("=== L-14 RESPONSIVE + TOUCH + FOCUS AUDIT — EVIDENCE TABLE ===");
     console.log("");
     console.log(lines.join("\n"));
+    console.log("");
+
+    // Touch summary.
+    const coarseResults = touchTotals.pointerAssertions;
+    const coarseTrue = coarseResults.filter((r) => r.coarse).length;
+    console.log("--- TOUCH-TARGET SUMMARY (44x44, measured via elementFromPoint) ---");
+    console.log(`Pointer coarse asserted: ${coarseTrue}/${coarseResults.length} touch-width cells (360/390).`);
+    if (coarseTrue < coarseResults.length) {
+      console.log("  WARNING: pointer was NOT coarse somewhere — those cells' touch numbers are meaningless.");
+    }
+    console.log(`Controls checked: ${touchTotals.controlsChecked}; failing (< 44x44 hit area): ${touchTotals.controlsFailing}; cells with failures: ${touchTotals.cellsWithFailures}`);
+    for (const row of results) {
+      for (const key of Object.keys(row.cells)) {
+        const cell = row.cells[key];
+        if (cell.touch && cell.touch.enforced && cell.touch.totalFailures > 0) {
+          console.log(`  - ${row.id} @ ${key}:`);
+          for (const f of cell.touch.failures.slice(0, 8)) {
+            console.log(`      <${f.tag.toLowerCase()}${f.role ? `[${f.role}]` : ""} ${f.w}x${f.h} "${f.label}"> misses ${f.misses.map((m) => `${m.x},${m.y}→${m.hit}`).join(" ")}`);
+          }
+        }
+      }
+    }
+    console.log("");
+
+    // Focus / dialog summary.
+    console.log("--- SECTION 4: KEYBOARD, FOCUS, DIALOG TRAP, REDUCED MOTION ---");
+    for (const f of focusFindings) {
+      if (f.kind === "tab-order") {
+        const noRing = f.steps.filter((s) => s && s.focusRing === false && s.tag !== "BODY" && s.tag !== "NONE");
+        console.log(`  [tab-order] ${f.scenario} @ ${f.width}px: ${f.steps.length} stops; ${noRing.length} without a visible focus ring.`);
+        for (const s of noRing.slice(0, 6)) console.log(`      no ring: <${s.tag.toLowerCase()}${s.role ? `[${s.role}]` : ""} "${s.name}"${s.id ? ` #${s.id}` : ""}${s.type ? ` type=${s.type}` : ""}> outline=${s.outline} shadow=${s.boxShadow} active=${s.isActive} :focus=${s.focusMatched} :focus-visible=${s.focusVisible} ringVar=${JSON.stringify(s.ringVar)}`);
+        console.log(`      order: ${f.steps.map((s) => `${s.tag.toLowerCase()}:"${s.name}"${s.focusRing ? "" : "(!)"}`).join(" → ")}`);
+      } else {
+        console.log(`  [dialog]    ${f.scenario} @ ${f.width}px: opened=${f.opened} trapHeld=${f.trapHeld} escapeClosed=${f.escapeClosed} (escape#${f.escapeOn}) focusAfterEscape=<${(f.focusAfterEscape && f.focusAfterEscape.tag || "").toLowerCase()} "${(f.focusAfterEscape && f.focusAfterEscape.name) || ""}">`);
+        if (f.trapEscapee) console.log(`      focus escaped the dialog onto: <${f.trapEscapee.tag.toLowerCase()} "${f.trapEscapee.name}">`);
+      }
+    }
+    const m = motionFindings[0];
+    if (m) {
+      const ok = m.underReduce && m.underReduce.animationName === "none" && m.underNormal && m.underNormal.animationName !== "none";
+      console.log(`  [motion]    .entry-reveal under reduce: animation-name=${m.underReduce && m.underReduce.animationName} (reduced=${m.underReduce && m.underReduce.reduced}); under no-preference: animation-name=${m.underNormal && m.underNormal.animationName} → ${ok ? "PASS" : "CHECK"}`);
+    }
     console.log("");
 
     const unmatched = [...unmatchedRequests].sort();
@@ -1340,8 +1974,13 @@ async function main() {
         {
           generatedAt: new Date().toISOString(),
           widths: WIDTHS,
+          themes: THEMES,
+          touchWidths: TOUCH_WIDTHS,
           height: VIEWPORT_HEIGHT,
           results,
+          touchTotals,
+          focusFindings,
+          motionFindings,
           unmatchedRequests: unmatched,
           interceptionCount,
           interceptionLog,
@@ -1352,7 +1991,7 @@ async function main() {
       ),
     );
     console.log(`JSON report:  ${reportPath}`);
-    console.log(`Screenshots:  ${shotsDir}`);
+    console.log(`Screenshots:  ${shotsDir}${reviewDir ? `  (390/1440 review copies: ${reviewDir})` : ""}`);
     console.log("");
   } finally {
     if (cdp) cdp.close();

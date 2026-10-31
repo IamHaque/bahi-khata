@@ -186,14 +186,22 @@ function isoDay(offsetDays: number): string {
 /** Open a customer's ledger and wait for the rows. */
 async function openLedger(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
+  await screen.findByRole("tab", { name: "Ledger" });
 }
 
-/** The ledger row that shows this amount. */
+/** Scope to the ledger body row whose Charged or Paid cell shows
+ *  exactly this amount (L-07: the column word carries the direction,
+ *  so the numbers print unsigned; the totals row prints the same
+ *  digits, hence the tbody scope). */
 function rowElementByAmount(amountText: string) {
-  const cell = screen.getByText(amountText);
-  const row = cell.closest("tr");
-  if (!row) throw new Error(`no <tr> containing ${amountText}`);
+  const row = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+  ).find(
+    (tr) =>
+      tr.cells[2]?.textContent?.trim() === amountText ||
+      tr.cells[3]?.textContent?.trim() === amountText,
+  );
+  if (!row) throw new Error(`no ledger row with amount ${amountText}`);
   return row;
 }
 
@@ -346,11 +354,11 @@ describe("S-34 void and restore transactions", () => {
   it("voids with a confirmation and optional reason: the row stays, muted, with a Voided badge; the balance stops counting it; Undo is offered", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Void payment of ₹500" }),
+      screen.getByRole("button", { name: "Void payment of ₹500.00" }),
     );
 
     const dialog = await screen.findByRole("dialog");
-    within(dialog).getByText("Void this payment of ₹500?");
+    within(dialog).getByText("Void this payment of ₹500.00?");
     // The reason is optional and capped at 200 characters by the input.
     const reason = within(dialog).getByLabelText("Reason (optional)");
     expect(reason.getAttribute("maxlength")).toBe("200");
@@ -370,13 +378,18 @@ describe("S-34 void and restore transactions", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     // The row stays visible: muted badge, struck-through amount…
-    const row = rowElementByAmount("-₹500");
+    const row = rowElementByAmount("₹500.00");
     within(row).getByText("Voided");
-    const amount = screen.getByText("-₹500");
+    const amount = within(row).getByText("₹500.00");
     expect(amount.className).toContain("line-through");
     // …the balance stopped counting it and flashes the new number…
     await waitFor(() =>
-      expect(screen.getByText("₹5,000").className).toContain("balance-flash"),
+      expect(
+        screen
+          .getAllByText("₹5,000.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
     // …and the toast carries Undo for 8 seconds.
     const options = lastSuccessOptions();
@@ -389,7 +402,7 @@ describe("S-34 void and restore transactions", () => {
   it("Undo in the toast brings the row back in one click", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Void payment of ₹500" }),
+      screen.getByRole("button", { name: "Void payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(
@@ -412,7 +425,12 @@ describe("S-34 void and restore transactions", () => {
     await waitFor(() => expect(screen.queryByText("Voided")).toBeNull());
     expect(screen.queryByText("Edited")).toBeNull();
     await waitFor(() =>
-      expect(screen.getByText("₹4,500").className).toContain("balance-flash"),
+      expect(
+        screen
+          .getAllByText("₹4,500.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
   });
 
@@ -439,7 +457,7 @@ describe("S-34 void and restore transactions", () => {
     await openLedger();
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Restore payment of ₹450" }),
+      screen.getByRole("button", { name: "Restore payment of ₹450.00" }),
     );
     await waitFor(() =>
       expect(transactionsApi.restoreTransaction).toHaveBeenCalledWith(
@@ -451,17 +469,17 @@ describe("S-34 void and restore transactions", () => {
     await waitFor(() =>
       expect(server.transactions[0]!.status).toBe("edited"),
     );
-    within(rowElementByAmount("-₹450")).getByText("Edited");
+    within(rowElementByAmount("₹450.00")).getByText("Edited");
     expect(toast.success).toHaveBeenLastCalledWith("Transaction restored.");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Restore charge of ₹5000" }),
+      screen.getByRole("button", { name: "Restore charge of ₹5,000.00" }),
     );
     await waitFor(() =>
       expect(server.transactions[1]!.status).toBe("active"),
     );
     // No markers at all: neither badge.
-    const row = rowElementByAmount("+₹5,000");
+    const row = rowElementByAmount("₹5,000.00");
     expect(within(row).queryByText("Edited")).toBeNull();
     expect(within(row).queryByText("Voided")).toBeNull();
   });
@@ -469,7 +487,7 @@ describe("S-34 void and restore transactions", () => {
   it("cancelling the confirmation is harmless", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Void payment of ₹500" }),
+      screen.getByRole("button", { name: "Void payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Reason (optional)"), {
@@ -485,7 +503,7 @@ describe("S-34 void and restore transactions", () => {
     expect(screen.queryByText("Voided")).toBeNull();
     // No toast, no balance change.
     expect(toast.success).not.toHaveBeenCalled();
-    screen.getByRole("button", { name: "Void payment of ₹500" });
+    screen.getByRole("button", { name: "Void payment of ₹500.00" });
   });
 
   it("shows a Viewer no void or restore actions", async () => {
@@ -501,8 +519,8 @@ describe("S-34 void and restore transactions", () => {
       screen.queryByRole("button", { name: /restore (charge|payment)/i }),
     ).toBeNull();
     // Rows stay readable.
-    screen.getByText("Current Balance");
-    expect(rowElementByAmount("+₹5,000")).toBeTruthy();
+    screen.getByRole("tab", { name: "Ledger" });
+    expect(rowElementByAmount("₹5,000.00")).toBeTruthy();
   });
 
   it("transaction detail: voids with the page's button, shows the reason, restores, and edits through the shared sheet", async () => {

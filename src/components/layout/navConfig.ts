@@ -3,6 +3,7 @@ import {
   FileUp,
   LayoutDashboard,
   Settings,
+  Trash2,
   UserCog,
   Users,
 } from "lucide-react";
@@ -21,10 +22,11 @@ export interface NavItem {
 // nowhere yet) there are no in-business links to show. S-38 adds the
 // first ROLE-gated item: Import is hidden unless the caller may import
 // (Owner/Editor) — `options.canImport` defaults to false so the bare
-// call keeps the everyone-see's-five contract.
+// call keeps the everyone-see's-five contract. S-51 adds Recently
+// deleted the same way, gated by `options.canViewDeleted` (Owner only).
 export function buildNavItems(
   businessId: string | null,
-  options?: { canImport?: boolean },
+  options?: { canImport?: boolean; canViewDeleted?: boolean },
 ): NavItem[] {
   const scoped = businessId !== null;
   return [
@@ -57,6 +59,12 @@ export function buildNavItems(
       label: "Import",
       icon: FileUp,
       visible: scoped && (options?.canImport ?? false),
+    },
+    {
+      path: paths.deletedItems(businessId ?? ""),
+      label: "Recently deleted",
+      icon: Trash2,
+      visible: scoped && (options?.canViewDeleted ?? false),
     },
     {
       path: paths.settings(businessId ?? ""),

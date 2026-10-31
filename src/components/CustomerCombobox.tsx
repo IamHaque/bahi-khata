@@ -83,7 +83,7 @@ function PickerContent({
             <p className="text-sm text-muted-foreground">No customers yet.</p>
             <button
               type="button"
-              className="text-sm font-medium text-foreground underline hover:no-underline"
+              className="text-sm font-medium text-foreground underline hover:no-underline pointer-coarse:min-h-11"
               onClick={() => onAddNew("")}
             >
               Add your first customer
@@ -100,7 +100,7 @@ function PickerContent({
                 aria-selected={customer.id === value}
                 data-customer-item
                 tabIndex={-1}
-                className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
+                className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
                 onClick={() => onSelect(customer)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -133,7 +133,7 @@ function PickerContent({
           <div className="border-t border-border p-1">
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
               onClick={() => onAddNew(search)}
             >
               <Plus className="size-4" />
@@ -146,7 +146,7 @@ function PickerContent({
           <div className="border-t border-border p-1">
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted pointer-coarse:min-h-11"
               onClick={() => onAddNew(search)}
             >
               <Plus className="size-4" />

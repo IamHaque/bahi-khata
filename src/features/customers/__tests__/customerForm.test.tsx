@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
 import { paths, routePatterns } from "@/lib/paths";
@@ -249,17 +250,28 @@ describe("S-29 customer form", () => {
     );
   });
 
-  it("keeps Name primary and the rest under Additional details", async () => {
+  it("keeps Name first and Phone second outside the disclosure; the rest under Additional details", async () => {
     renderPage();
     await screen.findByText("Rahim Uddin");
 
     const dialog = await openAddDialog();
-    // Name sits outside the details group…
-    within(dialog).getByLabelText("Name");
-    // …everything else behind the disclosure.
+    // L-10: Name and Phone are the two fields an entry starts with —
+    // both outside the details group, Name first…
+    const name = within(dialog).getByLabelText("Name");
+    const phone = within(dialog).getByLabelText("Phone");
+    expect(
+      name.compareDocumentPosition(phone) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // …and the disclosure comes after Phone.
+    const summary = within(dialog).getByText("Additional details");
+    expect(
+      phone.compareDocumentPosition(summary) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Everything else stays behind the disclosure.
     await expandDetails(dialog);
     for (const label of [
-      "Phone",
       "Email",
       "Address",
       "Alternate contact name",
@@ -466,5 +478,15 @@ describe("S-29 customer form", () => {
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
     expect(labels).toEqual(["View"]);
+  });
+
+  // L-14 — the open customer form dialog passes axe.
+  it("the open add-customer dialog passes axe", async () => {
+    renderPage();
+    await screen.findByText("Rahim Uddin");
+
+    const dialog = await openAddDialog();
+    await within(dialog).findByLabelText("Name");
+    await expectNoSeriousViolations(dialog);
   });
 });

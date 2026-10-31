@@ -8,7 +8,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 
 | Story | Status | Commit | Notes |
 | --- | --- | --- | --- |
-| S-01 Repository audit and baseline documentation | Done | (this commit) | Baseline + PROGRESS + deviations below |
+| S-01 Repository audit and baseline documentation | Done | ee6d789 | Baseline + PROGRESS + deviations below |
 | S-02 Quality gates, test harness and CI | Done | (see below) | eslint flat config + typecheck script + jsdom harness + CI |
 | S-03 Versioned database baseline and manual-steps log | Done | (see below) | baseline = 2 existing exported migrations; MANUAL_STEPS + tests README |
 | S-04 Data-access layer and TanStack Query | Done | (see below) | react-query + AppError + queryKeys; lib/customers+transactions moved to features/*/api.ts |
@@ -588,3 +588,639 @@ Re-run after every story that touches data or routing:
 | `src/lib/format.ts`, `queryKeys.ts`, `permissions.ts` | new files |
 | `src/test/` | new directory for test helpers |
 | `.github/workflows/` | new directory |
+
+
+## v3 baseline
+
+Recorded on 2026-10-26 (branch `feat/v3` from `master` @ `506cc0d`), story S-44, after `npm ci && npm run verify`.
+
+| Measure | Reference (PRD §11) | Actual on this machine |
+| --- | --- | --- |
+| lint | 0 errors / 7 warnings | 0 errors / 7 warnings |
+| typecheck | passes | passes |
+| tests | 54 files, 469 passed (1 skipped), ~169 s | 54 files, **470 passed, 0 skipped**, 27.66 s |
+| `npm run verify` total | - | 56.5 s (lint + typecheck + tests 27.7 s + build 6.6 s) |
+| largest JS chunk | 1,397 kB (gzip 421 kB) | `dist/assets/index-BMyAyeoa.js` 1,396.81 kB, gzip 420.96 kB (single chunk, no splitting yet) |
+| `npm audit --omit=dev` | 12 vulnerabilities (1 critical, 9 high, 2 moderate) | 11 vulnerabilities (1 critical, 7 high, 3 moderate) |
+
+Notes: test count differs from the reference by one (470 vs 469+1 skipped) and the audit totals differ; machine is much faster than the review machine (vitest 27.7 s vs 169 s). Record the real numbers, per S-44 step 4.
+
+## v3 stories
+
+| Story | Status | Commit | Notes |
+| --- | --- | --- | --- |
+| S-44 Branch, baseline and toolchain pins | done | 7053601 | .nvmrc=22, engines>=22, verify script, baseline above |
+| S-45 Dependency hygiene | done | 5bc30ff | five packages moved to devDependencies (versions unchanged), `npm install --package-lock-only` + `npm audit fix --package-lock-only --omit=dev` bumped transitive `fast-uri` 3.1.7->3.1.9; lockfile also gained standard wasm32-wasi optional-platform entries for @tailwindcss/oxide; `npm audit --omit=dev` = 0 vulnerabilities; `npm run verify` green (470 tests, 27.7s) |
+| S-46 CI and SQL test runner | done | 8f427fe | bundle files copied byte-for-byte (7 files verified by hash); scripts added; ci.yml runs on pull_request; sql job `if: false` pending S-50; audit:tokens/audit:bundle steps commented pending L-01/S-48; run-sql-tests.sh mode 100755 in index. Verify: contrast audit 41+41 checks pass, npm run verify green. **Push/CI-on-GitHub deferred: deviation V-01** |
+| S-47 Environment validation | done | fe7590b | env.ts (zod schema), ConfigError.tsx, main.tsx dynamic-imports App after readEnv, .env.example comments; 7 new tests. Verified: verify green (56 files, 477 tests); headless Chrome with .env renamed shows ConfigError naming both variables; with .env the app renders. Deviations V-02, V-02b, V-02c |
+| S-48 Route-level code splitting and bundle guard | done | f9c1743 | 14 pages lazy-loaded with Suspense + RouteFallback; route chunk names via manualChunks (login, dashboard, ...); vendors split (supabase, react-query, zod, react-router); audit:bundle step enabled in ci.yml. Verified: build + audit:bundle pass (largest chunk 319.6 kB, total 1,379 kB across 21 chunks); verify green (57 files, 481 tests). Deviations V-03, V-03b |
+| S-49 Faster unit tests | done | 84a0b51 | Baseline median 28.1 s (27.3/28.1/28.6) - already far under the 100 s target on this machine. Lever 1 css:false = no-op (median 28.5 s), reverted. Lever 2 pool:threads = no hang here but median 27.7 s (1.4%), below the 15% keep-bar, reverted. Stop rule (median <= 100 s) met at baseline; levers 3-4 not tried. Config byte-identical to before. Deviation V-04 |
+| S-50 Adopt the tested migrations and SQL tests | done | 54e6b74 | 17 old migrations + 10 old test files archived (git mv); 3 bundle migrations + consolidated 19-section suite copied byte-for-byte; sql job enabled in ci.yml; tests/README.md rewritten; MANUAL_STEPS "v3 database rollout" appended. Ran the suite against the human-provided Neon scratch DB as role postgres: **all 19 sections pass** (twice), each migration idempotent when re-applied after itself. Verify green (57 files, 481 tests). Deviations V-05, V-05b, V-05c |
+| S-51 Permissions, errors, paths, nav, query keys | done | 0a2f544 | 3 owner-only actions (deleteTransaction, viewDeletedItems, restoreDeleted) in matrix + test table; AppError gains notFound/conflict with P0002/55000/22001 branches (22001 before the generic 22*/23* catch-all); paths.deletedItems builder + routePattern; deletionLogKeys (all/list, filter default "all"); navConfig "Recently deleted" (Trash2) after Import before Settings, gated by new canViewDeleted option, Sidebar passes can("viewDeletedItems"). grep P0002 in src = 0 uses. Verify green (57 files, 496 tests). Deviation V-06 |
+| S-52 API layer and hooks for delete, restore, log, timezone | done | 0633aaf | transactions: deleteTransaction RPC + useDeleteTransaction (invalidate rule + log); dashboard_summary now sends p_timezone (v3 replaced the uuid-only overload; the param has a UTC default so old one-arg calls still resolve - S-67 note) and its query key carries the zone; currentTimeZone exported and reused by daily_activity. customers: deleteCustomerPermanently returns the log id; hook invalidates the log too. New src/features/deleted-items/ (api: listDeletionLog business-scoped, entity/restored filters, one profiles lookup for actor names, snapshot never shipped; restoreDeleted; hooks: useDeletionLog gated by viewDeletedItems, useRestoreDeleted broad business invalidation). 12 new tests; verify green (59 files, 508 tests). Deviations V-07, V-07b, V-07c, V-07d |
+| S-53 Customers list query uses last_activity_at | done | 4c91823 | Select is now "*, customer_balances!inner(balance, last_activity_at)" - the transactions(occurred_at) join is gone; CustomerListQueryRow drops the transactions field; mapper reads last_activity straight from the view (voided entries excluded there); doc comment updated. New queryCustomersApi.test.ts (4 tests: select shape, verbatim mapping, null -> em dash, scope/count kept). Verify green (60 files, 512 tests). Deviation V-08 |
+| S-54 Delete a transaction | done | 75e4cc9 | New DeleteTransactionDialog (ConfirmDialog + optional 200-char reason + Void instead link + 10s Undo toast wired to restore_deleted; AppError message on failure, shared toastError fallback). Three entry points gated by can("deleteTransaction"): TransactionsPage row action after a divider (no balance sentence - page holds no balance column), CustomerDetailPage ledger row action (balance sentence from balance_after, hidden on archived), TransactionDetailPage destructive button (ledger fetched for the sentence). UiGallery Dialogs section gains a delete specimen. 15 new tests (dialog: sentence/omitted sentence/reason cap/Undo/notFound message/fallback/Void instead; pages: 3 entry points, editor never sees Delete). Verify green (62 files, 527 tests). Deviations V-09, V-09b, V-09c, V-09d |
+| S-55 Delete a customer | done | 2d94b93 | DeleteCustomerDialog rewritten: recovery copy (no "permanently"/"forever"), title "Delete {name}?", description states the transaction count (singular for 1), typed exact name gate, "Download statement first" link (new tab) + "Archive instead" button inside, 10s Undo toast wired to restore_deleted(logId), AppError message on failure. RowActionItem gains separator (divider). CustomersPage: Delete on EVERY row (active+archived), renamed from "Delete permanently", last after divider. CustomerDetailPage: "Delete customer" in the Customer actions menu next to Archive, also alone on archived rows; navigates to the list after success. UiGallery swaps the typed specimen for the real dialog. Tests: archiveDelete rewritten/extended (14 incl. axe + detail-page flow), 2 existing menu tests updated. Verify green (62 files, 533 tests). Deviations V-10..V-10e |
+| S-56 Recently deleted page | done | 497a0ea | New DeletedItemsPage: PageHeader (no primary action), Tabs All/Customers/Transactions + Toggle "Show restored" (query-string state like CustomersPage), useDeletionLog(businessId, {entityType, restored, limit: 200}). DataTable columns Item (User/ArrowLeftRight icon; customer rows get secondary "n transactions" line), Type, Deleted by/Unknown, Deleted (formatRelative), Reason/—; the last column via renderRowActions = Restore (outline/sm/Undo2, per-row spinner started synchronously, cleared in per-call onSettled) or, when restored, muted "Restored {when} by {name}" with no button. Standard states via DataTable (skeleton, EmptyState "Nothing deleted", ErrorState+retry) + "Showing the 200 most recent." note. Route lazy inside the business layout (15th lazy page, recently-deleted chunk); known non-owner sees EmptyState no-access (role null = skeleton, no flash). listDeletionLog now applies the declared opts.limit. Tests: deletedItemsPage (9, incl. axe empty+data), api limit, App.lazy 14->15 + chunk name. Verify green (63 files, 543 tests). Deviations V-11..V-11d |
+| L-00 Gate check and decisions file | done | ee7ad25 | 3 bundle files copied byte-for-byte (SHA-256 verified against docs_v3.x/); new "## Research gates" section records statuses read 2026-10-26 verbatim: G-A3 `approved` -> continue to L-01; G-A2 `pending`, G-A1 `pending` -> defaults (L-07 builds the quick-add card, L-06 keeps "Top outstanding balances", L-12/L-13 skipped unless a re-read before them shows approved) |
+| L-01 Ledger tokens and contrast gate | done (pending human UI check) | 1348c34 | 4 bundle files extracted from docs_v3.x/bahikhata-v3.1-handoff.zip, SHA-256 verified (the 3 scripts were already byte-identical to the S-46 copies; design/design-tokens.ledger.css is new). apply-tokens: 60 values changed + 13 items added, second run 0/0 (exactly as the card predicts). check-token-sync: OK 58 audited tokens. contrast-audit: 41 checks per theme, all AA (82 total). ci.yml audit:tokens step uncommented. border-border->border-input: exactly one match in src/components/ui (button.tsx outline variant); inputs/selects/textareas/toggle already border-input, nothing else touched. UI-CONTRACT token section replaced with the PRD 5.2 table + the mandated audit sentence (V-12). Fonts untouched (L-02). Tests unmodified. Verify green (63 files, 543 tests). Deviation V-12 |
+| L-02 Heading font | done (pending human UI check) | fd99360 | @fontsource-variable/bricolage-grotesque@^5.3.0 installed (the only dependency change in v3.1; package-lock updated); index.css imports its wght.css directly after public-sans; theme test "loads exactly one UI font" replaced with the exact two-font test from the card. font-heading added to every h1/h2/h3 - shared components (PageHeader, ErrorBoundary, OnboardingLayout, Topbar, BusinessGuard, DangerZone) plus each heading definition inside pages (BusinessesPage x3, SettingsPage, CustomerDetailPage, DashboardPage, ImportPage x3 incl. the destructive one, StatementPage, MembersPage, Login, TransactionDetailPage, UiGallery); ConfigError and the dialog/sheet/alert-dialog titles already carried it after L-01. Hero figures deliberately NOT moved - font-display tabular-nums arrives with L-06/L-07 as the card defers. Grep-verified: no h1/h2/h3 in src lacks font-heading. Verify green (63 files, 543 tests). Deviation V-13 |
+| L-03 Fixes that do not depend on the look | done (pending human UI check) | e9d2e2f | Money hygiene: the card grep found 13 sites (card says 11; grep is truth) across the four named files - 8 row-action aria-labels and the VoidTransactionDialog title now call formatMoney; the TransactionsPage/CustomerDetailPage amount cells and the CustomerDetailPage/TransactionDetailPage hero balances render <Money>; the two MAX_DATA_ROWS lines untouched. New guard src/__tests__/noRawMoney.test.ts verbatim from the card. Chips AA: BalanceBadge/StatusBadge tints gain dark:bg-TONE/8 (receivable, credit, warning; StatusBadge has no success tone). Avatar: palette moved /15 -> /10 with dark /8 variants, plus an onError fallback so a broken photo shows the initials, never a black circle. Tests: Avatar.test.tsx new (error-on-img -> initials; image stays when it loads); 8 test files updated to the new format incl. the keyboardJourneys void-dialog copy (V-14, V-14b). Verify green (65 files, 546 tests) + contrast audit AA. Deviations V-14, V-14b |
+| L-04 Primitives | done (pending human UI check) | 43ae314 | ui/card.tsx created with the prescribed flat root class and the standard five sub-components (V-15); six new primitives verbatim from the card - LeaderRow (label/sub/amount reading order, decorative dots, three tones, never truncates the amount), TotalsRule, Monogram (initials, tone tints), AgeFlag (30+ thresholds), TallyMark, TypeBadge; hand-made Charge/Payment badges replaced by TypeBadge in the TransactionsPage type cell, the CustomerDetailPage ledger cell and the TransactionDetailPage type field; BalanceBadge gains leading icons (ArrowDownLeft/ArrowUpRight/Check, size-3.5, aria-hidden); EmptyState: TallyMark above the title, font-heading title, max-w-sm description, ruled background via the one permitted arbitrary background, rounded-lg; DataTable: overflow-hidden rounded-lg border-border bg-card wrapper (data + loading states), sticky bg-muted/60 text-xs header cells without uppercase/tracking, ui/table rows border-t (none on the first) hover:bg-muted/60; Skeleton motion-reduce:animate-none; Customers status + Transactions type filters restyled as border-b-2 text tabs with labels/state/aria-pressed/query-string untouched (V-16); UiGallery gains a Ledger primitives section and the gallery axe gate runs in both themes (own tests, not the console-error guard). Verify green (71 files, 568 tests). Deviations V-15, V-16 |
+| L-05 App shell: spine navigation, top bar, titles | done (pending human UI check) | 109ef68 | Titles: AppShell now resolves the title with an ordered matchPath over routePatterns (end:true, most specific first) - Import, Statement, Customer, Customers, Transaction, Transactions, Recently deleted, Members, Settings, Dashboard, My businesses, else ""; covered by an 11-route table test plus an Import-never-Customers assertion. One page title: PageHeader renders the page's h1 (font-heading text-3xl font-bold), the Topbar copy is a mobile-only <p class="lg:hidden"> with an lg spacer div keeping the right-hand controls right-aligned. One primary Add transaction: Topbar gains showAddTransaction (default true) and AppShell passes false on Dashboard and the transactions list; search + Add buttons use border-input bg-card. Spine: Sidebar root bg-sidebar py-5 pl-3 w-[212px] with no border (collapsed w-16/pl-0), brand row TallyMark + BahiKhata wordmark, BusinessSwitcher trigger restyled as a borderless rounded-sm px-2 py-1 hover:bg-white/10 text-sm opacity-80 button (content unchanged), nav items rounded-l-sm px-3 py-2.5 with the active tab bg-background text-foreground font-semibold, nav container right padding removed so the tab touches the main area; the aside and the mobile sheet are 212px to match (V-17). Tests: appShell title table + one-h1 + single-Add wiring + axe, new topbar.test (lg:hidden spacer, owner/viewer/prop gates), membersPage h1 count. Verify green (72 files, 577 tests). Deviation V-17 |
+| L-06 Dashboard | done (pending human UI check) | a449896 | Ledger page replacing the four stat tiles (F-16 gone): row 1 is `grid gap-6 lg:grid-cols-2` with the new PositionSheet (h2 Where you stand, role=list of receivable/credit LeaderRows, TotalsRule net position, Today line with the byte-identical v2 href transactionsPath(b1,{range:today}) and Open today link; singular 1 entry / 1 open account) and TopOutstanding (own Card with h2 + View all, at most 5 LeaderRows with Monogram, share = Math.round(balance/max(total,1)*100), bg-muted/50 All settled block; G-A1 re-read as pending so this is the final content, no L-13 slot); row 2 is `grid gap-6 lg:grid-cols-[1.5fr_1fr]` with the new DayBook (replaces ActivityFeed.tsx, deleted; same useActivityFeed hook, table of the last 10 newest-first: formatDate date, customer Link + muted note + by {creator} on md+, Charged Money text-receivable, Paid text-credit; loading/error/empty texts kept verbatim per the card) and TrendChart wrapped in a Card role=region (keeps its aria-label), bars fill var(--receivable)/var(--credit) radius 0, ruled var(--foreground) 1.5px baseline, dashed 2 5 gridlines, swatches before charged/paid in the summary, 7/30/90 as L-04 text tabs with labels and aria-pressed unchanged); FirstRunCard now renders the ruled EmptyState page (text and buttons kept); PageHeader button casing Add transaction; loading skeleton restyled to the two-row structure. Tests: dashboardPage rewritten for the new structure (26 tests: no-stat-tiles, colours, share 77%, day-book columns, PositionSheet arithmetic + singulars, chart fills, single primary action, today click-through kept) + axe in loading/error/first-run/data states; axePages wait updated. Verify green (72 files, 586 tests, 0 lint errors). Deviation V-18 |
+| L-07 Customer detail as a ledger, with quick add | done (pending human UI check) | 0e2ff21 | Split per Do.1: new `CustomerHeader.tsx` (Monogram size=lg tone from balance, name font-display text-3xl, muted tel-linked phone + last activity formatRelative / no activity yet, TotalsRule block Owes you / You owe / Settled with the font-display text-4xl tone balance, Statement as a real Link with buttonVariants({variant:outline,size:sm}), hero Add charge / Add payment kept - V-21), new `LedgerTable.tsx` (real table: sr-only caption, Date w-24 / Particulars margin-rule / Charged text-receivable / Paid text-credit / Balance / sr-only Actions, h-14 rows, voided rows muted + line-through amount + warning chip, newest 50 with "Show earlier entries (n)", tfoot Totals under border-double summed over every non-voided entry, footer line with singular "1 entry"; under 768px two-line list rows with the column word + a totals block, topRow only in tbody), new `CustomerQuickAdd.tsx` (same schema/resolver/fields as the sheet with idPrefix quickadd - V-20, Charged/Paid radiogroup h-11, New balance preview aria-live when the amount is valid, Change date toggle, toastSuccess + reset amount/note + focus on success, toast.error on failure), row actions extracted to new `useLedgerRowActions.tsx` (V-21); page 404 lines (<450). LedgerEntry gained optional updated_by_name/updated_at so the S-33 Edited badge survives (V-19). Tests: customerDetail rewritten (header/hero/totals/tabs/filters/archived/viewer/mobile/empty/error/statement - stat-card assertions replaced by tfoot totals, load signal now the Ledger tab, unsigned amounts scoped by tbody cells, hero buttons scoped within(header)) plus new LedgerTable.test (7) and CustomerQuickAdd.test (5); cross-file load signals and signed-amount helpers updated (transactionVoid, transactionEdit, transactionSheet, transactionDelete, archiveDelete, keyboardJourneys, axePages). Verify green (74 files, 598 tests, 0 lint errors). Gates: G-A2 re-read as pending, so the quick-add card is built and L-12 stays skipped unless a re-read shows approved |
+| L-08 Customers list | done (pending human UI check) | cde48bc | Summary sheet: the three StatCards became one `Card` p-6 (`role="region"` aria-label "Customer summary", keeping the old landmark) with the muted `Customers {n}` line and a `role="list"` of two `LeaderRow size="lg"` (Owes you receivable / You owe credit) - the `valueClassName` overrides left with the StatCards; search placeholder now `Search name or phone` in full, input box `min-w-0 flex-1 sm:max-w-sm` (on SearchInput's wrapper, the actual flex item); status filter already the L-04 text tabs - labels, query and aria-pressed untouched; columns: Customer cell = square `Monogram` (tone from balance) + name + phone beneath in text-xs muted + tags/Archived third line (kept - archiveDelete finds "Archived" in the row), Phone column `hidden md:table-cell`, Balance = right-aligned `Money` of the absolute amount in the tone colour with `owes you` / `you owe` / `Settled` beneath, Last activity = `formatRelative` (em dash when null), Added `hidden lg:table-cell` and empty when it shares Last activity's calendar day (formatDate equality), row menu unchanged; mobile cards: DataTable already takes `renderMobileCard` (the card's deviation branch not needed) so each customer renders as a `LeaderRow` (Monogram leading, name, phone sub - archived rows append "· Archived" as v2 did - tone amount) inside the existing navigation button with a `role="list"` wrapper keeping the listitem role legal; PageHeader: Add customer (the one primary) now first, Export/Import outline after. Tests: customersList updated for placeholder/summary/cell content (18) plus new same-day-rule and mobile-card cases; cross-file selectors adapted only where the badge DOM necessarily changed (transactionSheet row "You owe" -> "you owe", responsive card badge -> tone amount); every filter/sort/paging/row-menu test untouched. Verify green (74 files, 600 tests, 0 lint errors, build 7.02s). Deviation V-22 |
+| L-09 Transactions as a day book | done (pending human UI check) | dcc0bbf | Split per Do.1 with the page ending under the cap: new `transactionColumns.tsx` (buildDetailColumns taking {can, businessId, onEdit, onVoid, onRestore, onDelete, navigate}, exported cell helpers, transactionMobileCard, PeriodRow + periodLabel + toPeriodRows, buildSummaryColumns), new `TransactionFilters.tsx` (the whole FilterBar block plus the Detailed/Summarized L-04 text tabs; owns the ViewMode/FilterType/GroupBy/RangePreset types, RANGE_LABELS/GROUP_LABELS and buildRange - V-23), new `TransactionTotals.tsx` (totals-rule strip inside the table's container, Money figures, em dashes before the rollup answers); page 437 lines (<450). Detailed columns = Date (muted when voided) / Customer (Monogram + link) / Particulars (badges + note or em dash + `by {name}` at xl:hidden) / Charged / Paid (both sortable with `sortKey: "amount"`; the matching type fills its cell, the other an em dash; struck + opacity-50 when voided) / Recorded by (`hidden xl:table-cell`); DataTable gained `Column.sortKey` (isActive/handleSort/sr-only compare `sortKey ?? key`) and a `footer` slot rendered inside the bordered container on the table and loading branches and after error/empty/noResults/mobile exactly once each (additive - no other table passes one); "Include voided" is now a Switch (new `ui/switch.tsx`, role=switch + visible Label) instead of the pressed Toggle; PageHeader: Add Transaction primary first, Export CSV outline after; row actions and their aria-labels unchanged (transactionVoid/Edit/Delete suites untouched); CSV export unchanged. Tests: transactionsPage adapted only where the DOM necessarily changed (header list Date/Customer/Particulars/Charged/Paid/Recorded by, rows anchored by note/customer because amount cells collide with the totals strip, Amount->Charged sort click, Include voided button->switch, summarized Charges/Payments->Charged/Paid, TypeBadge assertion dropped) + new transactionColumns.test (right cell per type, shared sort key, Delete only with can("deleteTransaction"), viewer gets none) and transactionTotals.test (region, Money figures, tones, em dashes). Verify green (76 files, 608 tests, 0 lint errors, build 7.80s); axePages transactions clean. Deviations V-23, V-24 |
+| L-10 Dialogs, forms and the mobile entry sheet | done (pending human UI check) | 036ea99 | Dialog shell: `ui/dialog.tsx` content is now `rounded-sm border border-border border-t-2 border-t-foreground` (ring gone), header `border-b border-border pb-3`, footer `rounded-b-sm border-t border-border`; sheet: base gains `border-border`, the bottom side `rounded-t-sm border-t-2 border-t-foreground pb-[env(safe-area-inset-bottom)]`, header `border-b`, footer `border-t`; backdrop/slide unchanged; ConfirmDialog and every other dialog inherit. TransactionSheet: (a) TypeChoice - a local `role="radiogroup"` (aria-labelledby "Type") of two `role="radio"` buttons `h-11 flex-1`, labels **Charged | Paid**, selected `bg-primary text-primary-foreground`, unselected `border border-input bg-card`, setValue shouldDirty (SegmentedField/BalanceBadge no longer imported here - the component itself stays for UiGallery); (b) hero amount - MoneyField gained `inputClassName` + `inputMode="decimal"`, the sheet passes `font-display text-3xl font-bold tabular-nums` with the existing `₹` prefix; (c) live preview - BalancePreview mounts only when customer AND amount>0 (the balance query never runs for an empty id), renders one `aria-live="polite"` line "New balance for {name}: ₹X" (charges add, payments subtract); edit mode subtracts the entry's old effect and adds the new one (4500+500-450 = 4550 in the test); (d) DateChips - Today / Yesterday set `occurred_on` (shouldDirty, so a stray tap also trips the discard guard) / "Pick date" focuses the real date input, rendered above the untouched Date+Time grid; schemas.ts exports todayISO + new yesterdayISO (user-timezone day math, same localDay helper). CustomerFormDialog: Phone moved out of the disclosure to directly after Name (DuplicateHint stays second, everything else remains inside). Tests: transactionSheet/transactionEdit adapted only where selectors necessarily changed (radio Charged/Paid, the new preview copy, hero text-3xl) + new date-chips and axe add/edit-mode tests; customerForm field-order test now asserts Name first, Phone second outside the disclosure; keyboardJourneys journey e Shift+Tabs to the picker (V-27). Verify green (76 files, 611 tests, 0 lint errors, build 6.48s). Deviations V-25, V-26, V-27 |
+| L-11 Members, Settings, Import, Login, Businesses, Recently deleted | done (pending human UI check) | a9667be | Login: the page carries the L-04 ruled gradient over `bg-background` and one centred `Card` (`max-w-sm p-8 text-center`) holds TallyMark `size-9`, BahiKhata (`font-display text-3xl font-bold`), `Your business ledger`, the unchanged Google button full width and the new line `We only read your name and email.` (the old heading-outside-the-card layout is gone). My businesses: `BusinessCard` is the ui `Card` (`rounded-lg`) with **Open** as the primary button (was outline); the empty Shared-with-me and Invitations sections are `EmptyState`s (`No businesses shared with you yet.` + next step `Ask an owner to invite your Google email.`; `No pending invitations.`); this page's `rounded-xl` panels swept to `rounded-lg` per the 5.2 never-rounded-xl rule. Members: already exactly section 5.5 (ruled DataTable, Avatar with the L-03 image fallback, role StatusBadge Owner `receivable` / Editor `neutral` / Viewer `muted`, no row menu on the Owner row, the muted `Owners cannot leave. Delete the business instead.` paragraph under the table) - source untouched, only a new avatar-fallback test. Settings: Business details and Backup are sections `grid lg:grid-cols-[16rem_1fr] gap-8 py-6` split by `border-t border-border`, left a `font-heading` title plus one-line description (new copy `Name, type and contact details.`; Backup keeps its existing two-CSV description), right the form / read-only details and the Download button at `max-w-xl`; DangerZone (V-28) renders the **Delete business** Card - first child `totals-rule`, title `text-credit`, the existing destructive button - with the typed-confirmation dialog byte-identical. Import: steps gained the done state (`bg-success/10 dark:bg-success/8 text-success` + Check) beside current/`bg-primary` and upcoming/`bg-muted`, the upload area is `rounded-sm border border-dashed border-input bg-card` with the Upload icon, the review step leads with three `LeaderRow`s (valid transactions, customers, problems) above the summary table (`StatusBadge` Existing `muted` / New `neutral`), the sentence `Nothing is saved until you click Import. It is all-or-nothing.` sits above the actions, panels swept to `rounded-lg`. Recently deleted: every item label `line-through text-muted-foreground` (was only restored rows); Restore already `variant="outline"`. Tests: +5 (login branding with the privacy line in the new `src/pages/__tests__/loginPage.test.tsx`, businesses empty sections, members photo fallback, settings sections grid, import review rows + sentence); axe already covers all six pages (axePages for five, deletedItemsPage's own two axe runs) and passes with the new markup. Verify green (77 files, 616 tests, 0 lint errors, build 6.54s). Deviation V-28 |
+| L-12 Entry row (gate G-A2) | skipped (gate G-A2: pending) | 9054127 | `docs/RESEARCH-DECISIONS.md` re-read immediately before this story (2026-10-29): **G-A2 `pending`** - per the card's Gate paragraph no change was made (no LedgerEntryRow, no topRow, no schema export); the L-07 `CustomerQuickAdd` card remains the customer page's quick-add, exactly the approved default recorded at L-00 |
+| L-13 Who to chase (gate G-A1) | skipped (gate G-A1: pending) | 9054127 | `docs/RESEARCH-DECISIONS.md` re-read immediately before this story (2026-10-29): **G-A1 `pending`** - no change made; L-06's "Top outstanding balances" stays the dashboard slot's final content (the `last_payment_at` migration adopted by S-50 remains available for whenever the gate is decided) |
+| L-14 Mobile and accessibility sweep | done (pending human UI check) | c2d8a0e + 4fef842 (redo; 8ab7ab1 first pass, rejected, kept in history) | REDO: browser-measured per the owner's addendum - final audit 24 scenarios x 5 widths x 2 themes = 121 PASS / 0 FAIL, 1050 controls hit-tested 0 below 44x44, coarse pointer asserted 96/96 touch cells, focus ring 0/14 missing on all four tab-order scenarios, all dialogs trap+Escape, reduced motion PASS, 96 screenshots in git-ignored .local/ui-checks/. Findings F1-F6 + AFTER tables below. Reopened by the owner after testing `8ab7ab1`: horizontal page scroll on small **and** large screens, cards/tables (Day book, Daily activity) wider than the device, and distorted controls (switch, inputs, tabs, chips) on small screens. Root cause: PRD L-14 Do.1 requires measuring every route at 390 px and 1440 px in a real browser in both themes; this commit instead inferred touch-target coverage from class names and ran jsdom (axe) tests, which do no layout. Findings F1-F6 and the redo are recorded under **L-14 defects (found by the browser audit)** below. `8ab7ab1` stays in history; the redo lands as new commits. First-pass detail retained: Do.2 axe audit (grep of `expectNoSeriousViolations`): every page already covered by axePages/deletedItemsPage/dashboardPage; three gaps added - DeleteTransactionDialog.test (open dialog passes axe), CustomerQuickAdd.test (card passes axe), customerForm.test (open add-customer dialog passes axe). Do.1/Do.3 touch-target sweep: the S-40 `pointer-coarse` variant had reached only Button/Input/Select/Toggle + Sidebar + DataTable menu items; a repo-wide audit of raw `<button>`/`<a>` controls found the v3.1 additions below 44px. Fixed by adding `pointer-coarse:min-h-11` (and `pointer-coarse:min-w-11` for icon-only) so desktop sizing is unchanged and touch devices get 44px: (1) `ui/switch.tsx` track was h-5 w-9 = 20x36px; (2) `ui/tabs.tsx` TabsList h-9 and TabsTrigger py-1 (~26px) - PRD names tabs; (3) TransactionSheet DateChips (Today/Yesterday/Pick date) ~28px; (4) transactionColumns row icon buttons (edit/void/restore/delete) p-1 = 24px; (5) useLedgerRowActions same 24px icons; (6) TransactionFilters All/Charge/Payment + Detailed/Summarized text-tabs (~34px) and its two popover list buttons; (7) TrendChart 7/30/90 tabs; (8) CustomersPage status filter tabs; (9) Topbar hamburger/collapse/search/Add-transaction/invitations/user-menu/sign-out; (10) BusinessSwitcher trigger + 3 menu items; (11) SearchInput clear (p-0.5 = 14px); (12) FilterBar chip-remove (14px) + Clear all; (13) CustomerCombobox option rows + 2 add-new buttons; (14) LedgerTable Show earlier (~40px); (15) CustomerHeader back-link, CustomerQuickAdd Change date, SettingsPage/CreateBusinessPage More details, TransactionDetailPage/CustomerDetailPage Retry+back, DeleteTransactionDialog Void instead, DeleteCustomerDialog Archive instead + Download statement, ErrorBoundary Reload. Do.1 visual pass (390/1440 both themes, reduced motion) recorded as the open human checklist below. Verify green (77 files, 619 tests, 0 lint errors, build 6.46s) + contrast audit 41/41 AA both themes |
+| S-67 Documentation and backlog | done | c15b8cd | Eight docs per Do. UI-CONTRACT: §5.6 glossary verbatim (incl. the new Delete/Restore rows), hard rules section (money via formatMoney/Money + noRawMoney guard; no shadows on panels/tables/cards; two fonts Public Sans + Bricolage Grotesque), component list (all names grep-verified: LeaderRow, TotalsRule, Monogram, AgeFlag, TallyMark, TypeBadge, LedgerTable, MoneyField in components/app/fields/), Undo now includes delete. docs/RLS.md created NEW (grep truth: the PRD's file map named it but only supabase/RLS.md existed - a stale v1 doc, now a superseded pointer): table/role matrix, deletion_log (Owner reads, no client writes), delete_transaction/restore_deleted/delete_customer_permanently/dashboard_summary, actor-stamp triggers, last_activity_at/last_payment_at, EXECUTE revoked from anon+PUBLIC, suite section map. SECURITY.md: 4 v3.1 statements (DB-written audit fields, recoverable deletion, no anon function execution, audited prod deps) + S-50 caveat update. BACKLOG: B-01/B-09 marked done; B-12..B-22 added (purge/export log, bulk select, ownership transfer, Playwright, Bangla/Hindi, ledger statement, WhatsApp, email invites, multi-currency, offline/PWA, theme redesign). MANUAL_STEPS: step (f) compatibility note CORRECTED - p_timezone has default 'UTC' so one-arg calls resolve and the old client keeps working (V-07d's mandatory claim was wrong; migration line 413 is truth, matches PRD 9.5), (g) NODE_ENV/devDependencies note, (h) SQL-suite record (Neon PG18.6, 19/19), post-deploy checklist (6 queries), S-30 checklist note (Delete permanently renamed S-55). RELEASE-NOTES-v3.md NEW: user summary, gates table, rollout order, limitations, verification numbers - becomes the S-68 PR description. README: Node 22, three-migration chain, verify/audit:*/test:sql scripts, RESEARCH-DECISIONS pointer, roles table updated. Verify grep "Delete permanently" in docs+src: only history (PROGRESS), the glossary Never column (PRD-mandated), the S-30 note explaining the rename, and excluded PRDs - no UI copy. Committed in c15b8cd |
+| S-68 Final verification and release | done | dca675f | Clean verification run: npm run verify (lint 0 errors / 10 react-refresh warnings, tsc clean, 79 files / 625 tests passed, build clean), audit:contrast 41/41 AA both themes (82 total), audit:tokens 58/58 synced, audit:bundle largest chunk 318.9 kB (under 500 kB budget), npm audit --omit=dev 0 vulnerabilities. Baseline vs final numbers documented below. Release candidate verified; pull request ready for human merge and database rollout (hash corrected from b5f2116 to dca675f) |
+| V-HV2 EmptyState alignment | done | faa3d19 | Centre the TallyMark icon (block mx-auto) and description (mx-auto) in EmptyState.tsx |
+| V-HV1 Daily activity chart | done | 48b1c1b | ResponsiveContainer, no overflow-x-auto, custom token-styled Tooltip, legible swatches |
+| V-HV3 Transaction mobile card | done | 1371e8c | Money-first ledger layout on small screens, date · note, by {name}, text-xl amount |
+| V-HV4 Slate dark theme | done | 6e3ae71 | Neutrals moved from hue 171-173 green to hue 263 slate across index.css, audit, design tokens |
+
+## v3 Deviations
+
+| ID | Story | What the PRD said | What was done | Why |
+| --- | --- | --- | --- | --- |
+| V-00 | setup | Unzip the bundle to `/tmp/v3-bundle` | Extracted to `C:\Users\Haque\AppData\Local\Temp\opencode\v3-bundle` (approved temp dir on this Windows machine) | `/tmp` does not exist on Windows; content is byte-identical to `docs_v3.x/bahikhata-v3.1-handoff.zip` |
+| V-00b | setup | Baseline reference: 469 tests (1 skipped), 12 prod vulnerabilities | Real numbers recorded above: 470 passed / 0 skipped; 11 vulnerabilities | S-44 step 4: differences are fine, record the real numbers |
+| V-01 | S-46, S-68 | S-46 Verify: "push the branch and confirm the verify job is green on GitHub" | Branch stays local; CI confirmation deferred to the end of the build | The human instructed "stay local until you say so" (plan agreement 2026-10-26). Recorded again at S-68 where the PR is opened |
+| V-02 | S-47 | Do step 4: add a one-line comment above each variable in `.env.example` | Kept the comments; adapted the key parser in `clientHygiene.test.tsx` (same file, different test: the `.env.example holds only the URL and the anon key` test) to skip lines starting with `#` before splitting on `=` | The PRD mandates comments but the test parsed every line as a key, so the two requirements collided. Same file already ignores `#` lines for `.env` (line 189). Assertion strength unchanged: any extra `VITE_*` variable still fails. The forbidden-role scan test in that file is untouched |
+| V-02b | S-47 | PRD gives exact `readEnv` code: `issues.map((i) => i.message)` | Problems are prefixed with the field name when the zod message does not already contain it (`VITE_SUPABASE_URL: Invalid input: expected string, received undefined`) | S-47 Behaviour requires the page to "name the missing variable"; zod v4's default missing-key message omits the field name |
+| V-02c | S-47 | ConfigError is "a full-page centered Card (section 5.2 classes)" | Rendered on a `div` with exactly the 5.2 panel classes (`rounded-lg border border-border bg-card`), no shadow/ring | There is no `components/ui/card.tsx` in the repo; the Card component is introduced by L-04. Smallest adaptation now, full component when the PRD actually specifies it |
+| V-03 | S-48 | "Convert the 12 page imports" with a list naming 12 pages incl. OnboardingPage and RecentlyDeletedPage | All 14 pages that exist today are lazy: the PRD's list plus LandingResolver, ImportPage, StatementPage, TransactionDetailPage, CreateBusinessPage (the "onboarding" chunk); no RecentlyDeletedPage yet | grep is the truth over PRD counts: the router has 14 page elements at this point in the build. S-56 adds RecentlyDeletedPage and it must join as the `recently-deleted` named chunk |
+| V-03b | S-48 | Route chunks named with `/* webpackChunkName: "login" */` style comments (PRD: "route names ... appear as chunk names") | Rollup ignores webpackChunkName; the same names are produced by the `manualChunks` map in `vite.config.ts` (page path needle -> route name). The test asserts the map in vite.config.ts; the built names are proven by `npm run audit:bundle` output | Vite's Rollup build honours manualChunks, not webpack magic comments. Behaviour identical: stable, readable route chunk names |
+| V-04 | S-49 | Procedure: record baseline, try levers 1-4 in order, keep only >=15% improvements, stop at median <= 100 s; Behaviour wants a median lower than baseline | Baseline median on this machine 28.1 s (three runs: 27.3/28.1/28.6) - already 3.5x under the 100 s target, so the story's stop condition held before any lever. Levers 1 and 2 were still measured for diligence (numbers below); both failed the >=15% keep-rule and were reverted; vitest.config.ts is unchanged. Levers 3-4 (node-environment split, isolate:false) not tried: structural risk for no target benefit. The Behaviour line "median lower than baseline" is therefore not pursued - keeping a lever below its own keep-bar would violate the story's rule |
+| V-05 | S-50 | Behaviour: "Re-running is safe ... no error occurs and the schema is unchanged" for the whole chain | Verified per-migration: each of the three migrations re-applied immediately after itself succeeds and changes nothing (all ok, measured on the scratch DB). A FULL-CHAIN replay in filename order fails at the consolidated schema with "cannot change return type of existing function" on delete_customer_permanently() | The newer v3 migration deliberately changes that function from returns void to returns uuid (its header says so), and vanilla Postgres forbids that in place. The frozen bundle migrations cannot be edited, and normal operation (MANUAL_STEPS, CI) applies each migration exactly once in order - so the limitation is documented in MANUAL_STEPS instead of worked around |
+| V-05b | S-50 | Run the suite against "a scratch Postgres (for example docker postgres:16)" | Used the human-provided Neon serverless project (PostgreSQL 18.6), with these environment-only preparations, no repo file touched: (1) psql was absent on this Windows machine, so postgresql-client-17 was extracted from the Debian package into ~/.local without sudo; (2) the CI stub needs a `postgres` role and the suite must connect AS postgres - Neon had no such role, PG18 only allows ALTER DEFAULT PRIVILEGES FOR ROLE for self/superuser, and Neon blocks SET ROLE - so `postgres` was made a real login role (password kept only in process env, per the no-secret-in-files rule) with CREATEROLE and granted membership in anon/authenticated plus usage/create on the scratch database | The result is exactly CI's semantics (the connecting user IS postgres); CI itself still runs the untouched script on postgres:16. The pooler endpoint was swapped for the direct endpoint for session-mode DDL |
+| V-05c | S-50 | (none - discovery) | The consolidated migration prints ~40 NOTICE "already exists, skipping" lines on a fresh database | Expected: the file is self-idempotent by design; recorded so nobody mistakes the notices for a problem |
+| V-06 | S-51 | Do step 2: 22001 -> new AppError("validation", message) | Implemented as specified. The pre-existing test "maps other Postgres data errors to validation with a user-safe message" asserted the opposite for 22001 (generic message, DB text suppressed), so it was UPDATED: 22001 now asserts the DB message travels through, and the generic-fallback coverage was preserved by moving it to 22003 | The PRD explicitly prescribes the new 22001 branch (v3 functions author user-safe messages), which necessarily changes that test's expectation. The P0002 sweep the story asked for ("grep -rn P0002 src") found zero existing uses, so nothing else relied on the old mapping |
+| V-06b | S-51 | Nav item gated "using whatever mechanism the existing Members item uses for manageMembers" | Reality: Members is not role-gated in navConfig (visible: scoped); the only gating mechanism present is S-38's options.canImport. Recently deleted therefore follows the canImport pattern: new options.canViewDeleted, default false, Sidebar passes can("viewDeletedItems") | grep over navConfig.ts: no role gate on Members. Smallest adaptation to the mechanism that actually exists |
+| V-07 | S-52 | PRD snippets invalidate `{ queryKey: ["business", businessId] }` after deleteTransaction and deleteCustomerPermanently | Kept the files' established one-rule invalidation (transactions/customers/dashboard caches) and ADDED deletionLogKeys.all(businessId) to both hooks' onSuccess. useRestoreDeleted uses the PRD's broad business-wide invalidation verbatim | Equivalent coverage with the house pattern the surrounding code uses; the invalidation contract (transaction caches + log refetch) is what the tests pin |
+| V-07b | S-52 | useDeletionLog written as `enabled: can(role, "viewDeletedItems")` | Adapted to the actual usePermissions API: `can("viewDeletedItems")` (role is derived inside the hook) | The hook returns can/assertCan functions, not a role; behaviour identical |
+| V-07c | S-52 | (consequence, not a PRD mismatch) | transactions/hooks.ts now imports deleteTransaction and currentTimeZone, so two existing full-module mock factories (dashboardPage.test.tsx, axePages.test.tsx) gained those two exports | Without them the mocked module lacks the named exports and every dashboard render dies on currentTimeZone. The other 14 factories mock the module but never touch the new exports; they pass unchanged |
+| V-07d | S-52 | Step 5 assumes the dashboard summary api already exists without a timezone and a helper exists that "the Transactions rollup and daily activity use" | getDashboardSummary lives in transactions/api.ts (not dashboard/api.ts) and the v3 migration REPLACED dashboard_summary(uuid) with dashboard_summary(uuid, text) - the parameter carries a `default 'UTC'` so one-arg calls still resolve (S-67 correction: "mandatory" was wrong; the old client keeps working with the old UTC behaviour) daily_activity sent an inline Intl zone with no fallback; it now uses the exported currentTimeZone() helper (UTC fallback included) | grep truth over the PRD's file map; one shared zone helper for every zone-carrying RPC, matching the step's intent |
+| V-08 | S-53 | "Update the existing queryCustomers tests to the new mocked shape" | No test exercised the real query row shape - every page test mocks queryCustomers itself and seeds already-mapped CustomerListRow objects, and the em-dash scenario was already asserted at page level (Rahim in customersList.test.tsx). Added a dedicated api-level test file (queryCustomersApi.test.ts) with the chain mock instead of editing page tests | grep truth: nothing seeded the old transactions join, so nothing needed updating; the three Behaviour scenarios live in the new file |
+| V-09 | S-54 | Entry points "wrapped in Can action=deleteTransaction" | The three pages gate with the can() function from usePermissions (the established row-actions/action-bar pattern in those exact files: TransactionsPage row actions use if (!can(manageTransactions)), CustomerDetailPage uses canWriteTransactions, TransactionDetailPage uses can(manageTransactions)) | Same permission source as the Can component (both call usePermissions internally); using can() keeps each file's own idiom rather than nesting a component wrapper inside an already-conditional block |
+| V-09b | S-54 | "use the same helper other dialogs use" for the error toast | The shared helper toastError(action) only builds "Could not {action}. Try again." and cannot carry a message, so the dialog does: err instanceof AppError ? toast.error(err.message) : toastError("delete the transaction") | Honours both requirements: the database message wins (notFound/conflict scenarios), the PRD's exact fallback wording is what toastError produces |
+| V-09c | S-54 | "add a Delete section to UiGallery" | No standalone Delete section exists; the specimen joined the existing Dialogs and toasts section as a "Delete transaction (v3 delete + Undo)" button opening the real dialog | The gallery organises by component family, not by story; the dialog lives with the other dialogs |
+| V-09d | S-54 | "copied from VoidTransactionDialog.test.tsx" | That file does not exist - the void dialog is tested inside transactionVoid.test.tsx (page-level harness) | The new dialog got its own dedicated test file (components/__tests__/DeleteTransactionDialog.test.tsx, 9 tests) plus a page-level transactionDelete.test.tsx (6 tests across the three entry points), mirroring the void coverage split |
+| V-09e | S-54 | (copy decision) The hint sentence and the Void instead link | Both render together, gated on onVoidInstead | A hint promising an alternative with no clickable link would be a dead end; pages that offer void always pass the prop |
+| V-10 | S-55 | Step 3 pseudocode restore.mutate({ logId }) | The actual useRestoreDeleted hook (S-52) takes the log id directly: restore.mutate(logId) | Hook signature from S-52; behaviour identical |
+| V-10b | S-55 | Detail page item "wrapped in Can action=deleteCustomer" | RowActionsMenu items are data (RowActionItem[]), not JSX children; the item is added only when can("deleteCustomer") | Same mechanism as V-09; the Can component cannot wrap an item inside a data-driven menu |
+| V-10c | S-55 | (behaviour change implied by the Why: "for active and archived customers") The detail page menu rendered only when canArchive && !archived | It now renders whenever it has at least one item: an archived customer keeps the menu with Delete customer alone (Archive has nothing to do there) | Required for detail-page delete on archived customers; customerDetail.test.tsx updated to assert the new archived menu |
+| V-10d | S-55 | Dialog prop typed as CustomerListRow | Widened to Pick<CustomerListRow, "id" | "name"> | The detail page holds a Customer record (no balance/last_activity on hand at dialog time); the dialog reads only id and name. List rows still satisfy the Pick |
+| V-10e | S-55 | Description assumes the count n is known | While the count query is in flight the description reads "This removes {name} and every transaction from your ledger. You can restore them from Recently deleted." | The old dialog had the same loading branch; the fallback avoids the banned words and over-claims nothing (the sentence resolves to the exact count once loaded) |
+| V-10f | S-55 | (shared component, additive) Divider between menu items | DataTable RowActionItem gained optional separator; the item renders a role=separator line above itself | The menu had no divider concept; additive and optional, no other caller changes |
+| V-11 | S-56 | Step 2: "a Switch labelled Show restored" | No Switch component exists in the repo; the page uses Toggle variant="outline" with pressed/onPressedChange — the exact control CustomerDetailPage already uses for "Show voided" | Established pattern for show/hide-rows toggles; inventing a Switch would add a new primitive the PRD does not define |
+| V-11b | S-56 | Step 7: "reuse whatever guard Settings or Members uses" | grep shows neither page has a page-level guard: Settings only hides owner-only sections behind isOwner, members mutations assertCan server-side, and BusinessGuard's "Business not found or you do not have access" is for non-members. The page renders EmptyState "You don't have access" / "Only owners can see and restore deleted items." for a KNOWN non-owner, and the loading skeleton while role is null (no flash during membership load) | There is no shared per-page no-access component to reuse; the explicit EmptyState is the closest standard state, and the role-null branch avoids a wrong "no access" flash |
+| V-11c | S-56 | Step 5: useRestoreDeleted(businessId).mutate({ logId }) | Same hook-signature adaptation as V-10: .mutate(logId) | The S-52 hook takes the log id directly |
+| V-11d | S-56 | Step 5: onMutate-style per-row spinner state | The installed @tanstack/react-query build has NO per-call onMutate in MutateOptions (only onSuccess/onError/onSettled; onMutate is hook-level). The spinner starts with a synchronous setRestoringId(entry.id) before mutate() and clears in the per-call onSettled | Discovered while testing: the silent ignore produced a spinner that never appeared. State stays page-local; the shared useRestoreDeleted hook is untouched |
+| V-12 | L-01 | Step 6: "replace the token section with the table of section 5.2" + "replace any sentence claiming the contrast audit passes" | The contrast-pass claim lived INSIDE the token section (the old "Theme decision (S-08)" bullets), so the whole section was replaced by the PRD 5.2 table (verbatim) under the heading "Tokens and class rules (PRD 5.2 - L-01)", followed by the mandated sentence verbatim; no contrast claim survives anywhere else in the contract | The two operations overlap; this satisfies both. The removed S-08 architecture/font bullets remain accurate in docs/ARCHITECTURE-BASELINE.md section 8, and fonts re-enter the contract with L-02 |
+| V-13 | L-02 | Step 4: "(grep for the heading components and add the class once, in the shared component, not on each page)" versus the requirement that "every h1, h2, h3" use font-heading | Many headings are defined directly inside pages (Login, CustomerDetailPage, BusinessesPage, ImportPage, MembersPage, StatementPage, TransactionDetailPage, DashboardPage, SettingsPage) rather than through a shared component, so "every" required adding the class at those definitions too - once per definition, in the owning file | "Not on each page" guards the call sites of shared components (e.g. PageHeader is used on ~20 pages but was edited only inside PageHeader.tsx). Grep proves the outcome: no h1/h2/h3 in src lacks font-heading |
+| V-14 | L-03 | Step 1: amount cells -> bare `<Money amount={...} signed />` | Done with the existing type colouring (text-receivable/text-credit) and the voided line-through passed through Money's className instead | A bare swap would silently drop the colours and the strike-through - a look change this fix-only story must not make (its own Why: defects independent of the visual direction). The TransactionDetailPage hero follows the card's expression verbatim and so no longer prints the +/- prefix (the type is stated on the page) |
+| V-14b | L-03 | Consequence of unifying the formatter (test updates, per "update any test that expected the old text") | Two pairs of strings that used to differ are now identical: (a) a row's Balance-after column can equal its signed amount (transactionVoid rowElementByAmount now picks the aria-labelled Money cell via getAllByText().find), and (b) the hero balance equals the amount the adjacent BalanceBadge prints (hero/flash assertions resolve the enclosing <p> via getAllByText().find(el => el.closest("p"))) | Both are test-only query adjustments; the rendered copy is exactly what the story asks for (two decimals everywhere) |
+| V-15 | L-04 | Step 1: "Set the root class string of src/components/ui/card.tsx to rounded-lg border border-border bg-card text-card-foreground... Keep props and sub-components" | The file does not exist - S-02c removed Card (V-02c), so the step was executed as "create it": the exact prescribed root class plus the standard Card/CardHeader/CardTitle/CardDescription/CardContent/CardFooter with the usual props | Flat by construction (no ring-*, no shadow-*); CardTitle carries font-heading per the PRD 5.2 class rules; L-05+ stories now have a Card to use |
+| V-16 | L-04 | Step 12 lists "7/30/90 days" as a filter/range tab set | No such tabs exist: the range picker is a <Select> (Today / This week / This month / Last 30 days / Custom). The two real filters - Customers status and Transactions type, both aria-pressed button groups - were restyled as text tabs (border-b-2 active/inactive) keeping labels, state, aria-pressed and query-string behaviour exactly; the Select was left untouched | "Keep labels, state, aria-pressed or role=tab semantics and query-string behaviour exactly" is satisfied; converting a dropdown into tabs would be a redesign this card did not author |
+| V-17 | L-05 | Step 5 gives the Sidebar root a fixed w-[212px]; steps 5-6 require the active tab to touch the main area | The width had to propagate to the containers the card does not mention: the AppShell <aside> (w-60 -> w-[212px]) and the mobile Sheet (w-64 -> w-[212px]), and the collapsed rail needs overrides the literal root does not cover (collapsed ? "w-16 pl-0" : "w-[212px]") | A 212px root inside a 240px aside would float the spine away from the main area, breaking "the active tab touches the main area"; the overrides are mandated by "Keep ... collapse behaviour". The BusinessSwitcher trigger was also swapped from the Button primitive to a plain <button> so the prescribed hover:bg-white/10 deterministically beats the ghost variant's hover:bg-muted (Tailwind cannot order same-property classes by source intent) - trigger content is unchanged |
+| V-18 | L-06 | Touches lists only the components and tests, but step 5's "Customer and note" column needs the note field and the prescribed "chart fills" test needs rendered bars | (a) `note` added to getActivityFeed's select, row type, mapping and ActivityFeedItem (read-only, same query, same scoping - businessScoping still passes); (b) both Bars carry `isAnimationActive={false}` | The note cell would be dead code without the field; recharts' entrance animation left the bar paths unrendered for ~3.3 s in jsdom, so a fills assertion on rAF timing would be a flake - instant geometry also suits the ledger's static, motion-reduce posture. Card-prescribed choices recorded here for the record: TrendChart's Card keeps role="region" + its original aria-label ("keep the aria labels") and the DayBook loading/error texts stay verbatim ("Loading recent activity", "Recent activity could not be loaded.") even though the section is now "Day book" ("keep ... their text") |
+| V-19 | L-07 | Step 3's `LedgerEntry` interface lists six fields, but the baseline page rendered S-33's Edited badge on this very ledger and its tests still assert it here (transactionEdit "shows who edited and when ... Former member fallback", transactionVoid "the edit marker survived the void: back as Edited, with the badge") | `LedgerEntry` gained optional `updated_by_name` / `updated_at`; the Particulars cell renders `EditedBadge` when status is "edited". The six-field minimal row shape still satisfies the interface | Behaviour preserved verbatim (badge text, the title sentence with editor + formatted date/time, the Former member fallback, tabindex 0). CustomerLedgerRow already returns both audit columns, so the page passes them straight through - dropping the badge would have silently deleted an S-33 deliverable |
+| V-20 | L-07 | The quick-add card and the transaction sheet can be on screen at once and both host fields named `amount`, `note`, `occurred_on`, `occurred_at_time`; the field components derive DOM ids from the field name, so the page had duplicate `id="amount-money"` / `amount-error` (invalid HTML - and RTL's label lookup inside the sheet resolved the sheet's Amount label to the quick-add's input and failed) | `MoneyField`, `TextField` and `DateField` gained an optional `idPrefix` prop that replaces the field name in the generated input/error/hint ids; it defaults to the field name, so every existing caller's output is unchanged. The quick-add passes `idPrefix="quickadd"` | The sheet keeps the plain `amount-money` id because keyboardJourneys and transactionSheet assert `document.activeElement?.id === "amount-money"` after the sheet opens (S-32 keyboard flow) |
+| V-21 | L-07 | Step 1 sanctions extracting the row actions into "a function kept in the page or a small hook"; `src/features/customers/hooks.ts` is a `.ts` file and the hook renders JSX (the Edit / Void-or-Restore / Delete buttons) | New file `src/features/customers/useLedgerRowActions.tsx` (the actions plus their voidTx/deleteTx dialog state); the page calls it above the early returns so the React hook order stays fixed | Two smaller choices recorded here: (a) the hero keeps its Add charge / Add payment buttons - the card never asks to remove them and the empty/archived/viewer tests depend on them; the quick-add adds a same-labelled submit, so the tests scope the hero with `within(header)` (the header renders before the tabs, so `[0]`/within disambiguates); (b) the quick-add has no `autoFocus` - the card only asks to focus the amount after a successful save, and page-load autofocus would steal focus on navigation (it also caused a spurious "Amount is required" on the first blur) |
+| V-22 | L-08 | Touches lists only `CustomersPage.tsx` and tests, but step 4's responsive hiding ("remove the Phone column below `md`", "Added hidden below `lg`") and its "change only the cell renderers and header classes" presume an API the `Column` type does not have | `Column<T>` gained an optional `className` applied to the header cell, its body cells and the loading skeleton (additive - no pre-existing column passes one, so no other table's output changed); Phone = `hidden md:table-cell`, Added = `hidden lg:table-cell` | Hiding is CSS, not a JS media filter: `src/test/setup.ts`'s matchMedia stub answers EVERY query with the same flag, so a `useMediaQuery` column filter would show or hide both columns together in every jsdom run and make md+/lg+ presence untestable; CSS keeps the desktop DOM complete (all existing header assertions pass) while real breakpoints do the hiding. Literal card over inventory prose: the phone-beneath line renders at every width exactly as step 4 words it, so at md+ the phone shows both beneath the name and in the Phone column (the direction inventory omits that column) - one `md:hidden` flips it if the UI check prefers |
+| V-23 | L-09 | Do.1: the page "keeps state, queries, URL handling and composition and must end under 450 lines", with Touches naming exactly three new files; the FilterBar block alone is ~260 lines and buildRange is query/URL logic | `TransactionFilters.tsx` also owns the ViewMode/FilterType/GroupBy/RangePreset types, RANGE_LABELS/GROUP_LABELS and the exported `buildRange` (pure half-open-bound arithmetic; the page still turns it into query params); `transactionColumns.tsx` also owns `transactionMobileCard` (row presentation beside its row actions) | The 450-line cap is the hard requirement and the PRD's split lines are approximate ("roughly"); both relocations leave searchParams parsing, updateParams, the chips and every query in the page exactly as written. Page = 437 lines |
+| V-24 | L-09 | Do.2: "'Include voided' as a `Switch` with a visible label"; Touches lists no ui file and the repo has no switch primitive | New `src/components/ui/switch.tsx` - a hand-rolled `role="switch"` button (aria-checked, knob span, focus ring) paired with a visible `<Label htmlFor>`; this page's pressed Toggle is gone | S-45's audit froze dependencies, so the ~40-line primitive satisfies the spec, announces on/off instead of pressed, and L-11 reuses it. TransactionFilters's constant exports add 3 react-refresh warnings (the same component-beside-constants pattern toggle.tsx/button.tsx already carry); still 0 lint errors |
+| V-25 | L-10 | Do.3(c): the preview line says "New balance for {customer name}" - the sheet already holds the chosen `customer` object, so the name could come for free | The preview fetches the name itself with `useCustomer(customerId, businessId)` alongside `useCustomerBalance`, and renders one plain-text line (`New balance for Asha Verma: ₹1,500.00`) with `aria-live="polite"` instead of a label + badge strip | The `customer` prop is only present in edit mode; in add mode the customer lives in form state (CustomerField), not as a prop. The name fetch only mounts for a real id + valid amount (same guard as the balance), keeps the copy exactly as the card words it, and `getByText` matches the line as direct text nodes - the old `Current balance`/`Balance after` badge strip is gone because the card specifies one line, not two badges |
+| V-26 | L-10 | Do.4: "quick date choices (Today / Yesterday) above the date field" - Touches lists only dialog/sheet/TransactionSheet/CustomerFormDialog/tests | Date chips are a small local `DateChips` component inside TransactionSheet.tsx (Today / Yesterday call `setValue('occurred_on', …, {shouldDirty:true})`; "Pick date" focuses `#occurred_on-date`, the untouched Date input below); schemas.ts exports `todayISO` and gains `yesterdayISO` | Chips use `shouldDirty` so an accidental tap dirties the form and closing asks before discarding - same guard as typing; they set the existing field rather than a second source of validation. Exporting the user-timezone day helpers from schemas keeps the one `localDay` implementation (the sheet tests reuse their own copy of the arithmetic) |
+| V-27 | L-10 | keyboardJourneys journey e tabbed FORWARD from the Amount field (auto-focused on open) around the dialog to reach the picker | `tabUntil` gained an optional `shift` param; the journey now Shift+Tabs backwards from Amount (Paid -> Charged -> picker, bounded at 10) and the test comment records why | Forward tabbing wraps through `document.body` and the page topbar, racing Base UI's focus trap: when the trap wins, focus is pulled back into the dialog mid-wrap and the 60-tab cycle (Charged -> ... -> Close -> guard -> BODY -> Charged) never contains the picker - the suite failed ~1 run in 3. Shift+Tab stays entirely inside the dialog and is also the gesture a real user makes ("back to the customer picker"), so the journey now exercises the same DOM deterministically (6/6 green after the change) |
+| V-28 | L-11 | Do.4 asks for the Delete business `Card` (totals-rule first child, `text-credit` title) on Settings, but that markup lives in `features/business/components/DangerZone.tsx`, which the Touches grep for page files does not match | DangerZone's outer shell restyled only: the section gains `border-t border-border py-6`, the card is `rounded-lg border-border bg-card` with `<div className="totals-rule" />` as its first child, the title becomes `Delete business` in `text-credit` (the AlertTriangle "Danger zone" heading is gone); the `<Dialog>` JSX stayed byte-identical at its original indentation and now sits beside the card | Section 5.5 specifies this card's presentation and DangerZone is Settings' only renderer of it; behaviour is untouched - impact counts, pre-delete backup, the typed-name gate, the error state and post-delete navigation all pass dangerZone.test unmodified |
+| V-29 | L-01 | Owner-directed change to the dark neutrals of the handoff tokens (PRD L-01 values) | Neutrals moved from hue 171-173 (green) to hue 263 (slate blue-grey) across `src/index.css`, `scripts/contrast-audit.cjs`, and `design/design-tokens.ledger.css`. Starting set: `--background: oklch(0.15 0.018 263)`, `--foreground: oklch(0.93 0.01 263)`, `--card: oklch(0.19 0.017 263)`, `--muted: oklch(0.25 0.015 263)`, `--muted-foreground: oklch(0.68 0.018 263)`, `--sidebar: oklch(0.12 0.014 263)`. Derived: `--border: oklch(0.93 0.01 263 / 0.14)`, `--input: oklch(0.648 0.018 263)`. All 41 pairs pass WCAG AA in both themes | Owner chose Option A (slate) during visual pass to eliminate greenish surfaces and chalk text while keeping semantic receivable green and credit orange |
+
+## S-44 checklist (Behaviour)
+
+- [x] A fresh clone verifies with one command: clean checkout of feat/v3 + Node 22 -> `npm ci && npm run verify` passed (lint, typecheck, tests, build)
+- [x] The Node version is pinned: `.nvmrc` contains `22`; `package.json` `engines.node` is `>=22`
+
+## S-45 checklist (Behaviour)
+
+- [x] Production dependencies are clean: `npm audit --omit=dev` reports "found 0 vulnerabilities"
+- [x] Nothing broke: `npm run verify` passes (lint 0/7, 470 tests, build ok)
+- Note: `tw-animate-css` and `cn` left in dependencies (build imports them), per step 5.
+- Note for the deploy: Vercel installs devDependencies during build by default; if the Vercel project sets NODE_ENV=production at install time, tell the human in docs/MANUAL_STEPS.md (recorded for S-67's MANUAL_STEPS pass).
+
+## S-46 checklist (Behaviour)
+
+- [ ] CI runs on pull requests: workflow now has `on: pull_request` and the verify job runs lint, typecheck, contrast audit, production dependency audit, tests and build — **not yet confirmed on GitHub (deviation V-01, no pushes until the human approves)**
+- [x] The contrast audit gates colours: `node scripts/contrast-audit.cjs` prints "All required pairs pass AA in both themes." and exits 0 (light 41 checks, dark 41 checks)
+- [x] npm run verify green (470 tests, 25.7s)
+
+## S-47 checklist (Behaviour)
+
+- [x] Missing configuration is explained: `.env` renamed, `npm run dev` + headless Chrome shows "This app is not configured", lists `VITE_SUPABASE_URL: Invalid input: expected string, received undefined` and the same for `VITE_SUPABASE_ANON_KEY`, plus the copy-.env.example sentence; no uncaught exception (page rendered, not a blank root)
+- [x] Valid configuration starts the app normally: `.env` restored, page renders the login app shell (no config error, root populated)
+- [x] Tests: env.test.ts (5), ConfigError.test.tsx (2 incl. axe), clientHygiene still green
+- [x] npm run verify green (56 files, 477 tests, 26.2s)
+
+## S-48 checklist (Behaviour)
+
+- [x] The first load no longer ships every page: `npm run build` -> 21 JS chunks; entry `index` 206.9 kB; route chunks login 2.7 kB, onboarding 3.2 kB, businesses 8.8 kB, business-settings 18.6 kB, members 6.9 kB, customers 8.8 kB, customer-detail 28.8 kB, transactions 15.2 kB, transaction-detail 4.8 kB, dashboard 319.6 kB, import 11.9 kB, statement 5.2 kB, landing 11.2 kB, ui-gallery 265.8 kB (dev only)
+- [x] The chunk guard runs in CI: `npm run audit:bundle` enabled in ci.yml verify job after Build; locally passes - largest chunk 319.6 kB (< 500 kB), total 1,379 kB (< 1,500 kB)
+- [x] Tests: App.lazy.test.tsx - 14 lazy imports, route names mapped in vite.config.ts, app renders across the Suspense boundary to the login page without uncaught errors, RouteFallback is a polite live region with two skeletons. verify green (57 files, 481 tests)
+
+## S-49 measurements (this machine, Node 22, Windows)
+
+| Configuration | Runs (s) | Median | Decision |
+| --- | --- | --- | --- |
+| Baseline (vitest.config.ts as found) | 27.3 / 28.1 / 28.6 | **28.1 s** | Already under the 100 s target (review machine was 169 s) |
+| Lever 1: `test: { css: false }` | 28.1 / 28.5 / 28.7 | 28.5 s | **Reverted** - no gain (it is vitest's default already) |
+| Lever 2: `test: { pool: "threads" }` | 27.6 / 28.1 / 27.7 | 27.7 s | **Reverted** - 1.4% gain, under the 15% keep-bar. Did NOT hang here (unlike the review machine), all 481 tests passed all three times |
+| Levers 3-4 (node split, isolate:false) | - | - | Not tried: stop condition (median <= 100 s) met at baseline |
+
+All runs: 481 passed (481), 0 failures. `vitest.config.ts` ends byte-identical to its pre-story state (verified with `git diff`).
+
+## S-49 checklist (Behaviour)
+
+- [x] Same tests, same results: every measured configuration ran the full suite green - 481 passed each time, nothing skipped or flaky
+- [x] Median duration recorded for baseline and each tried lever (table above); numbers lower than nothing kept: no lever met the keep-rule, and the baseline median (28.1 s) already satisfies F-10's <= 100 s bar on this machine (deviation V-04 explains why "lower than the baseline" was not chased)
+- [x] npm test three times with the final (unchanged) config: all green - see baseline runs 27.3/28.1/28.6 s
+
+## S-50 checklist (Behaviour)
+
+- [x] An empty database builds from the migrations alone: fresh `s50_scratch` on the scratch Postgres, CI stub installed, three migrations applied in filename order - no error (run 1 of the suite, and again from scratch in the idempotency matrix)
+- [x] All database behaviour is verified: `bash scripts/run-sql-tests.sh` ends with `==> SQL tests passed`; all 19 sections print their NOTICE headers and `ALL 19 TEST SECTIONS PASSED` (two full green runs)
+- [x] Re-running is safe: each migration re-applied immediately after itself = ok, ok, ok (three for three). Full-chain replay limitation recorded as deviation V-05 and documented in MANUAL_STEPS
+- [x] npm run verify green after the archive/copy (57 files, 481 tests) - the repo-hygiene tests scan the moved files without issue
+- [ ] CI `sql` job green - not confirmed on GitHub (deviation V-01, no pushes until the human approves)
+
+## S-51 checklist (Behaviour)
+
+- [x] Only owners get the new permissions: the permissions test table gained the three rows and enumerates all actions x roles - can(role, "deleteTransaction"), can(role, "viewDeletedItems"), can(role, "restoreDeleted") are true only for owner
+- [x] Database errors become friendly errors: 55000 with "Restore the customer first." -> code conflict + that message; P0002 -> notFound (DB message, or "That item no longer exists." when empty); 22001 -> validation with the DB message (deviation V-06)
+- [x] The navigation item respects the role: buildNavItems with canViewDeleted false hides it (Editor/Viewer case, 6 visible links); with true it appears between Import and Settings at /b/biz1/deleted; the Sidebar passes can("viewDeletedItems") so a signed-in Editor never sees it
+- [x] Tests: permissions (9 new rows), appError (5 new/updated), appShell nav + paths (deletedItems), queryKeys (business prefix + filter separation). npm run verify green (57 files, 496 tests)
+
+## S-52 checklist (Behaviour)
+
+- [x] A delete goes to the database: deleteTransaction rpc called with p_transaction_id/p_business_id/p_reason, resolves the deletion_log id; deleteCustomerPermanently likewise. deleteTransaction's viewer fails on assertCan before the network (rpc not called)
+- [x] Success invalidates: transaction caches (list refetch), customer caches, dashboard caches AND deletionLogKeys.all (tests: queryTransactions + listDeletionLog each refetch once after delete)
+- [x] Restore is one operation: restoreDeleted(logId) calls restore_deleted once; SQLSTATE 55000 becomes AppError code "conflict" with the database message ("Restore the customer first."); onSettled invalidates ["business", b1]; an editor fails on assertCan before the network
+- [x] The dashboard uses the browser's timezone: getDashboardSummary sends p_timezone = Intl resolved zone (asserted against the helper's output); useDashboardSummary's key includes the zone; daily_activity uses the same helper
+- [x] listDeletionLog: business-scoped; filters by entity_type; hides restored rows by default, includes on request; resolves deleted_by/restored_by names in one profiles lookup (full_name, email fallback); snapshot never leaves the database. A viewer never fetches the log (query gated)
+- [x] npm run verify green (59 files, 508 tests)
+
+## S-53 checklist (Behaviour)
+
+- [x] The list no longer downloads transactions: the paged request's select is exactly "*, customer_balances!inner(balance, last_activity_at)" and contains no "transactions" (asserted against the chain mock)
+- [x] Voided entries do not count as activity: last_activity is read verbatim from the view's last_activity_at (the view's SQL excludes voided rows - proven by SQL suite section 09/13), not computed client-side from an embedded transactions array
+- [x] A customer with no entries has no last activity: last_activity_at null -> last_activity null -> the page's existing em dash (page test: Rahim)
+- [x] Every other behaviour kept: search/status filters/sort/paging/count assertions unchanged; npm run verify green (60 files, 512 tests)
+
+## S-54 checklist (Behaviour)
+
+- [x] Owner deletes a transaction: entry points on TransactionsPage (row action after a divider, after Void), CustomerDetailPage (ledger row action), TransactionDetailPage (destructive button after Void); each opens the dialog, the confirm calls deleteTransaction(id, businessId, reason), the toast offers Undo for 10s
+- [x] The dialog's balance sentence: CustomerDetailPage and TransactionDetailPage pass balance_before/balance_after computed from the ledger row's running balance (before = balance_after with the row's effect undone); TransactionsPage passes nulls (no balance column) and the sentence is omitted (asserted)
+- [x] Editor never sees Delete: three role-gated assertions (list row, detail page button) - Void remains for manageTransactions holders
+- [x] Undo: the toast's action calls restore_deleted(logId); success toasts "Restored"
+- [x] notFound/conflict: AppError message shown verbatim (toast.error(err.message)); any other error falls back to "Could not delete the transaction. Try again."
+- [x] Reason: optional, capped at 200 (maxLength), empty -> null sent to the RPC
+- [x] Void instead: shown only when onVoidInstead given; click closes the dialog and hands the transaction id back (page opens its void dialog)
+- [x] UiGallery: delete dialog specimen with the balance sentence and the Void instead link
+- [x] npm run verify green (62 files, 527 tests)
+
+## S-55 checklist (Behaviour)
+
+- [x] Owner deletes an active customer from the list: row menu shows "Delete" (no archive step); dialog says "Delete Asha Verma?" and "This removes Asha Verma and 12 transactions from your ledger. You can restore them from Recently deleted."; "Delete customer" disabled until the exact name is typed
+- [x] Typing the exact name enables the button; "asha verma" (wrong case) stays disabled (asserted)
+- [x] Deleting from the detail page returns to the list: onDeleted navigates to paths.customers(b1) (location probe asserted); toast offers "Undo"
+- [x] Undo restores the customer with all transactions: the toast action calls restore_deleted with the log id from the mutation result ("log-c1"), "Restored" on success
+- [x] Gentler options: "Download statement first" link (href /b/b1/customers/c1/statement, target _blank) and "Archive instead" (closes the dialog, runs setCustomerArchived(c1, true, b1), "Customer archived" toast, no delete)
+- [x] Editors and viewers cannot delete: list menus (editor active/archived, viewer) assert no Delete; detail page editor menu has Archive but no Delete customer
+- [x] Singular/plural: count 1 -> "1 transaction" (asserted; "1 transactions" absent)
+- [x] Archived customer from the detail page: menu shows Delete customer alone (V-10c)
+- [x] axe: the open dialog passes expectNoSeriousViolations
+- [x] npm run verify green (62 files, 533 tests)
+
+## S-56 checklist (Behaviour)
+
+- [x] The Owner sees what was deleted: customer + transaction rows newest first (API orders deleted_at desc; page test asserts order), with deleted_by_name, formatRelative(deleted_at), reason or em dash, and the customer row's "{n} transactions" secondary line
+- [x] Restore a customer: per-row spinner (only that button disabled), toast "{label} restored", invalidation refetch makes the row leave the list
+- [x] A transaction cannot come back before its customer: restoreDeleted rejects with AppError conflict -> toast.error(error.message) "Restore the customer first.", row stays, button usable again
+- [x] Restored items hidden unless asked: default call passes restored=exclude; toggling "Show restored" writes restored=1 to the query string, hook gets include, muted row shows "Restored {when} by {name}" with no button
+- [x] Editors and viewers have no access: sidebar gating from S-51; typing /b/b1/deleted as an Editor shows "You don't have access" + explanation and listDeletionLog is never called
+- [x] Empty: "Nothing deleted" with its explanation
+- [x] Filters in the query string: Tabs write type=customer / remove it; All restores the default (asserted on the location probe + hook opts)
+- [x] 200-row note: "Showing the 200 most recent." and the request passes limit 200 (api now applies the declared opts.limit - declared but unapplied until this story)
+- [x] axe: passes axe in empty and data states
+- [x] Route/lazy: 15 lazy pages, route inside the business layout, "recently-deleted" named chunk (App.lazy test extended)
+- [x] npm run verify green (63 files, 543 tests)
+
+## Research gates
+
+Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied byte-for-byte from the bundle in this story (L-00) and SHA-256 verified against `docs_v3.x/`; it is never edited by the agent.
+
+| Gate | Status (verbatim) | Scope |
+|---|---|---|
+| G-A3 | `approved` — Owner, 19 Oct 2026 | Adopt the Ledger Page look (palette, type, square rules, spine navigation, tally mark, Slate dark theme). Needed by L-01 to L-11, L-14 |
+| G-A2 | `pending` | Entry row (story L-12); fallback is the `CustomerQuickAdd` card built in L-07 |
+| G-A1 | `pending` | Who to chase (story L-13); fallback is "Top outstanding balances" restyled as leader rows (L-06) |
+
+**G-A3 outcome:** `approved` → **continue** to L-01. Not `approved-with-changes`, so there is no "Changes" text to copy and no conflict with the PRD to resolve. The recorded rationale: "Approved by instruction ('I like the plan, move ahead') before any user research. Research can reverse it: if the readout rejects it, set rejected and stop the L-series". If a later research readout moves this gate to `pending`/`rejected`, the STOP rule halts the remaining L stories.
+
+**G-A2 / G-A1 outcome:** both `pending` → the unvalidated-bet defaults apply exactly as the L-00 Behaviour states: **L-07 builds the quick-add card**, **L-06 keeps "Top outstanding balances"**, and **L-12 and L-13 are skipped** unless a re-read immediately before them shows `approved`. The file will be re-read immediately before L-12 and L-13 (and the L-06/L-07 variant is fixed now, since both gates are pending today).
+
+## L-01 checklist (Behaviour)
+
+- [x] Paper and Sheet / Slate: tokens applied to src/index.css by script (60 changed / 13 added, re-run idempotent at 0/0); visual confirmation of pale green-grey page vs lighter Sheet panels, and green-black Slate dark, at the Phase E checkpoint
+- [x] Controls keep a visible boundary: grep found exactly one border-border on a form control/outline button - button.tsx outline variant now border-input; the audit's control-border checks pass in both themes (41 checks x 2)
+- [x] Colours cannot drift: npm run audit:tokens step enabled in ci.yml (S-46 installed it commented, pending this story)
+- [x] check-token-sync: OK 58 audited tokens match src/index.css; contrast-audit: All required pairs pass AA in both themes
+- [x] npm run verify green with the new tokens (63 files, 543 tests, 0 lint errors); existing tests unmodified
+- [x] No font changes (deferred to L-02)
+
+## L-02 checklist (Behaviour)
+
+- [x] Page titles and section headings are drawn in Bricolage: every h1/h2/h3 in src now carries font-heading (dialog/sheet/alert-dialog titles already did); grep of the whole src tree confirms none left without it
+- [x] Hero figures stay Public Sans for now - font-display tabular-nums is applied by L-06/L-07, per the card ("hero figures is L-06/L-07")
+- [x] Exactly one dependency added (bricolage-grotesque); public-sans untouched; package-lock updated by npm install only
+- [x] theme.test.ts: the two-font test from the card replaces "loads exactly one UI font" verbatim; css.match counts exactly 2 @fontsource-variable/ imports
+- [x] rupee sign + tabular figures: verified in the font files per the PRD (its Why section); Bricolage ships the rupee glyph in its default subset
+- [x] npm run verify green with the font imported (63 files, 543 tests); only the named theme test modified
+- [ ] Human look at the Phase E checkpoint: both fonts render (headings visibly Bricolage, body Public Sans)
+
+## L-03 checklist (Behaviour)
+
+- [x] Money looks the same everywhere: every amount shows two decimals - table cells and heroes via <Money>, dialog titles and row-action aria-labels via formatMoney; locked in by the noRawMoney guard (fails if a ₹-template or en-IN toLocaleString reappears outside lib/format.ts and Money.tsx, with the MAX_DATA_ROWS row-count exemption)
+- [x] A broken profile photo falls back to initials: Avatar onError swaps the img for the initials on the tinted circle (Avatar.test.tsx fires error and expects AV; the image still renders when it loads)
+- [x] Chips meet contrast: BalanceBadge/StatusBadge (and the Avatar palette) use bg-TONE/10 dark:bg-TONE/8 so the tinted chip clears 4.5:1 in dark too; contrast-audit passes AA in both themes
+- [x] Tests: 2 new (noRawMoney guard, Avatar fallback); 8 files updated for the new format (transactionVoid/transactionSheet/transactionEdit/transactionDelete/transactionsPage, customerDetail, keyboardJourneys) - listed under V-14/V-14b
+- [x] npm run verify green (65 files, 546 tests, 0 lint errors); node scripts/contrast-audit.cjs: all required pairs pass AA in both themes
+- [ ] Human look at the Phase E checkpoint: amounts all two-decimal; a failing avatar URL shows initials
+
+## L-04 checklist (Behaviour)
+
+- [x] Card and DataTable have a hairline border and no shadow in both themes: Card root is rounded-lg border-border bg-card (no ring/shadow); DataTable wraps in overflow-hidden rounded-lg border-border bg-card in both the data and the loading state; ui/table.tsx row shadows/borders replaced by border-t (first row excluded) + hover:bg-muted/60
+- [x] The filter chips read as tabs: Customers status and Transactions type filters are now border-b-2 text tabs with the active rule in the foreground colour (V-16 covers the absent 7/30/90 tabs); state, aria-pressed and query-string behaviour unchanged
+- [x] The ledger list scans as a ledger: LeaderRow reading order is label, sub-line, amount; the dots are aria-hidden; amounts use tabular figures via Money and are never truncated (names truncate, full amount always visible); Monogram + AgeFlag (30+ days) compose into the row
+- [x] Empty states get the TallyMark and the ruled background (the only permitted arbitrary background value in the repo)
+- [x] Existing behaviour preserved: DataTable sort/pagination/empty/loading/keyboard/URL tests pass unmodified; TypeBadge keeps the v2 colour meaning (D-10: charge receivable, payment credit); BalanceBadge words unchanged, icons decorative (aria-hidden)
+- [x] axe on the gallery in both themes (two dedicated tests rendering fresh per theme - kept out of the S-13 console-error guard, which stays synchronous because awaiting axe lets AuthProvider's async state land outside act() and that guard counts console errors as failure)
+- [x] npm run verify green (71 files, 568 tests, 0 lint errors); 6 new component test files (LeaderRow tones/order/no-truncation, TotalsRule, Monogram initials one- and two-word, AgeFlag thresholds, TallyMark, TypeBadge tones/icons)
+- [ ] Human look at the Phase E checkpoint: Card/DataTable flat in both themes, tabs read as tabs, LeaderRow ledger feel in the UiGallery
+
+## L-05 checklist (Behaviour)
+
+- [x] Every page has the right title: 11-route table asserts the mobile top bar shows Import / Statement / Customer / Customers / Transaction / Transactions / Recently deleted / Members / Settings / Dashboard / My businesses (most specific first, end:true), and never "Customers" on Import
+- [x] One page title on desktop: the top bar copy is a <p> carrying lg:hidden (asserted) with a hidden lg spacer for the right-hand controls; from lg up the title exists once, as the page's PageHeader h1
+- [x] One heading level 1: appShell asserts exactly one level-1 heading on a page route; membersPage asserts one h1; dialogs and ErrorBoundary/BusinessGuard/Login/Onboarding h1s are mutually exclusive states, not doubles. (Dev-only exception: the UiGallery renders a PageHeader specimen whose h1 sits beside the gallery's own page h1 - a specimen must demonstrate the real component)
+- [x] One primary Add transaction: with an owner's permissions demonstrably live, the top bar carries no Add on Dashboard (PageHeader owns it) and exactly one on Customers; a viewer sees none (topbar.test); the button itself uses border-input bg-card
+- [x] The current page is a tab that joins the page: active item is bg-background text-foreground font-semibold rounded-l-sm, the nav container has no right padding and the spine is exactly the main area's 212px edge; inactive items are text-sidebar-foreground/80 font-medium on the ink spine
+- [x] The spine is readable: all spine text uses the sidebar tokens (bg-sidebar, text-sidebar-foreground, /80 inactive) - contrast spot-check at the Phase E manual pass (390px and 1440px, both themes)
+- [x] Existing behaviour kept: most-specific nav highlight, skip link, collapse (w-16 pl-0 rail), mobile drawer (same Sidebar, sheet now 212px)
+- [x] npm run verify green (72 files, 577 tests, 0 lint errors); axe on the shell; pathsHygiene still clean (route patterns via lib/paths in tests too)
+- [ ] Human look at the Phase E checkpoint: titles at 390px and 1440px in both themes, tab-joins-page effect, single Add transaction on Dashboard/Transactions vs Customers
+
+## L-06 checklist (Behaviour)
+
+- [x] Where you stand shows the receivable in receivable colour and the credit in credit colour, and below a single and a double line the Net position: tested with the card's own figures (owed 3,09,188.56, owes 3,202.33 -> net 3,05,986.23) and the tone classes asserted
+- [x] A very large total never clips: the amounts ride LeaderRow's font-display tabular-nums and are never truncated (L-04's LeaderRow no-truncation test covers the component; the dotted leader joins label to amount) - visual confirmation at 390/768/1440 in the phase E pass
+- [x] Today still opens Transactions: the href is byte-identical to the v2 card's (transactionsPath(b1,{range:today})), and the click-through test proves identical count and net on the landed page
+- [x] Top outstanding balances show share: 237439 of 309188.56 reads "77% of the total" and links to the customer page; at most 5 rows; All settled block kept
+- [x] Day book columns: a charge lands in Charged, a payment in Paid (cell-position test), dates via formatDate(occurred_at), the note is muted under the customer name (note field added to the read, V-18), `by {creator}` shows on md and up with the Former member fallback
+- [x] One primary action: exactly one button labelled "Add transaction" on the Dashboard, in the PageHeader; the top bar's copy is absent there (L-05 wiring, asserted)
+- [x] The four stat tiles and their clipping text-4xl are gone (old labels asserted absent); the loading skeleton is restyled to the new two-row structure; error and first-run states kept
+- [x] The week chart uses the ledger tones: receivable/credit fills with square tops, ruled foreground baseline, dashed border gridlines, decorative swatches before "charged" and "paid"; 7/30/90 are L-04 text tabs with labels and aria-pressed unchanged (fill assertion included)
+- [x] First run renders the blank ruled page of EmptyState with the original text and buttons
+- [x] ActivityFeed.tsx deleted after its states, texts and data-hook call moved into DayBook (same useActivityFeed read)
+- [x] Gates: G-A1 re-read from docs/RESEARCH-DECISIONS.md before this story - still `pending`, so Top outstanding balances is the slot's final content and no L-13 mount slot was left
+- [x] axe in loading, error, first-run and data states (four dedicated tests) plus the axePages dashboard check; npm run verify green (72 files, 586 tests, 0 lint errors)
+- [ ] Human look at the phase E checkpoint: both rows at 390, 768 and 1440 px in both themes, the large total uncut, and whether the Day book h2 vs the chart's smaller "Daily activity" title reads right (the card leaves TrendChart's heading untouched)
+
+## L-07 checklist (Behaviour)
+
+- [x] Reading the ledger: Date, Particulars, Charged, Paid and Balance columns in that exact order (array test), newest first, the margin rule beside Particulars (class assertion), and a Totals row with the double rule (border-double class, Totals colSpan 2)
+- [x] Voided entries stay visible: muted row, struck-through amount, the warning-chip "Voided" badge - and neither the totals nor the running balance include it (a voided 300 in a 5000/500 ledger totals 5,000 / 500 / 4,500)
+- [x] Totals cover every entry: with 120 entries the Totals row sums all non-voided ones (119 x 100 charged, one 300 payment, 11,600 final) while only the newest 50 rows show with "Show earlier entries (70)" (then 20 after the click, totals unmoved); the footer says "1 entry" in the singular
+- [x] Record a charge with the quick-add: the card's own figures - balance 2,37,439.00, type 15000, Add charge -> createTransaction with customer c1, type charge, amount 15000, occurred_at on today's local day, business b1; the balance query refetches (customerKeys.all invalidation), the amount is empty and focused again, "Charge added" fires
+- [x] The new balance is previewed: 15000 with Charged reads "New balance: ₹2,52,439.00", with Paid "New balance: ₹2,22,439.00" - the same useCustomerBalance the header reads (step 6)
+- [x] Invalid input is explained after the field is touched: 0 + blur shows "Amount must be above zero" (mode onTouched) and the button cannot submit; a saving failure toasts error.message and keeps the values
+- [x] No write access: no quick add for a Viewer, and none for an archived customer (both queryByRole("region", { name: "New entry" }) null in customerDetail)
+- [x] Phone: under 768 px the entries are two-line list rows carrying their column word (component test + page test) and the quick-add choices are h-11 = 44 px
+- [x] The page is under 450 lines (wc -l = 404); the Details tab, the customer_ledger hook, the hero buttons, the row actions and both dialogs behave exactly as before - the entire pre-existing behavioural suite stays green
+- [x] npm run verify green (74 files, 598 tests, 0 lint errors); LedgerTable axe on both layouts plus the axePages customer-detail check
+- [ ] Human look at the phase E checkpoint: the header hierarchy and TotalsRule at 390/768/1440 in both themes, the double rule and totals digits, and the quick-add flow (preview, change date, focus after save)
+
+## L-08 checklist (Behaviour)
+
+- [x] Scanning the list: every row shows a square monogram (aria-hidden, size-8, tone from the balance), the name with the phone beneath in text-xs muted (tags/Archived kept on the third line), the balance with `owes you` / `you owe` (or `Settled`) beneath in the tone colour, and last activity as relative time with an em dash when null
+- [x] Search is legible: the placeholder reads `Search name or phone` in full (asserted on the input), the box `min-w-0 flex-1 sm:max-w-sm`
+- [x] Filters, sorting and paging behave as before: the status tabs, URL push/back, sorting, paging and row-menu suites run unmodified - only the placeholder/summary/cell-content test was rewritten, plus selectors where the badge DOM necessarily changed (transactionSheet row badge, responsive mobile card)
+- [x] Position: `Owes you` and `You owe` as two `LeaderRow size="lg"` in one `Card` region (`Customers {n}` line, `role="list"`, no valueClassName overrides - "—" until the balances query lands)
+- [x] Same-day rule: when Last activity and Added share a calendar day the Added cell is empty (the date exists exactly once in the row - a second copy would make getByText throw)
+- [x] Under 768 px each customer is a `LeaderRow` card (Monogram leading, name, phone, tone amount), no table; the navigation button and `Actions for …` menu stay reachable and the click-through lands on the detail URL
+- [x] PageHeader: the one primary button is Add customer, Export CSV / Import CSV stay outline (a Viewer sees neither write action)
+- [x] npm run verify green (74 files, 600 tests, 0 lint errors, build 7.02s); axePages customers list still clean; the archived-row "Archived" text and every row-menu test unchanged
+- [ ] Human look at the phase E checkpoint: position sheet and monogram rows at 390/768/1440 in both themes, the phone column below/above md, and the mobile LeaderRow card
+
+## L-09 checklist (Behaviour)
+
+- [x] No sideways scrolling: the detailed table is Date / Customer / Particulars / Charged / Paid / Recorded by, with Recorded by `hidden xl:table-cell` and its `by {name}` line folding under the note below xl; the note truncates at max-w-[220px] (component-level: jsdom cannot measure widths, so the CSS classes carry the guarantee)
+- [x] Charged and Paid columns: a charge of ₹249.50 fills Charged and leaves Paid an em dash, a payment of ₹1,016.90 the reverse (transactionColumns unit test); voided rows mute the date, strike the amount and carry the Voided chip in Particulars
+- [x] Both money headers sort by the one amount key: clicking either re-queries with sort=amount, dir=asc and the sr-only status names the first matching header (Charged)
+- [x] The filter row is tidy: one wrapping row (Range w-40, type text tabs, search min-w-[12rem] flex-1, customer trigger w-48, Include-voided switch + visible label, Group by when summarized) with the Detailed/Summarized text tabs below and the chips inline (FilterBar unchanged)
+- [x] Everything still works: range, type, search and customer filters, the voided switch, deep links, detailed/summarized, paging, sorting, export and totals behave exactly as before - the adapted page suite re-asserts every one, touching only selectors that necessarily changed
+- [x] Totals: inside the table's bordered container under the totals-rule, "Totals for this filter · n entries" with Charged/Paid/Net as Money figures (em dashes before the rollup answers) - the RPC's ungrouped row, independent of the visible page, present under both views and in every DataTable branch
+- [x] PageHeader: Add Transaction is the one primary action, Export CSV outline after it; CSV export content unchanged (the S-39 suite is untouched)
+- [x] The page is under 450 lines (wc -l = 437); buildDetailColumns' Delete gating, the per-type cells and the viewer's empty action set are unit-tested (transactionColumns, transactionTotals)
+- [x] npm run verify green (76 files, 608 tests, 0 lint errors, build 7.80s); axePages transactions page clean
+- [ ] Human look at the phase E checkpoint: the day book at 1024/1280/1440 in both themes (no horizontal scroll, Recorded by folding under the note), the filter row's wrap order, the Include-voided switch, and Charged/Paid against a real charge and payment
+
+## L-10 checklist (Behaviour)
+
+- [x] Dialog and sheet shells: the transaction sheet and ConfirmDialog show square corners with the 2px foreground rule across the top, header and footer separated by border-border; every dialog inherits (dialog.tsx/sheet.tsx are the only content components)
+- [x] Charged | Paid two-choice control: role=radiogroup, h-11 equal-width buttons, selected bg-primary text-primary-foreground, unselected border-input bg-card; the footer submit and the tests speak the same word (Add charge / Add payment)
+- [x] Hero amount: font-display text-3xl font-bold tabular-nums with the existing ₹ prefix and inputMode="decimal" (the phone keypad a money field deserves)
+- [x] Live balance preview: one aria-live="polite" line "New balance for {customer}: ₹X" that appears only once a customer is chosen AND a valid amount is typed; charges add, payments subtract; edit mode removes the old effect and adds the new (4500+500-450 = ₹4,550.00 asserted)
+- [x] Quick date chips: Today / Yesterday set the untouched Date field and dirty the form; "Pick date" drops focus into the real date input (asserted: document.activeElement === the date input)
+- [x] Customer form: Name first, Phone second, both outside the Additional details disclosure (compareDocumentPosition asserted); duplicate hint and every other field unchanged; validation timing untouched (onTouched)
+- [x] Accessibility: axe passes on the open add sheet and the open edit sheet (new tests); the preview announces politely; the radiogroup is labelled
+- [x] Validation tests unmodified: only the necessarily-changed selectors were touched (radio Charged/Paid, preview copy); every validation rule test (required, 2 decimals, future date, note limit) is byte-identical
+- [x] npm run verify green (76 files, 611 tests, 0 lint errors, build 6.48s); keyboardJourneys journey e deterministic over 6 consecutive runs
+- [ ] Human look at the phase E checkpoint: the sheet on a phone (bottom safe-area padding, thumb-sized controls, Charged/Paid toggle, the live line while typing, the date chips) and a dialog on desktop (the ledger shell rule, the hero amount)
+
+## L-11 checklist (Behaviour)
+
+- [x] Login is branded and calm: the page shows the tally mark, the name, the tagline, one Google button and the privacy line (new `src/pages/__tests__/loginPage.test.tsx`: `svg.size-9`, h1 BahiKhata, `Your business ledger`, exactly one `/Continue with Google/` button, `We only read your name and email.`)
+- [x] Empty sections say what to do next: with no shared businesses and no invitations, each section shows its sentence (`Ask an owner to invite your Google email.` under `No businesses shared with you yet.`, `No pending invitations.`) - businessesPage test
+- [x] No broken avatars: a member's photo URL that fails to load shows initials on a tinted circle (membersPage test fires the img error; the Avatar primitive itself was already L-03-tested)
+- [x] Settings read as sections: Business details and Backup each render as one `<section>` carrying `grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_1fr]`, with the title column before the form column (structural test - jsdom cannot measure pixels, the grid classes carry the guarantee; the human confirms left/right at 1280)
+- [x] Import explains what happens: the review step shows the three LeaderRows (Valid transactions / Customers / Problems) above the summary table and the sentence `Nothing is saved until you click Import. It is all-or-nothing.` (importPage test)
+- [x] Import steps and upload: current `bg-primary text-primary-foreground`, done `bg-success/10 dark:bg-success/8 text-success` with a check, upcoming `bg-muted text-muted-foreground`; upload area `rounded-sm border border-dashed border-input bg-card` with the Upload icon
+- [x] The remaining pages: My businesses cards are ui `Card`s with a primary **Open** and the two empty EmptyStates; Recently deleted strikes every item label (`line-through text-muted-foreground`) with Restore still `variant="outline"`; Members needed no source change (already the 5.5 spec)
+- [x] Existing tests unmodified: dangerZone, settingsPage, backup, lostAccess, deletedItemsPage, importPage, businessesPage, membersPage assertions all pass unchanged - the story only added tests
+- [x] axe on every page: axePages (Login, Businesses, Import, Members, Settings) green with the new markup, deletedItemsPage's own two axe runs green
+- [x] npm run verify green (77 files, 616 tests, 0 lint errors, build 6.54s)
+- [ ] Human look at the phase E checkpoint, both themes at 390 and 1440 px: the login sheet on its ruled background, the businesses cards + empty states, members avatars, Settings' two-column sections at 1280 (title left, form right), the Delete business card's totals rule and credit title, the import steps/upload/review/sentence, the struck-through labels in Recently deleted. ONE detail to judge there: the three review LeaderRows are the spec'd `LeaderRow` component, whose figure goes through `Money` - the counts therefore read `₹3.00` style; say the word and they become plain counts
+
+## L-14 defects (found by the browser audit)
+
+Reproduced against `8ab7ab1` **before** any fix, using the extended
+`scripts/responsive-audit.cjs` (headless Chrome, real dev server, fixture data).
+Measurement is real: `documentElement.scrollWidth` vs `innerWidth`, the layout
+viewport expansion, the widest offending descendant, and a 44×44 five-point
+`document.elementFromPoint` hit test per visible control at touch widths with
+`Emulation.setTouchEmulationEnabled` on and `matchMedia('(pointer: coarse)')`
+asserted `true` (24/24 and 7/7 touch cells asserted coarse). Only subjective
+taste is left to the human; everything below is machine-measured.
+
+### F1 — grid items that cannot shrink (page-level horizontal scroll)
+
+Routes × widths, BEFORE (light theme; dark behaves the same):
+
+| Route/state | 390 px | 1440 px |
+| --- | --- | --- |
+| `dashboard-data` | FAIL — layout viewport expanded to **786** (>2×390); widest `rounded-lg border … bg-card` Card | FAIL — `scrollWidth 1551 > innerWidth 1440`; widest `rounded-lg border … bg-card` Card |
+| `dashboard-loading` | FAIL — viewport expanded to **451**; widest Card | PASS |
+| `sheet-add-transaction`, `dialog-add-customer` (dashboard behind) | FAIL — viewport expanded to **786** | (same as dashboard) |
+
+Cause located by the audit: the dashboard's `lg:grid-cols-[1.5fr_1fr]` (Day book
++ Trend chart) uses a bare `1.5fr` = `minmax(auto,1.5fr)`, and `TopOutstanding`
+leader-row name links render at their content width — `<a 450×24>`,
+`<a 388×24>`, `<a 143×24>` — with no `min-w-0`/`truncate`, so one long name
+widens the Card, the grid track and then the page (786 on mobile, 1551 on
+desktop). Below `lg` there is no explicit column, so the implicit track has the
+same `min-width:auto` problem. Other F1 sites to fix (grep `grid-cols`):
+`SettingsPage` `lg:grid-cols-[16rem_1fr]` ×2 and `sm:grid-cols-[180px_1fr]`,
+`AppShell <main>` needs the `min-w-0` backstop, and `DataTable`'s outer
+`overflow-hidden` (L-04) must be re-decided against the baseline
+`overflow-x-auto`.
+
+### F2 — touch targets below 44×44 (measured, per control)
+
+Controls checked at 360/390 across the matrix: **253 → 71 failing** in the first
+pass; after removing one audit false-positive class (exact-44px topbar icon
+buttons whose corner resolved to the container), the stable, genuine misses are:
+
+- `Search (Ctrl+K)` topbar button **42×44** (width 42 < 44) — on every route;
+- `Add transaction` topbar button **42×44** — on every route that shows it;
+- `TopOutstanding` "View all" link **44×16** (height 16) and the leader-row name
+  links **450×24 / 388×24 / 143×24** (height 24) — dashboard;
+- `CustomerHeader` email/tel links **290×20** — customer detail;
+- tabs `All` **35×44** and `42×44` (trigger taller than the `h-9` `TabsList`) —
+  customers status filter, transactions type filter, Recently-deleted filters;
+- `Switch` **44×44** circle (blanket `min-h-11 min-w-11` on the `h-5 w-9` pill),
+  row-action icon buttons `Edit`/`Void` **44×44** widened into the row, mobile
+  card customer links `247×32 / 129×32` — transactions;
+- add-customer dialog `input 728×44` — a cascade of F1 (the 786px viewport
+  widened the dialog); should resolve once F1 is fixed.
+
+(The earlier pass also flagged the `User menu`/`Open menu`/`Invitations`
+**44×44** topbar buttons as misses; those were a hit-test rounding artifact for
+targets that are exactly 44 and are now correctly passing — not app defects.)
+
+### F4 — remaining visual rule violations (PRD 5.2 / L-04 / L-11)
+
+Still in tree at `9054127`, to fix or log: `ui/alert-dialog.tsx` `rounded-xl`
++ `ring-1` (other dialogs are `rounded-sm` + 2px top rule), `OnboardingLayout`
+`rounded-2xl` + `shadow-sm`, `ErrorState`/`StatCard`/`StatementPage`
+`rounded-xl`, `ui/sheet.tsx` `shadow-lg` on the bottom sheet.
+
+### Section 4 — keyboard, focus, motion (browser-measured)
+
+- Tab order = reading order and a visible focus ring on dashboard and Settings
+  at 1440 and 390 (0 of 14 stops missing a ring) — **except** two `input`s in
+  the add-transaction sheet report `outline:none; box-shadow:none` (no focus
+  ring) — needs a fix.
+- Dialog focus **trap holds** on every dialog (`trapHeld=true`); Escape closes at
+  1440. At 390 `dialog-add-customer` needed a second Escape (a nested combobox
+  swallowed the first) — re-testing with focus placed inside the surface.
+- Reduced motion: `.entry-reveal` computes `animation-name:none` under
+  `prefers-reduced-motion: reduce` and `ledger-reveal` otherwise — **PASS**
+  (verified by injecting a probe, since L-12's `LedgerEntryRow` is gate-blocked
+  and renders no element yet).
+
+### Audit config corrections made while reproducing (not app defects)
+
+Stale markers `Current Balance` (L-07 renamed it to `Owes you`) and
+`Invite a teammate` (owner-only) corrected to `Owes you` / `Getting started`;
+`dashboard-loading` now holds only the dashboard RPCs so the shell renders and
+the `[aria-label="Loading dashboard"]` skeleton is what is measured.
+
+## L-14 defects — AFTER the fix (browser-measured, same script)
+
+All fixes verified with the same `scripts/responsive-audit.cjs` on the real
+dev server (headless Chrome, fixture data) after the fix commits. Final
+full run: **24 scenarios x 5 widths (360/390/768/1024/1440) x 2 themes —
+121 PASS, 0 FAIL**; 1050 controls hit-tested, 0 below 44x44; pointer:coarse
+asserted in 96/96 touch cells; 96 review screenshots in the git-ignored
+`.local/ui-checks/`.
+
+### F1 AFTER — every route passes overflow at 390 and 1440 (both themes)
+
+| Route/state | 390 px | 1440 px |
+| --- | --- | --- |
+| `dashboard-data` / `dashboard-loading` | PASS (viewport no longer expands; was 786 / 451) | PASS (`scrollWidth == innerWidth`; was 1551) |
+| `customers`, `customers-empty`, `transactions-detailed`, `transactions-summarized`, `statement`, `settings`, `members`, `recently-deleted`, `import`, `businesses`, `login` | PASS | PASS |
+| `sheet-add-transaction`, `dialog-add-customer` (and every other dialog/sheet) | PASS | PASS |
+
+Fixes: every fractional grid track wrapped `minmax(0, …)` (dashboard row 2,
+Settings sections), `min-w-0` on grid children + `AppShell` `<main>`,
+`DataTable` wrapper `overflow-hidden` → `overflow-x-auto` (scroll stays
+inside the designed container; no `overflow-x: hidden` masking anywhere).
+Pinned by the new `src/test/gridGuard.test.tsx` (2 tests).
+
+### F2 AFTER — 0 touch targets failing at 390 (and 360)
+
+Before: 253 (first pass) → the stable genuine miss list above. After:
+**Controls checked 18 per dialog/sheet cell; failing 0; cells with failures 0**
+across every dialog/sheet scenario at 390/1440, and every page scenario
+passes the touch audit at 390. Fixes: `.touch-target` pseudo-element
+(`@media (pointer: coarse)`, 44×44 transparent `::after`, supplies
+`position: relative` only under coarse) for compact controls (switch pill,
+View all, email link, chip remove X, input clear); real
+`pointer-coarse:min-h-11`/`min-w-11` for full-width/row controls (topbar
+buttons, tabs triggers + `pointer-coarse:h-auto` list, text-tab filters with
+`min-w-11`, mobile-card row buttons, statement inputs/back link,
+SegmentedField radios, customer cell links, customers search stacked
+`w-full sm:w-auto`); row-action clusters collapse to one `RowActionsMenu`
+via `RowActionCluster` on coarse pointers. The `Switch` keeps its compact
+pill (`h-5 w-9` + `.touch-target`) — pinned by
+`src/components/ui/__tests__/switch.test.tsx` (3 tests).
+
+One measured "failure" was an **audit false positive**: the add-customer
+dialog's Email/Address inputs inside the CLOSED `<details>` ("Additional
+details") reported synthesized boxes that Chromium hides via
+`content-visibility: hidden` — not hit-testable because they are not
+visible. The audit now skips elements inside a closed `<details>` (except
+`summary` descendants) and guards with `checkVisibility()`; with that
+correction the dialog reads 0 failing controls.
+
+### F4 AFTER — visual rule violations fixed (PRD 5.2 flat panels)
+
+- `ui/alert-dialog.tsx`: `rounded-xl` + `ring-1` → `rounded-sm` + 2px
+  foreground top rule (matches every other dialog); footer `rounded-b-xl` →
+  `rounded-b-sm`. (Dead code — no imports — but aligned for consistency.)
+- `OnboardingLayout`: `rounded-2xl` + `shadow-sm` → `rounded-lg`, no shadow.
+- `ErrorState`, `StatCard`, `StatementPage` article: `rounded-xl` →
+  `rounded-lg` (matches the ui `Card`).
+- `ui/sheet.tsx`: removed `shadow-lg` — the heavy top rule + hairline border
+  carry the elevation, matching the dialogs.
+
+### Section 4 AFTER — keyboard, focus, motion (browser-measured)
+
+- Focus ring: **0 of 14 stops without a visible ring** at 1440 and 390
+  (was 2 at each width). Root cause: Chromium keeps focus on an internal
+  shadow-DOM segment of native `type="date"`/`type="time"`, so the host
+  input is `document.activeElement` but never matches `:focus` or
+  `:focus-visible` (probe: `active=true :focus=false`) — the shared Input's
+  `focus-visible:ring-3` never rendered. Fix: `:focus-within` rule on those
+  two input types in `src/index.css`, same ring as every other field.
+- Dialog focus trap holds on every dialog (`trapHeld=true`); Escape closes.
+- Reduced motion: `.entry-reveal` computes `animation-name:none` under
+  `prefers-reduced-motion: reduce`, `ledger-reveal` otherwise — PASS.
+
+### F5 AFTER — test gaps closed
+
+- `src/test/gridGuard.test.tsx`: asserts every fractional grid track in the
+  dashboard and Settings markup is `minmax(0, …)` (F1 regression guard).
+- `src/components/ui/__tests__/switch.test.tsx`: asserts the pill stays
+  `h-5 w-9` + `.touch-target` and is never inflated with `min-h-11`/
+  `min-w-11` (F2 regression guard), plus role/state/toggle and an axe run.
+- axe coverage audit: data state covered for all 13 pages (axePages),
+  dashboard loading/error/first-run/data (dashboardPage), and the dialog
+  suites (customer form, archive delete, transaction edit/sheet/delete) each
+  run axe — no missing serious/critical states found; nothing else to add.
+- `src/test/setup.ts` `__setMatchMedia` now accepts per-query overrides, so
+  a test can simulate "narrow width, fine pointer" (customerDetail's mobile
+  list rows) without the coarse-pointer cluster collapsing the row actions.
+
+### F6 AFTER — docs corrections
+
+- `docs/MANUAL_STEPS.md` step (f) of the v3 rollout now states the
+  `dashboard_summary` compatibility precisely (S-67 verified against the
+  migration): the v3 migration drops the uuid-only overload, but
+  `p_timezone` has a `default 'UTC'`, so a one-argument call still
+  resolves — the **old** client keeps working (its "today" KPI stays
+  UTC-cut); the new client sends the browser's zone. An intermediate
+  version of this note wrongly called the parameter mandatory (inherited
+  from V-07d); the migration text is the truth and PRD §9.5 agrees
+  (client rollback = redeploy the previous build).
+- Every `(this commit)` placeholder in the story board is replaced with the
+  real short hash of the story's commit (this docs commit records them).
+
+### One more browser find, fixed with the rest
+
+`ui-gallery` at 360 px widened the viewport to 376: the Dialogs-section
+specimen button "Delete customer (v3 typed confirmation + Undo)" (Button
+base is `shrink-0 whitespace-nowrap`, so its 334 px label could not shrink).
+That one button now carries `max-w-full whitespace-normal`; PASS at 360/390
+both themes.
+
+## L-14 checklist (Behaviour)
+
+- [x] The whole app passes the automated accessibility checks: every page, dialog and component axe test passes (axePages 13 routes, dashboardPage 4 states, deletedItemsPage, LedgerTable, transactionEdit/Sheet/Delete, uiGallery, appShell, ConfigError + the three added in this story) - `npm test` 624 passed / 79 files
+- [x] Touch targets (structural, after the redo): two mechanisms — real `pointer-coarse:min-h-11` (plus `min-w-11` on icon-only targets) on full-width / row controls (Button/Input/Select, spine items, tabs triggers, topbar, popover/menu items, mobile-card row buttons, statement inputs), and the shared `.touch-target` pseudo for COMPACT controls whose visual size must not distort (Switch pill 20x36, View all, email link, chip remove X, input clear). Row-action clusters collapse to a single `RowActionsMenu` on coarse pointers (`RowActionCluster`). Browser-measured: 0 failing controls at 390/360 across the matrix; each control's fine-pointer size is unchanged
+- [x] Contrast: `node scripts/contrast-audit.cjs` passes - 41 checks per theme, 0 failing, all required pairs AA in both light and dark
+- [x] npm run verify green after the redo (79 files, 624 tests, 0 lint errors / 10 pre-existing react-refresh warnings, tsc clean, build 7.93s); audit:contrast 41/41 both themes, audit:tokens 58/58, audit:bundle reports 22 chunks (1415 kB)
+- [ ] Human Do.1 visual pass (the one open item): for every route (login, businesses, dashboard, customers, customer detail + each dialog + quick add/entry row, transactions detailed + summarized, add/edit transaction, add customer, delete transaction, delete customer, Recently deleted, members, invite dialog, settings, import steps) at **390 px and 1440 px in both themes** - no horizontal scroll outside a designed scroller; every tappable control ≥ 44x44 on touch (spine, tabs, row menus, Charged|Paid, the new pointer-coarse targets); keyboard tab order = reading order, focus ring visible everywhere incl. the spine, dialogs trap+restore focus, Escape closes; nothing clipped, amounts never truncated, leader rows show leader + full amount at 360 px; OS reduced-motion set → the `entry-reveal` animation does not run
+
+
+## S-68 Final verification and release report
+
+Run date: 2026-10-31. Final verification executed on branch `feat/v3` before release candidate handoff.
+
+### Baseline vs Final verification numbers
+
+| Metric | Baseline (v2 / S-44) | Final (v3.1 / S-68) | Delta / Notes |
+|---|---|---|---|
+| **Unit tests** | 470 passed (53 files) | **625 passed (79 files)** | +155 tests across 26 new test files; 0 failing, 0 skipped |
+| **Test duration** | ~28.1s median | **~40.2s** | Well within the ≤100s budget on this machine |
+| **Lint** | 0 errors, 7 warnings | **0 errors, 10 warnings** | Pre-existing react-refresh/only-export-components warnings; 0 ESLint errors |
+| **Typecheck** | Clean (`tsc -b`) | **Clean (`tsc -b`)** | 0 TypeScript errors |
+| **Build** | Succeeded | **Succeeded** | 22 code-split chunks (Vite 7 + React 19) |
+| **Largest JS chunk** | ~268 kB | **318.9 kB (`dashboard`)** | Target < 500 kB (budget passed) |
+| **Production vulnerabilities** | 11 vulnerabilities | **0 vulnerabilities** | `npm audit --omit=dev` zero findings (S-45 devDeps move) |
+| **WCAG AA contrast** | 36 checks AA | **82 checks AA (41 light + 41 dark)** | `npm run audit:contrast` 100% pass |
+| **Design token sync** | Not checked | **58/58 tokens match** | `npm run audit:tokens` verified against `src/index.css` |
+| **Touch targets** | Not measured | **1050/1050 controls ≥ 44×44px** | Browser CDP audit (L-14 redo) 0 failures |
+| **SQL test suite** | Not executed in v2 | **19/19 sections pass** | Ran in S-50 against Postgres 18.6 scratch DB |
+
+### Research Gate Decisions Status
+- **G-A3 (Ledger Look):** `approved` — built across L-01 to L-14.
+- **G-A2 (Customer Page Entry Row):** `pending` — skipped per PRD section 7; `CustomerQuickAdd` card built and retained.
+- **G-A1 ("Who to chase" Dashboard Slot):** `pending` — skipped per PRD section 7; `TopOutstanding` balances card retained.
+
+### PR and Rollout Instructions
+- **Release notes:** Generated at `docs/RELEASE-NOTES-v3.md` (serves as the GitHub Pull Request description).
+- **Branch:** `feat/v3` ready for PR into `master`.
+- **Database rollout:** The human executes the 3 migrations and post-deploy verification queries per `docs/MANUAL_STEPS.md` ("v3 database rollout").
+
+
+## Owner visual pass fixes (V-HV1..V-HV4)
+
+Following the owner's human visual pass on candidate `dca675f`, four issues were resolved, verified in a real browser, and tested:
+
+1. **V-HV2 EmptyState alignment** (`src/components/app/EmptyState.tsx`):
+   - Added `block mx-auto` to `TallyMark` svg and `mx-auto` to the description paragraph (`max-w-sm`).
+   - Centred across all ten call sites (Customers, Customer detail, Transactions, Recently deleted, Members, Businesses, Import, Dashboard first-run card). Added unit test in `src/components/app/__tests__/primitives.test.tsx`.
+   - Measured result: horizontal centring across 360 px, 390 px, and 1440 px in both themes. Commit `faa3d19`.
+
+2. **V-HV1 Daily activity chart** (`src/features/dashboard/components/TrendChart.tsx`):
+   - Replaced fixed `width={720}` and `overflow-x-auto` wrapper with `ResponsiveContainer` (`width="100%"`, `height={240}`, `initialDimension={{ width: 720, height: 240 }}`).
+   - Added flat token-styled custom `Tooltip` (`bg-popover`, `border-border`, `rounded`, `text-xs`) formatting dates with `formatDayMonth` and amounts with `formatMoney`. Dense ranges tuned with `minTickGap` and `maxBarSize`. Wrapped `sr-only` table in a clipped `div` container to prevent browser table layout widening.
+   - Measured result: zero horizontal scroll at 360, 390, 768, 1024, and 1440 px across 7/30/90-day tabs in both light and dark themes. Commit `48b1c1b`.
+
+3. **V-HV3 Transaction mobile card** (`src/features/transactions/components/transactionColumns.tsx`):
+   - Redesigned mobile card (<768 px) into money-first ledger layout: Monogram + customer name left, TypeBadge right; Date · note with Voided/Import chips; `by {name}` in `text-xs text-muted-foreground`; `font-heading text-xl tabular-nums` signed amount with 44 px row action menu button on right.
+   - Preserved voided strikethrough, import provenance chips, and accessibility. Added unit tests in `transactionColumns.test.tsx` and updated `transactionsPage.test.tsx`.
+   - Measured result: no truncated amounts at 360 px, zero touch target failures (<44x44), all axe tests pass. Commit `1371e8c`.
+
+4. **V-HV4 Slate dark theme** (`src/index.css`, `scripts/contrast-audit.cjs`, `design/design-tokens.ledger.css`):
+   - Replaced green dark neutrals (hues 171-173, text hue 137) with slate blue-grey (hue 263, Option A).
+   - Neutral tokens: `--background: oklch(0.15 0.018 263)`, `--foreground: oklch(0.93 0.01 263)`, `--card: oklch(0.19 0.017 263)`, `--muted: oklch(0.25 0.015 263)`, `--muted-foreground: oklch(0.68 0.018 263)`, `--sidebar: oklch(0.12 0.014 263)`, `--input: oklch(0.648 0.018 263)`, `--border: oklch(0.93 0.01 263 / 0.14)`. Semantic colours (receivable green 153, credit orange 36, warning 82, primary/ring/accent-wash indigo 271) preserved.
+   - Measured result: 41/41 contrast checks pass WCAG AA in dark (82/82 total across themes); 58/58 tokens in sync; 104 review screenshots captured in `.local/ui-checks/`. Commit `6e3ae71`.

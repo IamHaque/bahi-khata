@@ -21,8 +21,10 @@ export function OnboardingLayout({
         <p className="mb-6 text-center text-lg font-semibold tracking-tight text-foreground">
           BahiKhata
         </p>
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        {/* L-14 (F4): match the flat Card rule (PRD 5.2) — rounded-lg, hairline
+            border, no shadow — instead of rounded-2xl + shadow-sm. */}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>
           {description && (

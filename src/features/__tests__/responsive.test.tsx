@@ -265,14 +265,15 @@ describe("S-41 responsive pass", () => {
       );
       await screen.findByText("Everyone in this business");
 
-      // Data arrives as a card: name, phone and the balance badge live
-      // inside the card's own button — and no table headers exist.
+      // Data arrives as a card: name, phone and the balance live as a
+      // LeaderRow inside the card's own button — and no table headers
+      // exist (L-08 dropped the badge for a tone amount).
       const phone = await screen.findByText("01711 111111");
       const cardButton = phone.closest("button");
       expect(cardButton).toBeTruthy();
       const card = within(cardButton as HTMLElement);
       expect(card.getByText("Asha")).toBeTruthy();
-      expect(card.getByText("Owes you")).toBeTruthy();
+      expect(card.getByText("₹500.00").className).toContain("text-receivable");
 
       expect(screen.queryByRole("columnheader")).toBeNull();
       await waitFor(() =>

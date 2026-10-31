@@ -228,14 +228,16 @@ function renderPage(route = paths.transactions("b1")) {
   );
 }
 
-/** Scope to the row that shows this amount (mobile cards included —
- *  the card root is the closest block container). */
-function rowElementByAmount(amountText: string) {
-  const cell = screen.getByText(amountText);
+/** Scope to the row containing this text (mobile cards included —
+ *  the card root is the closest block container). L-09's two money
+ *  columns plus the totals strip repeat figures, so rows anchor by
+ *  note or customer name. */
+function rowElementByText(text: string) {
+  const cell = screen.getByText(text);
   const row =
     cell.closest("tr") ??
     (cell.closest("[class*='rounded-lg']") as HTMLElement | null);
-  if (!row) throw new Error(`no row containing ${amountText}`);
+  if (!row) throw new Error(`no row containing ${text}`);
   return row;
 }
 
@@ -330,27 +332,26 @@ describe("S-35 transactions page v2", () => {
     for (const header of [
       "Date",
       "Customer",
-      "Type",
-      "Note",
-      "Amount",
+      "Particulars",
+      "Charged",
+      "Paid",
       "Recorded by",
-      "Status",
     ]) {
       expect(screen.getByRole("columnheader", { name: header })).toBeTruthy();
     }
 
-    // Newest first = the server's order, passed through untouched.
-    const firstRow = rowElementByAmount("+₹5,000");
+    // Newest first = the server's order, passed through untouched. A
+    // charge fills the Charged cell, a payment the Paid one (L-09).
+    const firstRow = rowElementByText("Rice for the month");
     expect(within(firstRow).getByText("Asha Verma")).toBeTruthy();
-    expect(within(firstRow).getByText("Rice for the month")).toBeTruthy();
     expect(within(firstRow).getByText("Eli Hassan")).toBeTruthy();
-    expect(within(firstRow).getByText("Charge")).toBeTruthy();
+    expect(within(firstRow).getByText("₹5,000.00")).toBeTruthy(); // Charged
 
-    const secondRow = rowElementByAmount("-₹500");
-    expect(within(secondRow).getByText("Rahim Traders")).toBeTruthy();
+    const secondRow = rowElementByText("Rahim Traders");
     expect(within(secondRow).getByText("Edited")).toBeTruthy();
+    expect(within(secondRow).getByText("₹500.00")).toBeTruthy(); // Paid
 
-    const thirdRow = rowElementByAmount("+₹700");
+    const thirdRow = rowElementByText("Karim Store");
     expect(within(thirdRow).getByText("Import")).toBeTruthy();
     // A former member resolves to the S-25 fallback.
     expect(within(thirdRow).getByText("Former member")).toBeTruthy();
@@ -394,14 +395,15 @@ describe("S-35 transactions page v2", () => {
     );
 
     // Row click still opens the entry's detail page.
-    await userEvent.click(rowElementByAmount("+₹5,000"));
+    await userEvent.click(rowElementByText("Rice for the month"));
     expect(await screen.findByText("Transaction detail t1")).toBeTruthy();
   });
 
   it("row click opens the entry detail and sortable headers re-query server-side", async () => {
     renderPage();
 
-    await userEvent.click(screen.getByRole("columnheader", { name: "Amount" }));
+    // Both money columns sort by the one amount key (L-09).
+    await userEvent.click(screen.getByRole("columnheader", { name: "Charged" }));
     await waitFor(() =>
       expect(transactionsApi.queryTransactions).toHaveBeenCalledWith(
         "b1",
@@ -424,9 +426,9 @@ describe("S-35 transactions page v2", () => {
     expect(screen.getByText("Type: Payment")).toBeTruthy();
     expect(screen.getByTestId("url").textContent).toContain("type=payment");
 
-    // Include voided
+    // Include voided — a switch since L-09.
     await userEvent.click(
-      screen.getByRole("button", { name: "Include voided" }),
+      screen.getByRole("switch", { name: "Include voided" }),
     );
     await waitFor(() =>
       expect(transactionsApi.queryTransactions).toHaveBeenCalledWith(
@@ -564,7 +566,7 @@ describe("S-35 transactions page v2", () => {
         ),
       ).toBe(true),
     );
-    for (const header of ["Period", "Entries", "Charges", "Payments", "Net"]) {
+    for (const header of ["Period", "Entries", "Charged", "Paid", "Net"]) {
       expect(screen.getByRole("columnheader", { name: header })).toBeTruthy();
     }
     expect(await screen.findByText("12 Oct 2026")).toBeTruthy();
@@ -697,10 +699,10 @@ describe("S-35 transactions page v2", () => {
 
       expect(await screen.findByText("Asha Verma")).toBeTruthy();
       expect(screen.queryByRole("columnheader")).toBeNull();
-      const amount = screen.getByText("+₹5,000");
+      const amount = screen.getByText("+₹5,000.00");
       expect(amount.className).not.toContain("truncate");
-      expect(screen.getByText("-₹500")).toBeTruthy();
-      expect(screen.getByText("Former member")).toBeTruthy();
+      expect(screen.getByText("-₹500.00")).toBeTruthy();
+      expect(screen.getByText("by Former member")).toBeTruthy();
     } finally {
       __setMatchMedia(false);
     }
@@ -715,13 +717,13 @@ describe("S-35 transactions page v2", () => {
     expect(await screen.findByText("Asha Verma")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add Transaction" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Edit charge of ₹5000" }),
+      screen.queryByRole("button", { name: "Edit charge of ₹5,000.00" }),
     ).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Void charge of ₹5000" }),
+      screen.queryByRole("button", { name: "Void charge of ₹5,000.00" }),
     ).toBeNull();
     // The information itself stays fully readable.
-    expect(screen.getByRole("columnheader", { name: "Amount" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Charged" })).toBeTruthy();
     expect(
       screen.getByRole("region", { name: "Totals for the current filter" }),
     ).toBeTruthy();
@@ -744,7 +746,7 @@ describe("S-35 transactions page v2", () => {
 
     // Edit → the one shared sheet, in edit mode.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Edit charge of ₹5000" }),
+      await screen.findByRole("button", { name: "Edit charge of ₹5,000.00" }),
     );
     expect(getTransactionSheetState()).toMatchObject({
       open: true,
@@ -755,18 +757,18 @@ describe("S-35 transactions page v2", () => {
     // Void → the confirmation dialog with its copy. The sheet has just
     // closed (its modal aria-hidden lingers a beat), so wait for it.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Void charge of ₹5000" }),
+      await screen.findByRole("button", { name: "Void charge of ₹5,000.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Void this charge of ₹5000?"),
+      within(dialog).getByText("Void this charge of ₹5,000.00?"),
     ).toBeTruthy();
     await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     // The voided row offers Restore (and nothing else).
     await userEvent.click(
-      await screen.findByRole("button", { name: "Restore charge of ₹300" }),
+      await screen.findByRole("button", { name: "Restore charge of ₹300.00" }),
     );
     await waitFor(() =>
       expect(transactionsApi.restoreTransaction).toHaveBeenCalledWith(
@@ -775,7 +777,7 @@ describe("S-35 transactions page v2", () => {
       ),
     );
     expect(
-      screen.queryByRole("button", { name: "Edit charge of ₹300" }),
+      screen.queryByRole("button", { name: "Edit charge of ₹300.00" }),
     ).toBeNull();
   });
 });

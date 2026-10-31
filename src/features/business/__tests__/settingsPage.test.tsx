@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
@@ -249,5 +249,37 @@ describe("S-18 business settings page", () => {
     // The rename lands in the shared memberships cache and the sidebar
     // re-renders without a page reload.
     expect(await screen.findByText("Rahim and Sons")).toBeTruthy();
+  });
+
+  it("reads as sections: title on the left column, form on the right (L-11)", async () => {
+    renderSettings();
+
+    // Business details: the two-column grid, the title in the left
+    // column and the form inside the same section.
+    const detailsHeading = await screen.findByText("Business details");
+    const detailsSection = detailsHeading.closest("section");
+    expect(detailsSection).toBeTruthy();
+    expect(detailsSection?.className).toContain(
+      "lg:grid-cols-[16rem_minmax(0,1fr)]",
+    );
+    expect(detailsSection?.className).toContain("border-t");
+    expect(detailsSection?.className).toContain("py-6");
+    expect(
+      within(detailsSection as HTMLElement).getByRole("button", {
+        name: "Save changes",
+      }),
+    ).toBeTruthy();
+
+    // Backup mirrors the same layout, with its own description left
+    // and its button right.
+    const backupHeading = await screen.findByText("Backup");
+    const backupSection = backupHeading.closest("section");
+    expect(backupSection).toBeTruthy();
+    expect(backupSection?.className).toContain("lg:grid-cols-[16rem_minmax(0,1fr)]");
+    expect(
+      within(backupSection as HTMLElement).getByRole("button", {
+        name: "Download backup",
+      }),
+    ).toBeTruthy();
   });
 });

@@ -134,6 +134,8 @@ vi.mock("@/features/customers/api", () => ({
 vi.mock("@/features/transactions/api", () => ({
   createTransaction: transactionsApi.createTransaction,
   createTransactionsBatch: transactionsApi.createTransactionsBatch,
+  currentTimeZone: () => "UTC",
+  deleteTransaction: vi.fn(),
   getAllCustomerBalances: transactionsApi.getAllCustomerBalances,
   queryTransactions: transactionsApi.queryTransactions,
   transactionRollup: transactionsApi.transactionRollup,
@@ -529,7 +531,7 @@ describe("S-40 axe checks", () => {
       { session, route: paths.business("b1") },
     );
 
-    await screen.findByText("Total owes you");
+    await screen.findByRole("heading", { name: "Where you stand" });
     await expectNoSeriousViolations(container);
   });
 
@@ -563,7 +565,7 @@ describe("S-40 axe checks", () => {
       { session, route: paths.customerDetail("b1", "c1") },
     );
 
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     await expectNoSeriousViolations(container);
   });
 

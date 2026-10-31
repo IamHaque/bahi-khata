@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
@@ -152,6 +152,24 @@ describe("S-22 member list", () => {
     // row 0 is the header
     expect(rows[1]?.textContent).toContain("Asha Verma");
   });
+
+  it("shows tinted initials when a member's photo fails to load (L-11)", async () => {
+    server.members = freshMembers().map((member) =>
+      member.userId === "u-editor"
+        ? { ...member, avatarUrl: "https://example.com/broken.png" }
+        : member,
+    );
+
+    renderMembers();
+
+    const photo = await screen.findByRole("img", { name: "Eli the Editor" });
+    fireEvent.error(photo);
+
+    // The broken photo is gone; the initials on the tinted circle take
+    // its place.
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText("EE")).toBeTruthy();
+  });
 });
 
 describe("S-22 only the owner sees management controls", () => {
@@ -224,6 +242,8 @@ describe("S-22 standard states", () => {
 
     // DataTable renders skeleton rows; the heading is there immediately.
     expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
+    // L-05: the PageHeader title is the page's only level-1 heading.
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.queryByText("Asha Verma")).toBeNull();
   });
 

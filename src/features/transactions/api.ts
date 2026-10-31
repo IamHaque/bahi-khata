@@ -269,6 +269,27 @@ export async function restoreTransaction(
   });
 }
 
+/**
+ * v3 (S-52) — Owner-only hard delete. The database deletes the row and
+ * writes the deletion_log entry atomically, and returns that entry's id
+ * so the UI can offer Undo (restoreDeleted(logId)).
+ */
+export async function deleteTransaction(
+  id: string,
+  businessId: string,
+  reason: string | null,
+): Promise<string> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("delete_transaction", {
+      p_transaction_id: id,
+      p_business_id: businessId,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data as string;
+  });
+}
+
 export async function updateTransaction(
   id: string,
   input: Partial<Pick<Transaction, "type" | "amount" | "occurred_at" | "note">>,
@@ -361,8 +382,13 @@ export async function getDashboardSummary(
   businessId: string,
 ): Promise<DashboardSummary> {
   return guard(async () => {
+    // S-52: the v3 database replaced dashboard_summary(uuid) with
+    // dashboard_summary(uuid, text) — "today" is cut in the caller's
+    // timezone, so the zone must travel with every call or the RPC
+    // cannot even be resolved.
     const { data, error } = await supabase.rpc("dashboard_summary", {
       p_business_id: businessId,
+      p_timezone: currentTimeZone(),
     });
 
     if (error) throw error;
@@ -603,8 +629,10 @@ export async function transactionRollup(
 }
 
 /** The browser's IANA zone — passed so SQL buckets periods the same
- *  way the client's date formatters label them. */
-function currentTimeZone(): string {
+ *  way the client's date formatters label them. Exported in S-52 so
+ *  every RPC that needs a timezone sends the same one (and falls back
+ *  to UTC in the same way). */
+export function currentTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   } catch {

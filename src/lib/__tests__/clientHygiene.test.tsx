@@ -169,6 +169,9 @@ describe("S-42 client hygiene", () => {
     expect(example).toBeTruthy();
     const keys = (example ?? "")
       .split("\n")
+      // S-47 added explanatory comments above each variable; a comment is
+      // not a key. Same convention as the .env parser below.
+      .filter((line) => !line.trim().startsWith("#"))
       .map((line) => (line.split("=")[0] ?? "").trim())
       .filter((key) => key.length > 0);
     expect(keys).toEqual(["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"]);

@@ -109,4 +109,22 @@ describe("S-26 businesses page", () => {
     await userEvent.click(openButtons[1]!);
     expect(screen.getByTestId("location").textContent).toBe(paths.business("b2"));
   });
+
+  it("empty sections say what to do next (L-11)", async () => {
+    // Only the owned business: nothing shared, no invitations pending.
+    businessApi.getMemberships.mockImplementation(async () => ({
+      businesses: [ownerMemberships().businesses[0]!],
+      invitations: [],
+    }));
+
+    renderPage();
+
+    expect(
+      await screen.findByText("No businesses shared with you yet."),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Ask an owner to invite your Google email."),
+    ).toBeTruthy();
+    expect(screen.getByText("No pending invitations.")).toBeTruthy();
+  });
 });

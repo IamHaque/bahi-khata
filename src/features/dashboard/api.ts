@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { toAppError } from "@/lib/AppError";
+import { currentTimeZone } from "@/features/transactions/api";
 
 // S-37 — the dashboard's two reads beyond dashboard_summary: the
 // trend chart's per-day aggregation (migration 0007's daily_activity
@@ -37,7 +38,9 @@ export async function getDailyActivity(
     const { data, error } = await supabase.rpc("daily_activity", {
       p_business_id: businessId,
       p_days: days,
-      p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // S-52: the shared helper, so every zone-carrying RPC sends the
+      // same zone and falls back to UTC in the same way.
+      p_timezone: currentTimeZone(),
     });
 
     if (error) throw error;
@@ -54,6 +57,8 @@ export interface ActivityFeedItem {
   id: string;
   type: "charge" | "payment";
   amount: number;
+  /** L-06: the day book shows the note under the customer's name. */
+  note: string | null;
   occurred_at: string;
   customer_id: string;
   customer_name: string;
@@ -74,7 +79,7 @@ export async function getActivityFeed(
     const { data, error } = await supabase
       .from("transactions")
       .select(
-        "id, type, amount, occurred_at, customer_id, customer:customers!inner(id, name), created_by",
+        "id, type, amount, note, occurred_at, customer_id, customer:customers!inner(id, name), created_by",
       )
       .eq("business_id", businessId)
       .is("customers.archived_at", null)
@@ -88,6 +93,7 @@ export async function getActivityFeed(
       id: string;
       type: "charge" | "payment";
       amount: number;
+      note: string | null;
       occurred_at: string;
       customer_id: string;
       customer: { id: string; name: string };
@@ -121,6 +127,7 @@ export async function getActivityFeed(
       id: row.id,
       type: row.type,
       amount: Number(row.amount),
+      note: row.note ?? null,
       occurred_at: row.occurred_at,
       customer_id: row.customer_id,
       customer_name: row.customer.name,

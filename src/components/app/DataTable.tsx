@@ -33,6 +33,12 @@ export interface Column<T> {
   sortable?: boolean;
   render: (row: T) => React.ReactNode;
   sortValue?: (row: T) => string | number;
+  /** Classes for the header cell and its body cells — responsive
+   *  column hiding (`hidden md:table-cell`) rides here (L-08). */
+  className?: string;
+  /** Sort identity when it differs from the cell key: Charged and
+   *  Paid both sort by the one stored amount (L-09). */
+  sortKey?: string;
 }
 
 export interface RowActionItem {
@@ -40,6 +46,8 @@ export interface RowActionItem {
   onSelect: () => void;
   variant?: "default" | "destructive";
   disabled?: boolean;
+  /** Render a divider above this item (e.g. destructive, set apart). */
+  separator?: boolean;
 }
 
 export function RowActionsMenu({
@@ -93,6 +101,7 @@ export function RowActionsMenu({
             size="icon"
             aria-label={triggerLabel}
             onKeyDown={onTriggerKeyDown}
+            onClick={(event) => event.stopPropagation()}
           />
         }
       >
@@ -102,6 +111,13 @@ export function RowActionsMenu({
         <ul role="menu" aria-label={triggerLabel}>
           {items.map((item, i) => (
             <li key={item.label} role="none">
+              {item.separator && (
+                <div
+                  className="my-1 border-t border-border"
+                  role="separator"
+                  aria-orientation="horizontal"
+                />
+              )}
               <button
                 ref={(el) => {
                   itemRefs.current[i] = el;
@@ -127,6 +143,27 @@ export function RowActionsMenu({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** L-14 (F2): the row-action cluster. On a fine pointer it renders the
+ *  passed `children` (the usual inline icon buttons). On a COARSE pointer
+ *  those individual icon buttons collapse into ONE 44x44 "More actions"
+ *  menu, so a dense action row never balloons into several 44px targets
+ *  that widen the table/card. The menu items carry the same labels and
+ *  handlers, so accessible names and behaviour are identical. */
+export function RowActionCluster({
+  items,
+  triggerLabel,
+  children,
+}: {
+  items: RowActionItem[];
+  triggerLabel: string;
+  children: React.ReactNode;
+}) {
+  const isCoarse = useMediaQuery("(pointer: coarse)");
+  if (items.length === 0) return null;
+  if (isCoarse) return <RowActionsMenu items={items} triggerLabel={triggerLabel} />;
+  return <div className="flex items-center gap-1">{children}</div>;
 }
 
 const DEFAULT_PAGE_SIZES = [10, 25, 50];
@@ -155,6 +192,9 @@ interface DataTableProps<T> {
   renderMobileCard?: (row: T) => React.ReactNode;
   resultCount?: number;
   className?: string;
+  /** Rendered under the rows — inside the bordered container when one
+   *  is drawn (L-09's totals strip, one per branch). */
+  footer?: React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -181,6 +221,7 @@ export function DataTable<T>({
   renderMobileCard,
   resultCount,
   className,
+  footer,
 }: DataTableProps<T>) {
   const isMobile = useMediaQuery("(max-width: 767px)");
 
@@ -196,12 +237,19 @@ export function DataTable<T>({
   const totalPages = totalCount !== undefined ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const table = (
-    <div className={cn("overflow-x-auto rounded-lg border border-border", className)}>
+    // L-14 (F1): the one container designed to scroll sideways. A wide
+    // ledger table scrolls HERE (never the page), and it can never clip an
+    // amount the way overflow-hidden would — the audit's truncated-amount
+    // check stays clean while the page itself never scrolls horizontally.
+    <div className={cn("overflow-x-auto rounded-lg border border-border bg-card", className)}>
       <Table>
         <TableHeader>
           <TableRow>
             {columns.map((col) => {
-              const isActive = sortBy === col.key;
+              // Two columns may share one sort key (L-09: Charged and
+              // Paid both sort the stored amount).
+              const sortId = col.sortKey ?? col.key;
+              const isActive = sortBy === sortId;
               const ariaSort = isActive
                 ? sortDir === "asc"
                   ? ("ascending" as const)
@@ -214,15 +262,16 @@ export function DataTable<T>({
                   className={cn(
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
-                    "sticky top-0 z-10 bg-background",
+                    "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
                     col.sortable &&
                       (isActive
                         ? "cursor-pointer bg-accent-wash font-medium text-primary"
                         : "cursor-pointer hover:bg-accent-wash"),
+                    col.className,
                   )}
                   {...(col.sortable
                     ? {
-                        onClick: () => handleSort(col.key),
+                        onClick: () => handleSort(sortId),
                         role: "columnheader" as const,
                         "aria-sort": ariaSort,
                       }
@@ -241,7 +290,7 @@ export function DataTable<T>({
                 </TableHead>
               );
             })}
-            {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-background" />}
+            {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-muted/60" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -258,6 +307,7 @@ export function DataTable<T>({
                   className={cn(
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
+                    col.className,
                   )}
                 >
                   {col.render(row)}
@@ -279,6 +329,7 @@ export function DataTable<T>({
           ))}
         </TableBody>
       </Table>
+      {footer}
     </div>
   );
 
@@ -289,30 +340,37 @@ export function DataTable<T>({
         Showing {rows.length} of {showingCount}
         {sortBy && onSortChange
           ? `, sorted by ${
-              columns.find((column) => column.key === sortBy)?.header ??
-              sortBy
+              columns.find(
+                (column) => (column.sortKey ?? column.key) === sortBy,
+              )?.header ?? sortBy
             }, ${sortDir === "asc" ? "ascending" : "descending"}`
           : ""}
       </p>
 
       {loading ? (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
                 {columns.map((col) => (
-                  <TableHead key={col.key} className="sticky top-0 z-10 bg-background">
+                  <TableHead
+                    key={col.key}
+                    className={cn(
+                      "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
+                      col.className,
+                    )}
+                  >
                     {col.header}
                   </TableHead>
                 ))}
-                {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-background" />}
+                {renderRowActions && <TableHead className="sticky top-0 z-10 w-10 bg-muted/60" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={i}>
                   {columns.map((col) => (
-                    <TableCell key={col.key}>
+                    <TableCell key={col.key} className={col.className}>
                       <Skeleton className="h-4" />
                     </TableCell>
                   ))}
@@ -321,29 +379,42 @@ export function DataTable<T>({
               ))}
             </TableBody>
           </Table>
+          {footer}
         </div>
       ) : error ? (
-        <ErrorState message={error} onRetry={onRetry} />
+        <>
+          <ErrorState message={error} onRetry={onRetry} />
+          {footer}
+        </>
       ) : rows.length === 0 && emptyState ? (
-        emptyState
+        <>
+          {emptyState}
+          {footer}
+        </>
       ) : rows.length === 0 && noResultsState ? (
-        <div className="space-y-3">
-          {noResultsState}
-          {onClearFilters && (
-            <div>
-              <Button variant="outline" size="sm" onClick={onClearFilters}>
-                <SearchX className="size-4" />
-                Clear filters
-              </Button>
-            </div>
-          )}
-        </div>
+        <>
+          <div className="space-y-3">
+            {noResultsState}
+            {onClearFilters && (
+              <div>
+                <Button variant="outline" size="sm" onClick={onClearFilters}>
+                  <SearchX className="size-4" />
+                  Clear filters
+                </Button>
+              </div>
+            )}
+          </div>
+          {footer}
+        </>
       ) : isMobile && renderMobileCard ? (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={getRowKey(row)}>{renderMobileCard(row)}</div>
-          ))}
-        </div>
+        <>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={getRowKey(row)}>{renderMobileCard(row)}</div>
+            ))}
+          </div>
+          {footer}
+        </>
       ) : (
         table
       )}

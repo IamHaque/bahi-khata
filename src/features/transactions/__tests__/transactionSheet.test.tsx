@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { Topbar } from "@/components/layout/Topbar";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
@@ -191,13 +192,21 @@ function rowScopeNow(name: string) {
   return within(row);
 }
 
+/** The hero's Add charge button — the quick-add card carries its own
+ *  copy of the same label. */
+function heroAddCharge() {
+  const header = screen.getByRole("heading", { level: 2 }).closest("header");
+  if (!header) throw new Error("no customer header");
+  return within(header as HTMLElement).getByRole("button", {
+    name: "Add charge",
+  });
+}
+
 /** Open the customer's ledger and press its Add charge button. */
 async function openLedgerSheet(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Add charge" }),
-  );
+  await screen.findByRole("tab", { name: "Ledger" });
+  await userEvent.click(heroAddCharge());
   return screen.findByRole("dialog");
 }
 
@@ -336,24 +345,30 @@ describe("S-32 transaction sheet", () => {
   it("adds a charge from the ledger: focused amount, live preview, row on top, balance flashes", async () => {
     const dialog = await openLedgerSheet();
 
-    // Amount is focused on open, with Charge selected and the footer
+    // Amount is focused on open, with Charged selected and the footer
     // button speaking in the same type.
     await waitFor(() =>
       expect(document.activeElement?.id).toBe("amount-money"),
     );
     expect(
       within(dialog)
-        .getByRole("radio", { name: "Charge" })
+        .getByRole("radio", { name: "Charged" })
         .getAttribute("aria-checked"),
     ).toBe("true");
     within(dialog).getByRole("button", { name: "Add charge" });
 
-    // Live preview: the 1000 owed today, then the result while typing.
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("₹1,000.00");
+    // The amount is the hero of the form (L-10): the largest type in it.
+    expect(
+      (within(dialog).getByLabelText("Amount") as HTMLElement).className,
+    ).toContain("text-3xl");
+
+    // Live preview (L-10): nothing until a valid amount is typed, then
+    // the one line naming the customer and the balance to come.
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
     await userEvent.type(within(dialog).getByLabelText("Amount"), "500");
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("₹1,500.00");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹1,500.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add charge" }),
@@ -389,18 +404,21 @@ describe("S-32 transaction sheet", () => {
     // The sheet closed, the balance recalculated and highlights…
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() =>
-      expect(screen.getByText("₹1,500").className).toContain(
-        "balance-flash",
-      ),
+      expect(
+        screen
+          .getAllByText("₹1,500.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
 
     // …and the new row sits at the top of her ledger, above the old one.
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     const newIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹500"),
+      (row.textContent ?? "").includes("₹500.00"),
     );
     const oldIdx = rows.findIndex((row) =>
-      (row.textContent ?? "").includes("+₹5,000"),
+      (row.textContent ?? "").includes("₹5,000.00"),
     );
     expect(newIdx).toBeGreaterThan(-1);
     expect(oldIdx).toBeGreaterThan(-1);
@@ -421,17 +439,16 @@ describe("S-32 transaction sheet", () => {
     const dialog = await screen.findByRole("dialog");
     // Preselected from the row: the picker already shows her name.
     within(dialog).getByRole("button", { name: "Asha Verma" });
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("Owes you");
 
     await userEvent.click(
-      within(dialog).getByRole("radio", { name: "Payment" }),
+      within(dialog).getByRole("radio", { name: "Paid" }),
     );
     await userEvent.type(within(dialog).getByLabelText("Amount"), "1300");
-    // The preview flips to credit while I type: You owe 300.
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("You owe");
-    within(dialog).getByText("₹300.00");
+    // The preview flips to credit while I type: a payment of 1300
+    // against the 1000 owed leaves her in credit.
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: -₹300.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add payment" }),
@@ -448,10 +465,11 @@ describe("S-32 transaction sheet", () => {
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-    // The list refetched: her row's badge now says You owe 300.
+    // The list refetched: her row's balance now reads "you owe" under
+    // the toned amount (L-08 replaced the badge's label).
     await waitFor(() => {
       const scope = rowScopeNow("Asha Verma");
-      expect(scope.getByText("You owe")).toBeTruthy();
+      expect(scope.getByText("you owe")).toBeTruthy();
       expect(scope.getByText("₹300.00")).toBeTruthy();
     });
   });
@@ -580,7 +598,7 @@ describe("S-32 transaction sheet", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // …and there is no preview until a customer is chosen.
-    expect(within(dialog).queryByText("Current balance")).toBeNull();
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
 
     // Open the searchable picker and choose Asha.
     await userEvent.click(picker);
@@ -589,11 +607,15 @@ describe("S-32 transaction sheet", () => {
       within(listbox).getByRole("option", { name: /Asha/ }),
     );
 
-    // Same fields, now with the live preview for the chosen customer.
-    expect(await within(dialog).findByText("Current balance")).toBeTruthy();
-    within(dialog).getByText("Owes you");
+    // Still no preview without a valid amount (L-10 shows it only for
+    // a customer AND a figure above zero)…
+    expect(within(dialog).queryByText(/New balance for/)).toBeNull();
 
+    // …then the live line once the amount is typed.
     await userEvent.type(within(dialog).getByLabelText("Amount"), "500");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹1,500.00"),
+    ).toBeTruthy();
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Add charge" }),
     );
@@ -607,10 +629,8 @@ describe("S-32 transaction sheet", () => {
 
   it("keyboard flow: Amount focused on open and Enter saves", async () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Add charge" }),
-    );
+    await screen.findByRole("tab", { name: "Ledger" });
+    await userEvent.click(heroAddCharge());
     const dialog = await screen.findByRole("dialog");
     await waitFor(() =>
       expect(document.activeElement?.id).toBe("amount-money"),
@@ -627,8 +647,8 @@ describe("S-32 transaction sheet", () => {
 
   it("Escape closes the clean sheet and focus returns to the trigger", async () => {
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
-    const trigger = screen.getByRole("button", { name: "Add charge" });
+    await screen.findByRole("tab", { name: "Ledger" });
+    const trigger = heroAddCharge();
     await userEvent.click(trigger);
     await screen.findByRole("dialog");
 
@@ -676,9 +696,37 @@ describe("S-32 transaction sheet", () => {
       membershipsFor("viewer"),
     );
     renderWithTopbar(paths.customerDetail("b1", "c1"));
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     // Neither the ledger button nor the top bar's (case-insensitive so
     // both spellings are covered).
     expect(screen.queryByRole("button", { name: /add transaction/i })).toBeNull();
+  });
+
+  it("date chips set Today and Yesterday on the untouched Date field, Pick date focuses it", async () => {
+    const dialog = await openLedgerSheet();
+    const dateInput = within(dialog).getByLabelText("Date") as HTMLInputElement;
+    expect(dateInput.value).toBe(isoDay(0));
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Yesterday" }),
+    );
+    expect(dateInput.value).toBe(isoDay(-1));
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Today" }),
+    );
+    expect(dateInput.value).toBe(isoDay(0));
+
+    // Pick date drops focus into the real field — the chip is a
+    // shortcut, never a second source of validation.
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Pick date" }),
+    );
+    expect(document.activeElement).toBe(dateInput);
+  });
+
+  it("the open add sheet passes axe", async () => {
+    const dialog = await openLedgerSheet();
+    await expectNoSeriousViolations(dialog);
   });
 });

@@ -4,9 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { __setMatchMedia } from "@/test/setup";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { paths, routePatterns } from "@/lib/paths";
 import type { Memberships } from "@/features/business/api";
 import type {
@@ -179,7 +180,7 @@ beforeEach(() => {
 });
 
 describe("S-28 customers list", () => {
-  it("renders the shared table with balance, last activity and added columns", async () => {
+  it("renders the shared table with a monogram, the phone beneath the name, the tone balance and the dates", async () => {
     renderPage();
 
     expect(
@@ -193,15 +194,26 @@ describe("S-28 customers list", () => {
     expect(screen.getByRole("columnheader", { name: "Added" })).toBeTruthy();
 
     const asha = await findRowScope("Asha");
-    expect(asha.getByText("01711 111111")).toBeTruthy();
-    expect(asha.getByText("Owes you")).toBeTruthy();
-    expect(asha.getByText(formatMoney(500))).toBeTruthy();
-    expect(asha.getByText(formatDate(threeCustomers[0]!.last_activity!))).toBeTruthy();
+    // The customer cell: a square monogram, the name, the phone beneath.
+    const nameCell = asha.getByText("Asha").closest("td")!;
+    const monogram = nameCell.querySelector('[aria-hidden="true"]');
+    expect(monogram?.textContent).toBe("A");
+    expect(monogram?.className).toContain("size-8");
+    expect(within(nameCell).getByText("01711 111111")).toBeTruthy();
+    // The balance in its tone colour, with the words beneath it.
+    expect(asha.getByText(formatMoney(500)).className).toContain(
+      "text-receivable",
+    );
+    expect(asha.getByText("owes you")).toBeTruthy();
+    // Last activity reads as relative time, Added as the date.
+    expect(
+      asha.getByText(formatRelative(threeCustomers[0]!.last_activity!)),
+    ).toBeTruthy();
     expect(asha.getByText(formatDate(threeCustomers[0]!.created_at))).toBeTruthy();
 
     const rahim = await findRowScope("Rahim");
-    expect(rahim.getByText("You owe")).toBeTruthy();
-    expect(rahim.getByText(formatMoney(200))).toBeTruthy();
+    expect(rahim.getByText(formatMoney(200)).className).toContain("text-credit");
+    expect(rahim.getByText("you owe")).toBeTruthy();
     // No transactions yet → an em dash, not a date.
     expect(rahim.getByText("—")).toBeTruthy();
 
@@ -210,21 +222,20 @@ describe("S-28 customers list", () => {
     expect(chand.getByText("—")).toBeTruthy();
   });
 
-  it("shows the summary strip totals above the table", async () => {
+  it("shows the position sheet totals above the table", async () => {
     renderPage();
     const summary = within(
       await screen.findByRole("region", { name: "Customer summary" }),
     );
 
-    // Wait for the data — the strip shows — while loading.
-    await waitFor(() => expect(summary.getByText("3")).toBeTruthy());
-    await waitFor(() =>
-      expect(summary.getByText(formatMoney(500))).toBeTruthy(),
-    );
-    await waitFor(() => expect(summary.getByText(formatMoney(200))).toBeTruthy());
-    expect(summary.getByText("Customers")).toBeTruthy();
-    expect(summary.getByText("Owes you")).toBeTruthy();
-    expect(summary.getByText("You owe")).toBeTruthy();
+    // Wait for the data — the sheet shows — while loading.
+    await waitFor(() => summary.getByText("Customers 3"));
+    await waitFor(() => summary.getByText(formatMoney(500)));
+    await waitFor(() => summary.getByText(formatMoney(200)));
+    // Two leader rows in the one sheet.
+    expect(summary.getAllByRole("listitem")).toHaveLength(2);
+    summary.getByText("Owes you");
+    summary.getByText("You owe");
   });
 
   it("restores search, filter, sort and page from the URL", async () => {
@@ -267,6 +278,15 @@ describe("S-28 customers list", () => {
       "b1",
       expect.objectContaining({ search: "" }),
     );
+    // L-08: the placeholder reads in full (it used to be cut off at
+    // "Search by name or phon").
+    expect(
+      (
+        screen.getByLabelText(
+          "Search customers by name or phone",
+        ) as HTMLInputElement
+      ).placeholder,
+    ).toBe("Search name or phone");
 
     await userEvent.type(
       screen.getByLabelText("Search customers by name or phone"),
@@ -372,7 +392,7 @@ describe("S-28 customers list", () => {
     );
   });
 
-  it("offers View, Edit, Add transaction and Archive to an Owner", async () => {
+  it("offers View, Edit, Add transaction, Archive and Delete to an Owner", async () => {
     renderPage();
     const asha = await findRowScope("Asha");
 
@@ -383,7 +403,14 @@ describe("S-28 customers list", () => {
     const labels = within(menu)
       .getAllByRole("menuitem")
       .map((item) => item.textContent);
-    expect(labels).toEqual(["View", "Edit", "Add transaction", "Archive"]);
+    // v3 (S-55): Delete joins the end of the Owner's active-row menu.
+    expect(labels).toEqual([
+      "View",
+      "Edit",
+      "Add transaction",
+      "Archive",
+      "Delete",
+    ]);
 
     // Live since S-32: opens the shared sheet with this row's customer
     // preselected (the sheet itself mounts in the Topbar).
@@ -566,5 +593,56 @@ describe("S-39 export CSV on the customers list", () => {
     expect(
       screen.queryByRole("button", { name: /Add customer/ }),
     ).toBeNull();
+  });
+});
+
+describe("L-08 scanning the list", () => {
+  it("shows only Last activity when it and Added fall on the same calendar day", async () => {
+    customersApi.queryCustomers.mockImplementation(async () =>
+      result(
+        [
+          listRow({
+            id: "c9",
+            name: "SameDay",
+            created_at: "2026-03-05T14:00:00+00:00",
+            last_activity: "2026-03-05T12:00:00+00:00",
+          }),
+        ],
+        1,
+      ),
+    );
+    renderPage();
+
+    const row = await findRowScope("SameDay");
+    // The day appears once — Last activity's; the Added cell is empty
+    // (a second copy would make getByText throw).
+    row.getByText(formatRelative("2026-03-05T12:00:00+00:00"));
+  });
+
+  it("under 768 px each customer is a LeaderRow card, not a table row", async () => {
+    __setMatchMedia(true);
+    try {
+      renderPage();
+
+      const name = await screen.findByText("Asha");
+      expect(screen.queryByRole("table")).toBeNull();
+      const item = name.closest('[role="listitem"]');
+      expect(item).toBeTruthy();
+      const scope = within(item as HTMLElement);
+      // Monogram leading, name, phone beneath, the tone amount.
+      expect(scope.getByText("01711 111111")).toBeTruthy();
+      expect(scope.getByText(formatMoney(500)).className).toContain(
+        "text-receivable",
+      );
+      // The row's actions stay reachable beside it…
+      screen.getByRole("button", { name: "Actions for Asha" });
+      // …and tapping the card opens the detail page.
+      await userEvent.click(name);
+      expect(screen.getByTestId("location").textContent).toBe(
+        paths.customerDetail("b1", "c1"),
+      );
+    } finally {
+      __setMatchMedia(false);
+    }
   });
 });

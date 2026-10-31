@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
           <div className="w-full max-w-sm space-y-4 text-center">
-            <h1 className="text-lg font-semibold text-foreground">
+            <h1 className="font-heading text-lg font-semibold text-foreground">
               Something went wrong
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 pointer-coarse:min-h-11"
             >
               Reload
             </button>

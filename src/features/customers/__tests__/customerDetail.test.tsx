@@ -196,19 +196,34 @@ function renderDetail() {
   );
 }
 
-/** Scope to the ledger row that shows this amount. */
+/** Scope to the ledger body row whose Charged or Paid cell shows
+ *  exactly this amount (the column word carries the direction now, so
+ *  the number prints unsigned and the totals print the same digits). */
 function rowElementByAmount(amountText: string) {
-  const cell = screen.getByText(amountText);
-  const row = cell.closest("tr");
-  if (!row) throw new Error(`no <tr> containing ${amountText}`);
+  const row = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+  ).find(
+    (tr) =>
+      tr.cells[2]?.textContent?.trim() === amountText ||
+      tr.cells[3]?.textContent?.trim() === amountText,
+  );
+  if (!row) throw new Error(`no ledger row with amount ${amountText}`);
   return row;
 }
 
-/** The StatCard root that holds this label. */
-function statCard(label: string) {
-  const card = screen.getByText(label).closest("div");
-  if (!card) throw new Error(`no card containing ${label}`);
-  return card;
+/** The customer header element — the hero's actions live there; the
+ *  quick-add card carries its own copies of the same labels. */
+function customerHeader() {
+  const header = screen.getByRole("heading", { level: 2 }).closest("header");
+  if (!header) throw new Error("no customer header");
+  return header as HTMLElement;
+}
+
+/** The ledger's tfoot Totals row (the double rule). */
+function totalsRow() {
+  const row = document.querySelector<HTMLTableRowElement>("tfoot tr");
+  if (!row) throw new Error("no totals row");
+  return row;
 }
 
 beforeEach(() => {
@@ -286,12 +301,12 @@ beforeEach(() => {
 });
 
 describe("S-31 customer detail v2", () => {
-  it("header and hero: avatar, tags, tappable contacts, Edit + Archive menu, the balance as the largest element with stat cards and the two primary actions", async () => {
+  it("header and hero: monogram, name, phone · last activity line, tags, contacts, Edit + Archive menu, the TotalsRule balance and the two primary actions", async () => {
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     // Header.
-    screen.getByText("AV"); // avatar initials
+    screen.getByText("AV"); // monogram initials
     screen.getByRole("heading", { name: "Asha Verma" });
     screen.getByText("regular");
     screen.getByText("wholesale");
@@ -300,6 +315,8 @@ describe("S-31 customer detail v2", () => {
     const mail = screen.getByRole("link", { name: /asha@example.com/ });
     expect(mail.getAttribute("href")).toBe("mailto:asha@example.com");
     screen.getByText(/12 Lake Road, Dhaka/);
+    // The muted line carries the phone and the relative last activity.
+    screen.getByText(/last activity/);
 
     // Edit + a menu with Archive (owner, active customer).
     screen.getByRole("button", { name: "Edit" });
@@ -308,33 +325,32 @@ describe("S-31 customer detail v2", () => {
     );
     screen.getByRole("menuitem", { name: "Archive" });
 
-    // The balance is the hero: the biggest number on the page, badge
-    // alongside.
-    const hero = screen.getByText("₹4,500");
-    expect(hero.className).toContain("text-5xl");
-    screen.getByText("Current Balance");
+    // The balance is the hero: the TotalsRule block spells the
+    // direction out and the number is the biggest on the page.
+    const hero = screen
+      .getAllByText("₹4,500.00")
+      .find((el) => el.closest("p"))!
+      .closest("p")!;
+    expect(hero.className).toContain("text-4xl");
     screen.getByText("Owes you");
 
-    // Stat cards — total charged excludes the payment, total paid is
-    // the payments, last activity is the newest entry.
-    await waitFor(() =>
-      expect(
-        within(statCard("Total charged")).getByText("₹5,000.00"),
-      ).toBeTruthy(),
-    );
-    within(statCard("Total paid")).getByText("₹500.00");
-    within(statCard("Last activity")).getByText(
-      formatDate(new Date(Date.now() - 2 * 86400000)),
-    );
+    // The ledger's Totals row replaces the old stat cards: total
+    // charged excludes the payment, total paid is the payments, the
+    // final balance is the difference.
+    await waitFor(() => within(totalsRow()).getByText("₹5,000.00"));
+    within(totalsRow()).getByText("₹500.00");
+    within(totalsRow()).getByText("₹4,500.00");
 
-    // The two primary actions.
-    screen.getByRole("button", { name: "Add charge" });
-    screen.getByRole("button", { name: "Add payment" });
+    // The two primary actions ride in the header…
+    within(customerHeader()).getByRole("button", { name: "Add charge" });
+    within(customerHeader()).getByRole("button", { name: "Add payment" });
+    // …and the quick-add card sits above the ledger.
+    screen.getByRole("region", { name: "New entry" });
   });
 
   it("Add payment opens the shared sheet with Payment already selected (S-31 preset)", async () => {
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     await userEvent.click(screen.getByRole("button", { name: "Add payment" }));
     const dialog = await screen.findByRole("dialog");
@@ -360,7 +376,7 @@ describe("S-31 customer detail v2", () => {
     );
   });
 
-  it("ledger: newest first with Balance after per row from the RPC, voided rows muted and out of the running balance", async () => {
+  it("ledger: newest first with a Balance column from the RPC, voided rows muted and out of the totals", async () => {
     server.transactions.push(
       seedTx({
         id: "t3",
@@ -371,7 +387,7 @@ describe("S-31 customer detail v2", () => {
       }),
     );
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     // The ledger comes from the RPC, business-scoped.
     await waitFor(() =>
@@ -381,29 +397,40 @@ describe("S-31 customer detail v2", () => {
       ),
     );
 
-    // Every PRD column is there.
+    // Every PRD column is there, in order — the column word carries
+    // the direction, so the numbers print unsigned.
     const headers = screen
       .getAllByRole("columnheader")
       .map((el) => el.textContent);
-    expect(headers).toEqual(
-      expect.arrayContaining(["Date", "Type", "Note", "Amount", "Balance after"]),
-    );
+    expect(headers).toEqual([
+      "Date",
+      "Particulars",
+      "Charged",
+      "Paid",
+      "Balance",
+      "Actions",
+    ]);
 
     // Newest first: the voided charge (one day ago) leads.
     const rows = screen.getAllByRole("row");
     within(rows[1]!).getByText("Voided");
 
-    // Balance after is the running total in date order; the voided
+    // Balance is the running total in date order; the voided
     // 300-charged row shows the live balance (its own amount is not
     // part of the math).
-    const voidedRow = rowElementByAmount("+₹300");
+    const voidedRow = rowElementByAmount("₹300.00");
     within(voidedRow).getByText("₹4,500.00");
     // The voided amount itself is struck through…
-    expect(screen.getByText("+₹300").className).toContain("line-through");
+    expect(within(voidedRow).getByText("₹300.00").className).toContain(
+      "line-through",
+    );
     // …the payment row carries the same running balance…
-    within(rowElementByAmount("-₹500")).getByText("₹4,500.00");
-    // …and the opening charge starts at 5000.
-    within(rowElementByAmount("+₹5,000")).getByText("₹5,000.00");
+    within(rowElementByAmount("₹500.00")).getByText("₹4,500.00");
+    // …and the opening charge's balance cell starts at 5000 (its
+    // Charged cell prints the same digits — scope to the cell).
+    expect(rowElementByAmount("₹5,000.00").cells[4]!.textContent).toBe(
+      "₹5,000.00",
+    );
   });
 
   it("ledger filters: All / Charges / Payments and Show voided (on by default)", async () => {
@@ -417,37 +444,38 @@ describe("S-31 customer detail v2", () => {
       }),
     );
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
     await waitFor(() =>
-      expect(screen.getByText("+₹300")).toBeTruthy(), // voided visible by default
+      expect(screen.getByText("₹300.00")).toBeTruthy(), // voided visible by default
     );
 
-    // Charges: both charges (including the voided one), no payment.
+    // Charges: both charges (including the voided one), no payment —
+    // and the totals row follows the filter (its paid cell reads 0).
     await userEvent.click(screen.getByRole("button", { name: "Charges" }));
-    await waitFor(() => expect(screen.queryByText("-₹500")).toBeNull());
-    screen.getByText("+₹5,000");
-    screen.getByText("+₹300");
+    await waitFor(() => expect(screen.queryByText("₹500.00")).toBeNull());
+    rowElementByAmount("₹5,000.00");
+    screen.getByText("₹300.00");
 
     // Payments: just the payment.
     await userEvent.click(screen.getByRole("button", { name: "Payments" }));
-    await waitFor(() => expect(screen.queryByText("+₹5,000")).toBeNull());
-    screen.getByText("-₹500");
+    await waitFor(() => expect(screen.queryByText("₹5,000.00")).toBeNull());
+    rowElementByAmount("₹500.00");
 
     // Back to All: everything again.
     await userEvent.click(screen.getByRole("button", { name: "All" }));
-    await waitFor(() => screen.getByText("+₹5,000"));
-    screen.getByText("+₹300");
+    await waitFor(() => rowElementByAmount("₹5,000.00"));
+    screen.getByText("₹300.00");
 
     // Show voided is on by default; switching it off hides the voided
     // row only, and switching it back brings it home.
     const toggle = screen.getByRole("button", { name: "Show voided" });
     await userEvent.click(toggle);
-    await waitFor(() => expect(screen.queryByText("+₹300")).toBeNull());
-    screen.getByText("+₹5,000");
-    screen.getByText("-₹500");
+    await waitFor(() => expect(screen.queryByText("₹300.00")).toBeNull());
+    rowElementByAmount("₹5,000.00");
+    rowElementByAmount("₹500.00");
 
     await userEvent.click(toggle);
-    await waitFor(() => screen.getByText("+₹300"));
+    await waitFor(() => screen.getByText("₹300.00"));
   });
 
   it("Details tab shows every profile field and notes", async () => {
@@ -459,7 +487,7 @@ describe("S-31 customer detail v2", () => {
       notes: "Pays by bKash on Fridays.",
     };
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     await userEvent.click(screen.getByRole("tab", { name: "Details" }));
 
@@ -497,7 +525,7 @@ describe("S-31 customer detail v2", () => {
 
   it("archived: the menu archives through its confirmation, the banner restores, and writes stay hidden while archived", async () => {
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     // Owner archives through the header menu + confirmation.
     await userEvent.click(
@@ -521,19 +549,33 @@ describe("S-31 customer detail v2", () => {
     );
     await screen.findByText("This customer is archived.");
 
-    // Writes are hidden while archived…
+    // v3 (S-55): writes are hidden while archived… the Edit button,
+    // the quick-add card and every row write action are gone.
+    expect(screen.queryByRole("region", { name: "New entry" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add charge" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add payment" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Customer actions" }),
-    ).toBeNull();
-    expect(
       screen.queryByRole("button", { name: /Void (charge|payment)/ }),
     ).toBeNull();
+    // …and the Owner's menu keeps exactly one live action: Delete
+    // (Archive has nothing left to do on an archived customer).
+    await userEvent.click(
+      screen.getByRole("button", { name: "Customer actions" }),
+    );
+    const archivedMenu = await screen.findByRole("menu");
+    expect(
+      within(archivedMenu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Delete customer"]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Customer actions" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     // …but the history stays readable.
-    screen.getByText("Current Balance");
-    rowElementByAmount("+₹5,000");
+    screen.getByRole("tab", { name: "Ledger" });
+    rowElementByAmount("₹5,000.00");
 
     // The banner's Restore brings it all back.
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
@@ -549,8 +591,9 @@ describe("S-31 customer detail v2", () => {
         screen.queryByText("This customer is archived."),
       ).toBeNull(),
     );
-    screen.getByRole("button", { name: "Add charge" });
+    within(customerHeader()).getByRole("button", { name: "Add charge" });
     screen.getByRole("button", { name: "Customer actions" });
+    screen.getByRole("region", { name: "New entry" });
   });
 
   it("Viewer: everything readable, no write actions anywhere", async () => {
@@ -558,12 +601,14 @@ describe("S-31 customer detail v2", () => {
       membershipsFor("viewer"),
     );
     renderDetail();
-    await screen.findByText("Current Balance");
-    await waitFor(() => screen.getByText("+₹5,000"));
+    await screen.findByRole("tab", { name: "Ledger" });
+    await waitFor(() => rowElementByAmount("₹5,000.00"));
 
-    // No primary actions, no Edit, no menu, no row actions.
+    // No primary actions, no quick-add card, no Edit, no menu, no row
+    // actions.
     expect(screen.queryByRole("button", { name: "Add charge" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add payment" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "New entry" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Customer actions" }),
@@ -578,22 +623,29 @@ describe("S-31 customer detail v2", () => {
     screen.getByRole("tab", { name: "Details" });
   });
 
-  it("narrow screens: the ledger renders as cards", async () => {
-    __setMatchMedia(true);
+  it("narrow screens: the ledger renders as two-line list rows", async () => {
+    // L-14 (F2): the stub matches every query by default; override the
+    // coarse-pointer query so the row-action cluster keeps its inline
+    // buttons (this test is about narrow WIDTH, not touch input).
+    __setMatchMedia(true, { "(pointer: coarse)": false });
     try {
       renderDetail();
-      await screen.findByText("Current Balance");
+      await screen.findByRole("tab", { name: "Ledger" });
 
-      // No table — card blocks instead, each carrying its figures.
-      await waitFor(() =>
-        expect(screen.queryByRole("columnheader")).toBeNull(),
-      );
-      const cards = screen.getAllByText(/Balance after/);
-      expect(cards).toHaveLength(2); // both seeded rows
-      screen.getByText("Balance after ₹5,000.00");
-      // The row actions ride along in the card (owner).
-      screen.getByRole("button", { name: "Void charge of ₹5000" });
-      screen.getByRole("button", { name: "Void payment of ₹500" });
+      // No table — two-line list rows instead, each carrying its
+      // column word and its balance.
+      await waitFor(() => expect(screen.queryByRole("table")).toBeNull());
+      const chargeRow = screen
+        .getByRole("button", { name: "Void charge of ₹5,000.00" })
+        .closest("li")!;
+      within(chargeRow).getByText("Charged");
+      within(chargeRow).getByText(/balance/);
+      const paymentRow = screen
+        .getByRole("button", { name: "Void payment of ₹500.00" })
+        .closest("li")!;
+      within(paymentRow).getByText("Paid");
+      // The totals block replaces the stat cards here too.
+      screen.getByText("Totals");
     } finally {
       __setMatchMedia(false);
     }
@@ -604,20 +656,23 @@ describe("S-31 customer detail v2", () => {
     server.balances = { c1: 0 };
 
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     await screen.findByText("No transactions yet");
-    // The same two actions appear in the hero AND in the empty state.
+    // The same two actions appear in the hero AND in the empty state;
+    // the quick-add card's submit is a third "Add charge" (its own
+    // default choice).
     expect(
       screen.getAllByRole("button", { name: "Add charge" }),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       screen.getAllByRole("button", { name: "Add payment" }),
     ).toHaveLength(2);
-    // Zeroed figures read honestly.
-    within(statCard("Total charged")).getByText("₹0.00");
-    within(statCard("Total paid")).getByText("₹0.00");
-    within(statCard("Last activity")).getByText("No activity yet");
+    // The quick-add card is there, and the muted header line says
+    // plainly that nothing has happened yet (the stat cards are gone;
+    // the ledger's Totals row needs entries to sum).
+    screen.getByRole("region", { name: "New entry" });
+    screen.getByText(/no activity yet/);
   });
 
   it("error: the ledger failure shows an ErrorState whose retry re-reads", async () => {
@@ -631,7 +686,7 @@ describe("S-31 customer detail v2", () => {
     });
 
     renderDetail();
-    await screen.findByText("Current Balance");
+    await screen.findByRole("tab", { name: "Ledger" });
 
     await screen.findByText("Could not reach the server.");
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -643,11 +698,11 @@ describe("S-31 customer detail v2", () => {
 });
 
 describe("S-39 statement entry point", () => {
-  it("the Statement button opens the printable statement (every role)", async () => {
+  it("the Statement link opens the printable statement (every role)", async () => {
     renderDetail();
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "Statement" }),
+      await screen.findByRole("link", { name: "Statement" }),
     );
     // The statement route renders — no permission gate on the way in.
     expect(await screen.findByText("statement page")).toBeTruthy();

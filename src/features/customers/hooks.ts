@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   customerKeys,
   dashboardKeys,
+  deletionLogKeys,
   transactionKeys,
 } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
@@ -126,9 +127,12 @@ export function useSetCustomerArchived(businessId: string) {
  * S-30 — the owner's atomic destroy. Keyed like the other customer
  * mutations; success also drops every transaction and dashboard
  * cache, because the customer's transactions are gone with them.
+ * v3 (S-52): the mutation resolves with the deletion_log id (for
+ * Undo), and the Recently deleted page's cache goes with the rest.
  */
 export function useDeleteCustomerPermanently(businessId: string) {
   const invalidate = useCustomerInvalidation(businessId);
+  const queryClient = useQueryClient();
   const { assertCan } = usePermissions();
   return useMutation({
     mutationFn: ({ id }: { id: string }) => {
@@ -136,7 +140,13 @@ export function useDeleteCustomerPermanently(businessId: string) {
       assertCan("deleteCustomer");
       return deleteCustomerPermanently(id, businessId);
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // The Recently deleted page must show the new entry at once.
+      queryClient.invalidateQueries({
+        queryKey: deletionLogKeys.all(businessId),
+      });
+    },
   });
 }
 

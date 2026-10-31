@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { Topbar } from "@/components/layout/Topbar";
 import { CustomerDetailPage } from "@/features/customers/pages/CustomerDetailPage";
 import { paths, routePatterns } from "@/lib/paths";
@@ -188,14 +189,22 @@ function atDayStart(offsetDays: number): string {
 /** Open a customer's ledger and wait for the rows. */
 async function openLedger(customerId = "c1") {
   renderWithTopbar(paths.customerDetail("b1", customerId));
-  await screen.findByText("Current Balance");
+  await screen.findByRole("tab", { name: "Ledger" });
 }
 
-/** Scope to the ledger row that shows this amount. */
+/** Scope to the ledger body row whose Charged or Paid cell shows
+ *  exactly this amount (L-07: the column word carries the direction,
+ *  so numbers print unsigned; the totals row prints the same digits,
+ *  hence the tbody scope). */
 function rowScopeByAmount(amountText: string) {
-  const cell = screen.getByText(amountText);
-  const row = cell.closest("tr");
-  if (!row) throw new Error(`no <tr> containing ${amountText}`);
+  const row = Array.from(
+    document.querySelectorAll<HTMLTableRowElement>("tbody tr"),
+  ).find(
+    (tr) =>
+      tr.cells[2]?.textContent?.trim() === amountText ||
+      tr.cells[3]?.textContent?.trim() === amountText,
+  );
+  if (!row) throw new Error(`no ledger row with amount ${amountText}`);
   return within(row);
 }
 
@@ -325,7 +334,7 @@ describe("S-33 edit transaction", () => {
   it("edits in the same sheet: prefilled row values, honest preview, recalculated balance, Edited badge", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit payment of ₹500" }),
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
 
@@ -336,7 +345,7 @@ describe("S-33 edit transaction", () => {
       (within(dialog).getByLabelText("Amount") as HTMLInputElement).value,
     ).toBe("500");
     expect(
-      within(dialog).getByRole("radio", { name: "Payment" }).getAttribute("aria-checked"),
+      within(dialog).getByRole("radio", { name: "Paid" }).getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       (within(dialog).getByLabelText("Date") as HTMLInputElement).value,
@@ -352,15 +361,15 @@ describe("S-33 edit transaction", () => {
     within(dialog).getByText("Asha Verma");
 
     // The preview knows the balance already contains this entry: it
-    // removes the old 500 payment and adds the new 450 — while the
-    // amounts are still equal both strips read the same, so the check
-    // lands after typing.
-    within(dialog).getByText("Current balance");
+    // removes the old 500 payment and adds the new 450 — with the
+    // amounts still equal it reads the unchanged balance, so the
+    // check lands after typing.
     const amount = within(dialog).getByLabelText("Amount");
     await userEvent.clear(amount);
     await userEvent.type(amount, "450");
-    expect(await within(dialog).findByText("Balance after")).toBeTruthy();
-    within(dialog).getByText("₹4,550.00");
+    expect(
+      await within(dialog).findByText("New balance for Asha Verma: ₹4,550.00"),
+    ).toBeTruthy();
 
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Save changes" }),
@@ -384,10 +393,15 @@ describe("S-33 edit transaction", () => {
 
     // The row keeps its place with the Edited badge…
     expect(screen.getByText("Edited")).toBeTruthy();
-    rowScopeByAmount("-₹450");
+    rowScopeByAmount("₹450.00");
     // …the balance recalculated and flashes…
     await waitFor(() =>
-      expect(screen.getByText("₹4,550").className).toContain("balance-flash"),
+      expect(
+        screen
+          .getAllByText("₹4,550.00")
+          .find((el) => el.closest("p"))
+          ?.closest("p")?.className,
+      ).toContain("balance-flash"),
     );
     // …and the older row is untouched.
     expect(transactionsApi.updateTransaction).toHaveBeenCalledTimes(1);
@@ -403,7 +417,7 @@ describe("S-33 edit transaction", () => {
 
     // Hover or focus reads: 'Edited by Eli on 12 Oct 2026, …'. The
     // pill's wrapper carries the tooltip; the pill carries the text.
-    const eliBadge = rowScopeByAmount("-₹450")
+    const eliBadge = rowScopeByAmount("₹450.00")
       .getByText("Edited")
       .closest("span[title]");
     if (!eliBadge) throw new Error("badge wrapper with title not found");
@@ -414,7 +428,7 @@ describe("S-33 edit transaction", () => {
     expect(eliBadge.textContent).toContain(expected);
 
     // An editor whose profile is no longer readable degrades honestly.
-    const goneBadge = rowScopeByAmount("+₹5,000")
+    const goneBadge = rowScopeByAmount("₹5,000.00")
       .getByText("Edited")
       .closest("span[title]");
     expect(goneBadge?.getAttribute("title")).toContain(
@@ -425,7 +439,7 @@ describe("S-33 edit transaction", () => {
   it("keeps the customer fixed, allows type/amount/date/note, and applies the same validation", async () => {
     await openLedger();
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit payment of ₹500" }),
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
     );
     const dialog = await screen.findByRole("dialog");
 
@@ -462,9 +476,9 @@ describe("S-33 edit transaction", () => {
     ).toBeTruthy();
     expect(transactionsApi.updateTransaction).not.toHaveBeenCalled();
 
-    // Type IS editable: switch to Charge and correct everything.
+    // Type IS editable: switch to Charged and correct everything.
     await userEvent.click(
-      within(dialog).getByRole("radio", { name: "Charge" }),
+      within(dialog).getByRole("radio", { name: "Charged" }),
     );
     fireEvent.change(within(dialog).getByLabelText("Amount"), {
       target: { value: "600" },
@@ -504,7 +518,7 @@ describe("S-33 edit transaction", () => {
 
     await openLedger("c2");
     await userEvent.click(
-      screen.getByRole("button", { name: "Edit charge of ₹300" }),
+      screen.getByRole("button", { name: "Edit charge of ₹300.00" }),
     );
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Amount"), {
@@ -527,7 +541,7 @@ describe("S-33 edit transaction", () => {
     expect(input).not.toHaveProperty("customer_id");
     // The row comes back edited — and still imported.
     await waitFor(() => expect(screen.getByText("Edited")).toBeTruthy());
-    rowScopeByAmount("+₹250");
+    rowScopeByAmount("₹250.00");
     expect(
       server.transactions.find((tx) => tx.id === "t9")?.source,
     ).toBe("import");
@@ -546,7 +560,17 @@ describe("S-33 edit transaction", () => {
     expect(
       screen.queryByRole("button", { name: /add transaction/i }),
     ).toBeNull();
-    screen.getByText("Current Balance");
-    rowScopeByAmount("+₹5,000");
+    screen.getByRole("tab", { name: "Ledger" });
+    rowScopeByAmount("₹5,000.00");
+  });
+
+  it("the open edit sheet passes axe", async () => {
+    await openLedger();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit payment of ₹500.00" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("Edit transaction");
+    await expectNoSeriousViolations(dialog);
   });
 });

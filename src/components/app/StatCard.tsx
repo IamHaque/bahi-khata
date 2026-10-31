@@ -11,7 +11,7 @@ interface StatCardProps {
 
 export function StatCard({ label, value, hint, className, valueClassName }: StatCardProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-4", className)}>
       <p className="text-sm text-muted-foreground">{label}</p>
       <div
         className={cn(

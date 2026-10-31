@@ -1,105 +1,70 @@
-# Supabase SQL tests (RLS and integrity)
+# Supabase SQL tests (RLS, integrity and RPC behaviour)
 
-This directory holds SQL tests that prove the database enforces the rules the
-UI also enforces. They are plain SQL on purpose: they run anywhere a
-Postgres connection is available and need no extra tooling.
-
-## How a test is written
-
-Every test file follows the same pattern:
-
-1. **One transaction, rolled back.** The whole file runs inside
-   `begin; … rollback;`. Nothing is ever committed, so tests are repeatable
-   and can run against a scratch database without cleanup.
-2. **Fixture setup.** Insert `auth.users` rows (the test runner uses a
-   service-role connection, which bypasses RLS), then insert the rows under
-   test (businesses, members, customers, transactions).
-3. **Act as a specific user.** Switch role and fake the JWT:
-   ```sql
-   set local role authenticated;
-   set local request.jwt.claims = '{"sub": "<uuid-of-user>"}';
-   ```
-   `auth.uid()` reads `request.jwt.claims`, so this makes RLS see that user.
-4. **Assert.** Use `select` with expected results, or `do $$ … raise exception
-   when … $$` blocks for negative cases (e.g. an insert that must be denied
-   with a specific SQLSTATE).
-5. **Old policies dropped when testing new ones.** While the v1 broad
-   policies still exist (until S-20), a test that verifies the *new*
-   membership-based policies drops the old ones first inside the transaction:
-   ```sql
-   drop policy "Authenticated users can manage customers" on customers;
-   drop policy "Authenticated users can manage transactions" on transactions;
-   ```
-   From S-20 onwards the old policies are gone for good and these lines are
-   removed from the tests.
+One consolidated suite proves the database enforces the rules the UI also
+enforces: row-level security per role, referential integrity, RPC
+behaviour, audit stamping and the v3 deletion/restore flow. It is plain
+SQL on purpose: it runs anywhere a Postgres connection is available and
+needs no extra tooling.
 
 ## How to run
 
-The tests need a real Postgres with the schema applied (migrations
-`20260913152312` and `20260913170000`, then `0001`+ in order). Two options:
-
-**Option A — Supabase SQL Editor (no local tooling)**
-
-1. Open the dashboard of a scratch project (never production).
-2. Apply the migrations in order (see `docs/MANUAL_STEPS.md`).
-3. Open the SQL Editor, paste one test file, run it.
-4. A passing file returns the assertion selects and finishes without error;
-   a failing file raises an exception with the assertion message.
-
-The SQL Editor connects as `postgres` (service role), which can insert into
-`auth.users` and drop/create policies — everything the tests need.
-
-**Option B — psql against a local Supabase CLI stack**
-
-```bash
-supabase start
-psql "postgresql://postgres:postgres@localhost:5432/postgres" -f supabase/tests/<file>.sql
+```sh
+npm run test:sql          # = bash scripts/run-sql-tests.sh
 ```
 
-`supabase start` requires Docker. The same file works in both options.
+`DATABASE_URL` must point at a **scratch** database with all three
+migrations applied in filename order — never a real Supabase project: the
+runner installs a stub `auth` schema and the `anon`/`authenticated` roles
+first (see `ci/supabase_stub.sql`). CI runs exactly this in the `sql` job
+against a throwaway `postgres:16` service.
 
-## Conventions
+The runner stops at the first failure; success prints one NOTICE per
+section and ends with `==> SQL tests passed`.
 
-- File names: `NNNN_description.sql` matching the story that adds them
-  (`0006_rls_membership.sql`, `0007_delete_customer.sql`, …).
-- Each file must be safe to re-run (transaction + `if exists` guards).
-- Never put secrets in test files; fixture users are fake UUIDs with
-  `@example.com` emails.
-- When a new migration changes a policy, update the affected test in the
-  same story — the test suite is the regression net for RLS.
+## Structure
 
-## What exists so far
+- **One transaction, rolled back at the end** — nothing is ever committed,
+  so runs are repeatable and leave no data behind.
+- **Shared helpers live at the top** (in `pg_temp`): fixture creators and
+  assertion helpers used by every section.
+- **Each section runs inside its own savepoint** and ends with
+  `rollback to savepoint`, so every section starts from an empty database
+  and can reuse the same fixture UUIDs without colliding.
+- Any failure raises `TEST FAILED: <what> — expected X, got Y` and stops.
 
-- `0002_rls_membership.sql` (S-06) — proves members-read/outsiders-don't,
-  viewer read-only, editor write/no-destroy, owner control, secure views,
-  invitation visibility and `respond_to_invitation`, including the
-  cross-business transaction rejection from the 0001 trigger. It drops the
-  v1 broad policies inside its transaction, exactly as described above.
-- `0002b_my_invitations.sql` (S-24) — proves `my_invitations()` returns the
-  invitee's own pending invitations joined with business and inviter names
-  (case-insensitive JWT email match), returns nothing for outsiders,
-  drops answered invitations from the list, and that accepting while
-  already a member succeeds without a duplicate membership row.
-- `0002c_membership_management.sql` (S-25) — proves the membership-management
-  scenarios against the 0002 RPCs: the owner changes a role, promotion to
-  owner and touching/removing the owner row are refused, an owner cannot
-  leave, a removed member loses all access while their customers and
-  transactions stay put, a member can leave themselves, and the history
-  contract (creator name resolves while the profile row is readable, degrades
-  to NULL → "Former member" once it is not, transaction never moves).
-- `0003b_business_exists.sql` (S-27) — proves `business_exists()`, the
-  lost-access probe: owner, member and outsider all learn whether a business
-  row exists; a missing id is `false` rather than an error; the two cases the
-  S-27 guard distinguishes behave as the client needs (removal keeps the row
-  → true, deletion removes it → false); and the function is not executable by
-  `anon`.
-- `0004_archive_delete_customers.sql` (S-30) — proves archive, restore and
-  `delete_customer_permanently(p_customer_id, p_business_id)`: a viewer's
-  archive attempt changes zero rows while an editor's works; archiving keeps
-  every transaction and the balance view (which now exposes `archived_at`);
-  `dashboard_summary` totals drop the archived customer and restore brings
-  them back; Editor, Viewer and a complete outsider are refused with `42501`,
-  a mismatched business id is `P0002`/not found, the Owner's call removes the
-  customer **and** all their transactions atomically (the FK has no cascade —
-  the function deletes both) while a bystander customer stays; and `anon`
-  cannot execute the function.
+## Sections (19)
+
+| # | Section | Origin |
+| --- | --- | --- |
+| 01 | Schema contract | new |
+| 02 | Foundation triggers, constraints, `create_business()` | new (0001) |
+| 03 | Membership RLS | was `0002_rls_membership` |
+| 04 | `my_invitations()` | was `0002b_my_invitations` |
+| 05 | Membership management | was `0002c_membership_management` |
+| 06 | `business_exists()` | was `0003b_business_exists` |
+| 07 | Archive / restore / permanent delete of customers | was `0004_archive_delete_customers` |
+| 08 | Void with reason / `restore_transaction()` | was `0005_void_restore` |
+| 09 | `customer_ledger()` running balance | was `0006_customer_ledger` |
+| 10 | `transaction_rollup()` | was `0006b_transaction_rollup` (+ new) |
+| 11 | `daily_activity()` | was `0007_daily_activity` |
+| 12 | `import_history()` | was `0008_import_history` |
+| 13 | `customer_balances` view + embed relationship | new (0009, 0010) |
+| 14 | Hardening: function privileges, `business_id` immutability | new |
+| 15 | `delete_transaction()` + deletion log | new (v3) |
+| 16 | Delete a customer + restore deleted items | new (v3) |
+| 17 | Actor stamping (audit integrity) | new (v3) |
+| 18 | `last_activity_at` + timezone-aware dashboard | new (v3) |
+| 19 | `last_payment_at` (Who to chase) | new (v3.1) |
+
+The ten per-migration files these replaced are archived in
+`supabase/tests_archive/` (the migrations themselves live in
+`supabase/migrations_archive/`).
+
+## Adding tests
+
+**Add a new section for every new migration.** Same pattern: a savepoint,
+fixtures via the shared helpers, assertions, `rollback to savepoint`, and
+a `NOTICE '--- NN <name>'` header so the run output stays readable. When a
+migration changes behaviour, update its section in the same change.
+
+Fixtures are fake UUIDs with `@example.com` emails — no secrets, ever.

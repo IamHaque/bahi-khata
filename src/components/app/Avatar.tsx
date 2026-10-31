@@ -1,11 +1,12 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const palette = [
-  "bg-receivable/15 text-receivable",
-  "bg-credit/15 text-credit",
-  "bg-primary/15 text-primary",
-  "bg-success/15 text-success",
-  "bg-warning/15 text-warning",
+  "bg-receivable/10 dark:bg-receivable/8 text-receivable",
+  "bg-credit/10 dark:bg-credit/8 text-credit",
+  "bg-primary/10 dark:bg-primary/8 text-primary",
+  "bg-success/10 dark:bg-success/8 text-success",
+  "bg-warning/10 dark:bg-warning/8 text-warning",
 ];
 
 function hashString(value: string): number {
@@ -30,13 +31,17 @@ interface AvatarProps {
 }
 
 export function Avatar({ name, src, size = "md", className }: AvatarProps) {
+  const [failed, setFailed] = useState(false);
   const colorClass = palette[hashString(name) % palette.length]!;
 
-  if (src) {
+  // L-03: a URL that fails to load falls through to the initials, so a
+  // broken photo never renders as a black circle.
+  if (src && !failed) {
     return (
       <img
         src={src}
         alt={name}
+        onError={() => setFailed(true)}
         className={cn(
           "shrink-0 rounded-full object-cover",
           size === "sm" ? "h-7 w-7" : "h-9 w-9",

@@ -1,28 +1,57 @@
 name: CI
 
-on: push
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci
-
       - name: Lint
         run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
-
-      - name: Build
-        run: npm run build
-
+      - name: Contrast audit (WCAG AA, both themes)
+        run: node scripts/contrast-audit.cjs
+      - name: Token sync check
+        run: npm run audit:tokens
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
       - name: Test
         run: npm test
+      - name: Build
+        run: npm run build
+      - name: Bundle size guard
+        run: npm run audit:bundle
+
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrations and SQL tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: bash scripts/run-sql-tests.sh
