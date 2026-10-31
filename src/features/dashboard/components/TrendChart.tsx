@@ -3,6 +3,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -25,8 +27,60 @@ function toLocalDate(day: string): Date {
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 }
 
+interface TooltipPayloadItem {
+  dataKey?: string;
+  value?: number;
+  payload?: {
+    activity_date: string;
+    charges: number;
+    payments: number;
+  };
+}
+
+function TrendTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}) {
+  if (!active || !payload || payload.length === 0 || !label) {
+    return null;
+  }
+  const date = toLocalDate(label);
+  const row = payload[0]?.payload;
+  const charges =
+    row?.charges ?? (payload.find((p) => p.dataKey === "charges")?.value ?? 0);
+  const payments =
+    row?.payments ?? (payload.find((p) => p.dataKey === "payments")?.value ?? 0);
+
+  return (
+    <div className="rounded border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground">
+      <p className="font-semibold text-foreground">{formatDayMonth(date)}</p>
+      <div className="mt-1 space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <i aria-hidden className="inline-block size-2 shrink-0 bg-receivable" />
+          <span className="text-muted-foreground">Charged:</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {formatMoney(charges)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <i aria-hidden className="inline-block size-2 shrink-0 bg-credit" />
+          <span className="text-muted-foreground">Paid:</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {formatMoney(payments)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
- * S-37 / L-06 — the trend chart: charges and payments per day,
+ * S-37 / L-06 / V-HV1 — the trend chart: charges and payments per day,
  * aggregated SERVER-side by migration 0007's daily_activity RPC
  * (zero-filled, voided out, archived customers out, days cut in the
  * caller's own timezone). L-06: the bars are filled with the ledger
@@ -35,6 +89,8 @@ function toLocalDate(day: string): Date {
  * carries a visible text summary and an equivalent visually hidden
  * data table, and the 7/30/90 selector re-reads per window. Empty and
  * failing states are this section's own.
+ * V-HV1: fills its container via ResponsiveContainer without horizontal
+ * scroll, has custom token-styled hover and keyboard tooltip.
  */
 export function TrendChart({ businessId }: { businessId: string }) {
   const [days, setDays] = useState<Window>(7);
@@ -106,59 +162,71 @@ export function TrendChart({ businessId }: { businessId: string }) {
               decorative swatches before "charged" and "paid". */}
           <p className="mt-3 text-sm text-muted-foreground">
             Last {days} days:{" "}
-            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-receivable" />
+            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-receivable align-middle" />
             charged {formatMoney(totalCharged)},{" "}
-            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-credit" />
+            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-credit align-middle" />
             paid {formatMoney(totalPaid)}.
           </p>
-          <div className="mt-2 overflow-x-auto">
-            <BarChart
-              width={720}
+          <div className="mt-2 min-w-0">
+            <ResponsiveContainer
+              width="100%"
               height={240}
-              data={rows}
-              margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+              initialDimension={{ width: 720, height: 240 }}
             >
-              <CartesianGrid
-                vertical={false}
-                stroke="var(--border)"
-                strokeDasharray="2 5"
-              />
-              <XAxis
-                dataKey="activity_date"
-                tickFormatter={(day: string) => formatDayMonth(toLocalDate(day))}
-                tickLine={false}
-                axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.5 }}
-                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-                interval="preserveStartEnd"
-                minTickGap={days > 30 ? 24 : 8}
-              />
-              <YAxis
-                width={64}
-                tickFormatter={(value: number) =>
-                  value >= 1000 ? `${Math.round(value / 1000)}k` : String(value)
-                }
-                tickLine={false}
-                axisLine={false}
-                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-              />
-              <Bar
-                dataKey="charges"
-                name="Charges"
-                fill="var(--receivable)"
-                radius={0}
-                // The bars render their final geometry immediately: no
-                // entrance animation on a ledger figure (and the fills
-                // are assertable without waiting on rAF timing).
-                isAnimationActive={false}
-              />
-              <Bar
-                dataKey="payments"
-                name="Payments"
-                fill="var(--credit)"
-                radius={0}
-                isAnimationActive={false}
-              />
-            </BarChart>
+              <BarChart
+                data={rows}
+                margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                barCategoryGap={days > 30 ? 1 : days > 7 ? "10%" : "20%"}
+                barGap={days > 30 ? 0 : 2}
+                maxBarSize={days === 7 ? 24 : days === 30 ? 8 : 4}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  stroke="var(--border)"
+                  strokeDasharray="2 5"
+                />
+                <XAxis
+                  dataKey="activity_date"
+                  tickFormatter={(day: string) => formatDayMonth(toLocalDate(day))}
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.5 }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                  interval="preserveStartEnd"
+                  minTickGap={days > 30 ? 28 : days > 7 ? 18 : 8}
+                />
+                <YAxis
+                  width={56}
+                  tickFormatter={(value: number) =>
+                    value >= 1000 ? `${Math.round(value / 1000)}k` : String(value)
+                  }
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                />
+                <Tooltip
+                  content={<TrendTooltip />}
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="charges"
+                  name="Charges"
+                  fill="var(--receivable)"
+                  radius={0}
+                  // The bars render their final geometry immediately: no
+                  // entrance animation on a ledger figure (and the fills
+                  // are assertable without waiting on rAF timing).
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="payments"
+                  name="Payments"
+                  fill="var(--credit)"
+                  radius={0}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
           {/* The same numbers, every day, for screen readers. */}
           <table className="sr-only">
