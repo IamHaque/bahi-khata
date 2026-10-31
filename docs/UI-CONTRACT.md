@@ -1,6 +1,6 @@
-# BahiKhata v2 — UI Contract
+# BahiKhata v3.1 - UI Contract
 
-## Tokens and class rules (PRD 5.2 — applied in L-01)
+## Tokens and class rules (PRD v3.1 sections 5.2 and 5.6 — applied in L-01 and S-67)
 
 Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by 82 automated contrast checks).
 
@@ -24,6 +24,18 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 
 `scripts/contrast-audit.cjs` audits text, tinted chips and control borders in both themes (82 checks); `scripts/check-token-sync.cjs` keeps it in step with `src/index.css`. Both run in CI.
 
+## Hard rules (v3.1)
+
+- **All money** goes through `formatMoney` / the `<Money>` component —
+  never hand-formatted. Enforced by `src/__tests__/noRawMoney.test.ts`
+  (fails on any raw `₹` interpolation in `src/`).
+- **No shadows on panels, tables or cards** (D-26): flat surfaces carry
+  hairline rules, never `shadow-*` / `ring-*`. Overlays (dialogs, the
+  bottom sheet) keep their existing elevation treatment.
+- **Two fonts** (D-25): Public Sans for all text and every money figure,
+  Bricolage Grotesque (`font-heading` / `font-display`) for headings and
+  hero figures. The v2 "one UI font" rule is retired.
+
 ## Consistency checklist (copied from PRD §8 — owned by S-13)
 
 - **Page frame:** every page uses `PageHeader` (title, short description,
@@ -39,8 +51,8 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
   Irreversible actions use the typed-confirmation variant. Never a bare OK.
 - **Feedback:** every mutation shows a toast. Success is past tense
   ('Customer archived'). Errors say what failed and what to do ('Could
-  not archive customer. Try again.'). Undo is offered for archive and
-  void.
+  not archive customer. Try again.'). Undo is offered for archive, void
+  and delete (delete's Undo calls `restore_deleted` for 10 seconds).
 - **Money and dates:** only `formatMoney`, `Money`, `formatDate` and
   `formatRelative`. Amounts are right-aligned, tabular, never truncated.
 - **Color:** semantic tokens only. Balance meaning always has a text
@@ -52,18 +64,25 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 - **Paths and keys:** links from `paths.ts`, query keys from
   `queryKeys.ts` with the business prefix.
 
-## Copy glossary (copied from PRD §8 — owned by S-13)
+## Copy glossary (PRD v3.1 §5.6 — applied in S-67, replaces the v2 table)
 
-| Concept                     | Use                           | Never                               |
-| --------------------------- | ----------------------------- | ----------------------------------- |
-| Customer owes the business  | Owes you                      | Receivable, Debit, Due (in UI text) |
-| Business owes the customer  | You owe                       | Payable, Credit balance             |
-| Zero balance                | Settled                       | Zero, Paid up                       |
-| Hide a customer, reversible | Archive                       | Delete                              |
-| Remove a customer forever   | Delete permanently            | Remove                              |
-| Cancel a transaction        | Void                          | Delete                              |
-| Workspace                   | Business                      | Tenant, Workspace, Organization     |
-| Shared access               | Member, Editor, Viewer, Owner | Admin, User                         |
+| Concept | Use | Never |
+| --------------------------- | ----------------------------- | ----------------------------- |
+| Customer owes the business | Owes you | Receivable, Debit, Due (in UI text) |
+| Business owes the customer | You owe | Payable, Credit balance |
+| Dashboard totals | Owed to you, You owe, Net position | Receivable, Payable |
+| Zero balance | Settled | Zero, Paid up |
+| Ledger columns | Date, Particulars, Charged, Paid, Balance | Debit, Credit, Dr, Cr |
+| Hide a customer, reversible | Archive | Delete |
+| Remove a customer from the ledger (restorable by the Owner) | Delete | Remove, Delete permanently |
+| Cancel a transaction but keep it visible | Void | Delete |
+| Remove a transaction from the ledger (Owner only, restorable) | Delete | Remove, Erase |
+| Bring back a deleted item | Restore | Undelete, Recover |
+| Workspace | Business | Tenant, Workspace, Organization |
+| Shared access | Member, Editor, Viewer, Owner | Admin, User |
+
+The note field keeps the label **Note** in forms; its ledger column header
+is **Particulars** (D-27).
 
 ## Component gallery (owned by S-13)
 
@@ -73,6 +92,20 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 - Every shared component appears there in its states; `src/features/dev/
   __tests__/uiGallery.test.tsx` renders the gallery in both themes and
   fails on any console error or warning.
+
+Shared components (the `ui/` primitives plus the L-04 ledger set):
+
+- Primitives: `Button`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
+  `Card`, `Dialog`, `AlertDialog`, `Sheet`, `Popover`, `Menu`,
+  `EntityDialog`, `ConfirmDialog`, `MoneyField`.
+- Ledger (L-04): `LeaderRow` (label + dotted leader + amount, never
+  truncates the amount), `TotalsRule` (single rule above, double below),
+  `Monogram` (initials avatar on a tone tint), `AgeFlag` (30+ day
+  thresholds), `TallyMark`, `TypeBadge` (Charged/Paid), `BalanceBadge`.
+- App-level: `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
+  mobile cards), `SearchInput`, `FilterBar`, `EmptyState`, `ErrorState`,
+  `Skeleton`, `StatCard`, `Money`/`formatMoney`, `LedgerTable` (the L-07
+  real-table ledger with caption, header cells and a Totals row).
 
 ## Permission matrix ↔ database agreement (S-21)
 

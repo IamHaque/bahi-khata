@@ -13,12 +13,12 @@ row-level security. Internal operational tool — no marketing site.
 
 | Layer | Choice |
 | --- | --- |
-| UI | React 19 + TypeScript 5.8, Vite 7 |
+| UI | React 19 + TypeScript 5.8, Vite 7 (Node 22+) |
 | Routing | React Router 7 (`/b/:businessId/...` scoped routes) |
 | Data | TanStack Query 5 over `@supabase/supabase-js` 2 (API calls only from `src/**/api.ts`) |
 | Forms | react-hook-form 7 + zod 4 (`@hookform/resolvers`) |
-| Styling | Tailwind CSS 4 (semantic OKLCH tokens in `src/index.css`), shadcn-style components on `@base-ui/react`, lucide icons, sonner toasts, recharts, next-themes (light/dark/system) |
-| Database | Supabase (Postgres) — schema in `supabase/migrations/`, RLS tests in `supabase/tests/` |
+| Styling | Tailwind CSS 4 (semantic OKLCH tokens in `src/index.css`), shadcn-style components on `@base-ui/react`, lucide icons, sonner toasts, recharts, next-themes (light/dark/system); two fonts — Public Sans (text and money) and Bricolage Grotesque (headings and figures) |
+| Database | Supabase (Postgres) — three migrations in `supabase/migrations/` (v3.1 chain), SQL tests in `supabase/tests/` |
 | Quality | ESLint 9 (flat config), `tsc -b`, Vitest 5 + Testing Library + jsdom, axe-core, CI via GitHub Actions |
 
 ## Environment variables
@@ -42,16 +42,21 @@ See `docs/SECURITY.md`.
 
 1. Create a Supabase project (a scratch one first — never run experiments
    against production).
-2. Apply migrations **in this order** (filename sort):
-   1. `20260913152312_remote_schema.sql` (v1 baseline)
-   2. `20260913170000_add_balance_rpc_functions.sql` (v1 baseline)
-   3. `0001_multi_business_schema.sql` … `0008_import_history.sql`
-      (lettered siblings follow their number: `0002b`, `0003b`, `0006b`)
+2. Apply the **three v3.1 migrations in filename order** (the pre-v3 chain
+   is archived in `supabase/migrations_archive/` — do not replay it on a
+   migrated database):
+   1. `20261017000000_bahikhata_consolidated_schema.sql` (consolidated
+      multi-business schema + membership RLS)
+   2. `20261101000000_v3_deletion_log_and_integrity.sql` (deletion log,
+      delete/restore functions, actor stamping, timezone-aware
+      `dashboard_summary`)
+   3. `20261108000000_v31_last_payment_at.sql` (`last_payment_at` on the
+      balance view)
    The Supabase CLI (`supabase db push`) or the SQL Editor both work; the
-   step-by-step for each v2 migration, including the expand-then-contract
-   cleanup of `0003`, is in `docs/MANUAL_STEPS.md`.
-3. Run the SQL tests: `supabase/tests/README.md` (Option A: SQL Editor per
-   file; Option B: `psql -f` against `supabase start`).
+   full step-by-step — backup, rollout, post-deploy checklist, rollback —
+   is the **"v3 database rollout"** section of `docs/MANUAL_STEPS.md`.
+3. Run the SQL tests: `DATABASE_URL=postgresql://…/scratch npm run test:sql`
+   (scratch Postgres only — see `supabase/tests/README.md`).
 
 ## Google OAuth setup
 
@@ -75,10 +80,14 @@ See `docs/SECURITY.md`.
 | `npm run dev` | Vite dev server (http://localhost:5173) |
 | `npm run build` | Typecheck + production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
+| `npm run verify` | lint + typecheck + full test suite + build — the gate every commit must pass |
 | `npm run lint` | ESLint over the whole repo |
 | `npm run typecheck` | `tsc -b`, no emit |
 | `npm test` | Full Vitest suite (jsdom) |
-| `node scripts/contrast-audit.cjs` | WCAG AA contrast audit of every semantic token pair, both themes (S-40) |
+| `npm run audit:contrast` | WCAG AA contrast audit of every semantic token pair, both themes (S-40) |
+| `npm run audit:tokens` | Design-token sync check (`design/` ↔ `src/index.css`) |
+| `npm run audit:bundle` | Bundle-size budget guard over the built chunks |
+| `npm run test:sql` | Runs every migration + the 19-section SQL suite against a scratch Postgres (`DATABASE_URL` required — **never** a real Supabase project) |
 | `node scripts/responsive-audit.cjs` | Headless-Chrome audit: every route at 360/768/1024/1440 px, needs the dev server running (S-41) |
 
 ## Running the tests
@@ -97,10 +106,11 @@ backfills, SQL tests).
 ## Project structure
 
 ```
-supabase/            migrations (schema + RLS), SQL tests, RLS notes
-scripts/             contrast + responsive audit tooling (Node, no deps)
+supabase/            the three v3.1 migrations, SQL test suite, RLS notes
+scripts/             contrast / token / bundle audit tooling + SQL runner
 docs/                PRD (working copy), PROGRESS, MANUAL_STEPS, SECURITY,
-                     UI-CONTRACT, RELEASE-NOTES-v2, BACKLOG, ARCHITECTURE-BASELINE
+                     UI-CONTRACT, RLS, RELEASE-NOTES-v3, BACKLOG,
+                     RESEARCH-DECISIONS, ARCHITECTURE-BASELINE
 src/
   components/        shared UI (ui/ primitives, app/ DataTable+dialogs, layout/ shell)
   contexts/          Auth, Business, Theme providers
@@ -108,7 +118,7 @@ src/
   features/          one folder per domain — api.ts (the ONLY place that
                      talks to Supabase), hooks, components, pages, __tests__
                      auth, business, customers, dashboard, import-export,
-                     members, transactions, dev (UI gallery)
+                     members, transactions, deleted-items, dev (UI gallery)
   test/              harness (renderApp), a11y helper, fixtures, setup
 ```
 
@@ -123,8 +133,8 @@ and mirrored in the UI (viewers never see a control that would fail):
 
 | Role | Can |
 | --- | --- |
-| **Owner** | Everything: create/delete the business, invite/remove members, change roles, permanent deletes, CSV import, backup |
-| **Editor** | Read + write customers, transactions, imports; no member management, no permanent deletes, no business deletion |
+| **Owner** | Everything: create/delete the business, invite/remove members, change roles, delete customers and transactions (recoverable — every delete is logged and restorable from **Recently deleted**), CSV import, backup |
+| **Editor** | Read + write customers, transactions, imports; no member management, no customer/transaction deletes (Void instead), no business deletion |
 | **Viewer** | Read-only everything; write controls are hidden, and the database refuses writes regardless |
 
 A user can belong to several businesses and switch between them; the active
@@ -134,5 +144,7 @@ business is the `/b/:businessId` in the URL.
 
 - `docs/UI-CONTRACT.md` — the visual/interaction rules every screen follows
 - `docs/SECURITY.md` — threats, controls, how to re-run the proofs
-- `docs/RELEASE-NOTES-v2.md` — what changed for users + pre-deploy checklist
+- `docs/RLS.md` — the row-level-security picture per table and role
+- `docs/RELEASE-NOTES-v3.md` — what changed for users in v3.1 + pre-deploy checklist
+- `docs/RESEARCH-DECISIONS.md` — the research gates (G-A1/G-A2/G-A3) and their statuses; **edited only by a human**
 - `docs/PROGRESS.md` — build status story by story
