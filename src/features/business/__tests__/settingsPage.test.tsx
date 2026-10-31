@@ -260,7 +260,7 @@ describe("S-18 business settings page", () => {
     const detailsSection = detailsHeading.closest("section");
     expect(detailsSection).toBeTruthy();
     expect(detailsSection?.className).toContain(
-      "lg:grid-cols-[16rem_1fr]",
+      "lg:grid-cols-[16rem_minmax(0,1fr)]",
     );
     expect(detailsSection?.className).toContain("border-t");
     expect(detailsSection?.className).toContain("py-6");
@@ -275,7 +275,7 @@ describe("S-18 business settings page", () => {
     const backupHeading = await screen.findByText("Backup");
     const backupSection = backupHeading.closest("section");
     expect(backupSection).toBeTruthy();
-    expect(backupSection?.className).toContain("lg:grid-cols-[16rem_1fr]");
+    expect(backupSection?.className).toContain("lg:grid-cols-[16rem_minmax(0,1fr)]");
     expect(
       within(backupSection as HTMLElement).getByRole("button", {
         name: "Download backup",

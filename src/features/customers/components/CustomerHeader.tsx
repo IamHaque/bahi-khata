@@ -121,7 +121,7 @@ export function CustomerHeader({
           {customer.email && (
             <a
               href={`mailto:${customer.email}`}
-              className="mt-1 block text-sm text-muted-foreground hover:text-foreground"
+              className="mt-1 block touch-target rounded text-sm text-muted-foreground hover:text-foreground"
             >
               <Mail className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
               {customer.email}

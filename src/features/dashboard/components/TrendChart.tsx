@@ -48,7 +48,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
     rows.every((row) => row.charges === 0 && row.payments === 0);
 
   return (
-    <Card className="p-6" role="region" aria-label="Charges and payments per day">
+    <Card className="p-6 min-w-0" role="region" aria-label="Charges and payments per day">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-heading text-sm font-medium text-foreground">Daily activity</h3>
         {/* L-06: the 7/30/90 control as text tabs (L-04 style); labels

@@ -250,7 +250,7 @@ export function TransactionFilters({
                 })
               }
               className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
                 type === option.value
                   ? "border-foreground text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -403,7 +403,7 @@ export function TransactionFilters({
               })
             }
             className={cn(
-              "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
+              "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
               view === option.value
                 ? "border-foreground text-foreground font-semibold"
                 : "border-transparent text-muted-foreground hover:text-foreground",

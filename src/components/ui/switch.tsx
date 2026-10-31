@@ -27,7 +27,10 @@ export function Switch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+        // L-14 (F2): keep the visual pill at 20x36 (a real switch, not a
+        // distorted 44x44 circle); the shared .touch-target pseudo lays a
+        // transparent 44x44 tap area over it on coarse pointers only.
+        "relative inline-flex h-5 w-9 shrink-0 touch-target items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
         checked ? "bg-primary" : "bg-input dark:bg-input/30",
         className,
       )}

@@ -19,7 +19,7 @@ export function DayBook({ businessId }: { businessId: string }) {
   const items = query.data;
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 min-w-0">
       <h2 className="font-heading text-xl font-bold">Day book</h2>
 
       {query.isPending && (

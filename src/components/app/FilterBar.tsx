@@ -28,7 +28,7 @@ export function FilterBar({ chips, onClearAll, children }: FilterBarProps) {
             type="button"
             onClick={chip.onRemove}
             aria-label={`Remove filter ${chip.label}`}
-            className="rounded-full p-0.5 transition-colors hover:bg-muted pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+            className="touch-target rounded-full p-0.5 transition-colors hover:bg-muted"
           >
             <X className="size-3" />
           </button>

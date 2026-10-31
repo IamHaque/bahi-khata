@@ -119,7 +119,7 @@ export function StatementPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link
           to={paths.customerDetail(businessId, customerId ?? "")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
         >
           <ArrowLeft className="size-4" aria-hidden />
           Back to customer
@@ -136,7 +136,7 @@ export function StatementPage() {
             value={from}
             max={to || undefined}
             onChange={(event) => setFrom(event.target.value)}
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm pointer-coarse:min-h-11"
           />
           <label className="text-sm text-muted-foreground" htmlFor="to">
             To
@@ -147,7 +147,7 @@ export function StatementPage() {
             value={to}
             min={from || undefined}
             onChange={(event) => setTo(event.target.value)}
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm pointer-coarse:min-h-11"
           />
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="size-4" aria-hidden /> Print
@@ -156,7 +156,7 @@ export function StatementPage() {
       </div>
 
       {/* The printable statement itself. */}
-      <article className="rounded-xl border border-border bg-card p-6 print:border-0 print:bg-white print:p-0 print:text-black">
+      <article className="rounded-lg border border-border bg-card p-6 print:border-0 print:bg-white print:p-0 print:text-black">
         <h1 className="font-heading text-xl font-semibold">{businessName}</h1>
         <p className="mt-1 text-sm text-muted-foreground print:text-black">
           Statement for{" "}

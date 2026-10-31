@@ -101,6 +101,7 @@ export function RowActionsMenu({
             size="icon"
             aria-label={triggerLabel}
             onKeyDown={onTriggerKeyDown}
+            onClick={(event) => event.stopPropagation()}
           />
         }
       >
@@ -142,6 +143,27 @@ export function RowActionsMenu({
       </PopoverContent>
     </Popover>
   );
+}
+
+/** L-14 (F2): the row-action cluster. On a fine pointer it renders the
+ *  passed `children` (the usual inline icon buttons). On a COARSE pointer
+ *  those individual icon buttons collapse into ONE 44x44 "More actions"
+ *  menu, so a dense action row never balloons into several 44px targets
+ *  that widen the table/card. The menu items carry the same labels and
+ *  handlers, so accessible names and behaviour are identical. */
+export function RowActionCluster({
+  items,
+  triggerLabel,
+  children,
+}: {
+  items: RowActionItem[];
+  triggerLabel: string;
+  children: React.ReactNode;
+}) {
+  const isCoarse = useMediaQuery("(pointer: coarse)");
+  if (items.length === 0) return null;
+  if (isCoarse) return <RowActionsMenu items={items} triggerLabel={triggerLabel} />;
+  return <div className="flex items-center gap-1">{children}</div>;
 }
 
 const DEFAULT_PAGE_SIZES = [10, 25, 50];
@@ -215,7 +237,11 @@ export function DataTable<T>({
   const totalPages = totalCount !== undefined ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const table = (
-    <div className={cn("overflow-hidden rounded-lg border border-border bg-card", className)}>
+    // L-14 (F1): the one container designed to scroll sideways. A wide
+    // ledger table scrolls HERE (never the page), and it can never clip an
+    // amount the way overflow-hidden would — the audit's truncated-amount
+    // check stays clean while the page itself never scrolls horizontally.
+    <div className={cn("overflow-x-auto rounded-lg border border-border bg-card", className)}>
       <Table>
         <TableHeader>
           <TableRow>

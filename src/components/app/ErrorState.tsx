@@ -13,7 +13,7 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className="rounded-xl border border-border bg-card px-6 py-12 text-center"
+      className="rounded-lg border border-border bg-card px-6 py-12 text-center"
       role="alert"
     >
       <p className="text-sm font-medium text-foreground">{title}</p>

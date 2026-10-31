@@ -451,6 +451,10 @@ function DialogsSection() {
         <Button
           variant="destructive"
           onClick={() => setCustomerDeleteOpen(true)}
+          // L-14: this specimen's long label would force the page wider
+          // than 360 px — Button is shrink-0 with whitespace-nowrap, so
+          // allow wrapping AND cap the box at the container width.
+          className="max-w-full whitespace-normal"
         >
           Delete customer (v3 typed confirmation + Undo)
         </Button>

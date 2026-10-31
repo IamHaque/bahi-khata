@@ -126,7 +126,7 @@ export function Topbar({
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11"
+          className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
           aria-label="Search (Ctrl+K)"
         >
           <Search className="size-4" />
@@ -143,7 +143,7 @@ export function Topbar({
           <button
             type="button"
             onClick={() => openTransactionSheet()}
-            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash pointer-coarse:min-h-11"
+            className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent-wash pointer-coarse:min-h-11 pointer-coarse:min-w-11"
             aria-label="Add transaction"
           >
             <Plus className="size-4" />

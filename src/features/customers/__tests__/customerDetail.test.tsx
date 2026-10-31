@@ -624,7 +624,10 @@ describe("S-31 customer detail v2", () => {
   });
 
   it("narrow screens: the ledger renders as two-line list rows", async () => {
-    __setMatchMedia(true);
+    // L-14 (F2): the stub matches every query by default; override the
+    // coarse-pointer query so the row-action cluster keeps its inline
+    // buttons (this test is about narrow WIDTH, not touch input).
+    __setMatchMedia(true, { "(pointer: coarse)": false });
     try {
       renderDetail();
       await screen.findByRole("tab", { name: "Ledger" });

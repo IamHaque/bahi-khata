@@ -133,7 +133,7 @@ export function SettingsPage() {
           the left, its form on the right, split by the ledger rule. */}
       <section
         aria-labelledby="settings-details-heading"
-        className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_1fr]"
+        className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_minmax(0,1fr)]"
       >
         <div>
           <h2
@@ -239,7 +239,7 @@ function BackupSection({ businessId }: { businessId: string }) {
   return (
     <section
       aria-labelledby="settings-backup-heading"
-      className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_1fr]"
+      className="grid gap-8 border-t border-border py-6 lg:grid-cols-[16rem_minmax(0,1fr)]"
     >
       <div>
         <h2
@@ -294,7 +294,7 @@ function ReadonlyDetails({ business }: { business: Business }) {
 
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[180px_1fr] sm:gap-4">
+    <div className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-4">
       <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
       <dd className="text-sm text-foreground">
         {value || <span className="text-muted-foreground">—</span>}

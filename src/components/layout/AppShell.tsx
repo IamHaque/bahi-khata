@@ -80,7 +80,7 @@ export function AppShell() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto w-full max-w-5xl flex-1 px-4 pt-8 pb-[calc(2rem_+_env(safe-area-inset-bottom))] outline-none print:max-w-none print:px-0 print:py-0"
+          className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-8 pb-[calc(2rem_+_env(safe-area-inset-bottom))] outline-none print:max-w-none print:px-0 print:py-0"
         >
           <Outlet />
         </main>

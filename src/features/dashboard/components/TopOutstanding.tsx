@@ -23,14 +23,16 @@ export function TopOutstanding({
   total: number;
 }) {
   return (
-    <Card className="p-6">
+    <Card className="p-6 min-w-0">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-heading text-xl font-bold">
           Top outstanding balances
         </h2>
+        {/* L-14 (F2): a small text link — the touch-target pseudo keeps its
+            compact look but guarantees a 44x44 tap area on coarse pointers. */}
         <Link
           to={paths.customers(businessId)}
-          className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+          className="shrink-0 touch-target rounded text-xs text-muted-foreground hover:text-foreground"
         >
           View all
         </Link>
@@ -55,7 +57,7 @@ export function TopOutstanding({
                 label={
                   <Link
                     to={paths.customerDetail(businessId, customer.id)}
-                    className="underline-offset-4 hover:text-primary hover:underline"
+                    className="block w-full truncate underline-offset-4 hover:text-primary hover:underline pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center"
                   >
                     {customer.name}
                   </Link>

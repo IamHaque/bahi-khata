@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { RowActionCluster } from "@/components/app/DataTable";
+import type { RowActionItem } from "@/components/app/DataTable";
 import { openTransactionEdit } from "@/features/transactions/sheetStore";
 import { useRestoreTransaction } from "@/features/transactions/hooks";
 import type { CustomerLedgerRow } from "@/features/transactions/api";
@@ -43,41 +45,76 @@ export function useLedgerRowActions({
     if (!canWrite) return null;
 
     if (row.status === "voided") {
-      return (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
+      const items: RowActionItem[] = [
+        {
+          label: `Restore ${row.type} of ${formatMoney(row.amount)}`,
+          onSelect: () =>
             restore.mutate(
               { id: row.id },
               {
                 onSuccess: () => toast.success("Transaction restored."),
                 onError: () =>
-                  toast.error(
-                    "Could not restore the transaction. Try again.",
-                  ),
+                  toast.error("Could not restore the transaction. Try again."),
               },
-            );
-          }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-          aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-          </svg>
-        </button>
+            ),
+        },
+      ];
+      return (
+        <RowActionCluster items={items} triggerLabel="Ledger actions">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              restore.mutate(
+                { id: row.id },
+                {
+                  onSuccess: () => toast.success("Transaction restored."),
+                  onError: () =>
+                    toast.error(
+                      "Could not restore the transaction. Try again.",
+                    ),
+                },
+              );
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+            </svg>
+          </button>
+        </RowActionCluster>
       );
     }
 
+    const items: RowActionItem[] = [
+      {
+        label: `Edit ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => openTransactionEdit(row, sheetCustomer),
+      },
+      {
+        label: `Void ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => setVoidTx(row),
+      },
+    ];
+    if (canDelete && !archived) {
+      items.push({
+        label: `Delete ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => setDeleteTx(row),
+        variant: "destructive",
+        separator: true,
+      });
+    }
+
     return (
-      <div className="flex items-center gap-1">
+      <RowActionCluster items={items} triggerLabel="Ledger actions">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             openTransactionEdit(row, sheetCustomer);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={`Edit ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -90,7 +127,7 @@ export function useLedgerRowActions({
             e.stopPropagation();
             setVoidTx(row);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={`Void ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -108,7 +145,7 @@ export function useLedgerRowActions({
                 e.stopPropagation();
                 setDeleteTx(row);
               }}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label={`Delete ${row.type} of ${formatMoney(row.amount)}`}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -117,7 +154,7 @@ export function useLedgerRowActions({
             </button>
           </>
         )}
-      </div>
+      </RowActionCluster>
     );
   };
 

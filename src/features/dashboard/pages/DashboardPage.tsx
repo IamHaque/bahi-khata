@@ -75,7 +75,7 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
-          <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
             <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
           </div>
@@ -129,8 +129,11 @@ export function DashboardPage() {
 
       {/* L-06 row 2: the day book and the week chart — two independent
           reads, each with its own states; they render even when the
-          summary above failed. */}
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          summary above failed. L-14 (F1): the track is minmax(0,…) and
+          each Card carries min-w-0 so the 720px chart / wide day-book
+          table scroll inside their own overflow-x-auto container instead
+          of widening the track and the page. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <DayBook businessId={businessId} />
         <TrendChart businessId={businessId} />
       </div>

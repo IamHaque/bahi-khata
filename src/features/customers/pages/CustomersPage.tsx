@@ -342,7 +342,7 @@ export function CustomersPage() {
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
       <button
         type="button"
-        className="min-w-0 flex-1 text-left"
+        className="min-w-0 flex-1 text-left pointer-coarse:min-h-11"
         onClick={() => navigate(paths.customerDetail(businessId, row.id))}
       >
         {/* L-08: each customer is a LeaderRow — the list keeps its
@@ -450,7 +450,7 @@ export function CustomersPage() {
           id="customer-search"
           label="Search customers by name or phone"
           placeholder="Search name or phone"
-          className="min-w-0 flex-1 sm:max-w-sm"
+          className="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-sm"
           value={q}
           onValueChange={(value) =>
             updateParams({ q: value || null }, { replace: true })
@@ -459,7 +459,7 @@ export function CustomersPage() {
         <div
           role="group"
           aria-label="Filter customers by status"
-          className="flex flex-wrap gap-1"
+          className="flex w-full flex-wrap gap-1 sm:w-auto"
         >
           {STATUS_OPTIONS.map((option) => (
             <button
@@ -472,7 +472,7 @@ export function CustomersPage() {
                 })
               }
               className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
+                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11",
                 status === option.value
                   ? "border-foreground text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",

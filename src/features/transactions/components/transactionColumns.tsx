@@ -3,6 +3,8 @@ import { Avatar } from "@/components/app/Avatar";
 import type { Column } from "@/components/app/DataTable";
 import { Money } from "@/components/app/Money";
 import { Monogram } from "@/components/app/Monogram";
+import { RowActionCluster } from "@/components/app/DataTable";
+import type { RowActionItem } from "@/components/app/DataTable";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { TypeBadge } from "@/components/app/TypeBadge";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
@@ -46,7 +48,7 @@ export function transactionCustomerCell(
     <Link
       to={paths.customerDetail(businessId, row.customer_id)}
       onClick={(event) => event.stopPropagation()}
-      className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline"
+      className="inline-flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline pointer-coarse:min-h-11"
     >
       <Monogram name={row.customer.name} />
       <span className="truncate">{row.customer.name}</span>
@@ -246,37 +248,66 @@ export function buildDetailColumns({
 
   // S-33/S-34 row actions, role-aware: the pencil edits in the shared
   // sheet, Void opens the confirmation, and a voided row offers
-  // Restore. Viewers see none of them.
+  // Restore. Viewers see none of them. L-14 (F2): on a coarse pointer
+  // the icons collapse into ONE "Transaction actions" menu so the row
+  // never carries several 44px targets.
   const renderRowActions = (row: TransactionListRow) => {
     if (!can("manageTransactions")) return null;
 
     if (row.status === "voided") {
+      const items: RowActionItem[] = [
+        {
+          label: `Restore ${row.type} of ${formatMoney(row.amount)}`,
+          onSelect: () => onRestore(row),
+        },
+      ];
       return (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRestore(row);
-          }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-          aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-          </svg>
-        </button>
+        <RowActionCluster items={items} triggerLabel="Transaction actions">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRestore(row);
+            }}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={`Restore ${row.type} of ${formatMoney(row.amount)}`}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+            </svg>
+          </button>
+        </RowActionCluster>
       );
     }
 
+    const items: RowActionItem[] = [
+      {
+        label: `Edit ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => onEdit(row),
+      },
+      {
+        label: `Void ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => onVoid(row),
+      },
+    ];
+    if (can("deleteTransaction")) {
+      items.push({
+        label: `Delete ${row.type} of ${formatMoney(row.amount)}`,
+        onSelect: () => onDelete(row),
+        variant: "destructive",
+        separator: true,
+      });
+    }
+
     return (
-      <div className="flex items-center gap-1">
+      <RowActionCluster items={items} triggerLabel="Transaction actions">
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             onEdit(row);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={`Edit ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -289,7 +320,7 @@ export function buildDetailColumns({
             event.stopPropagation();
             onVoid(row);
           }}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={`Void ${row.type} of ${formatMoney(row.amount)}`}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -306,7 +337,7 @@ export function buildDetailColumns({
                 event.stopPropagation();
                 onDelete(row);
               }}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label={`Delete ${row.type} of ${formatMoney(row.amount)}`}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -315,7 +346,7 @@ export function buildDetailColumns({
             </button>
           </>
         )}
-      </div>
+      </RowActionCluster>
     );
   };
 

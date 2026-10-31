@@ -192,3 +192,47 @@
   @keyframes ledger-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
   @media (prefers-reduced-motion: reduce) { .entry-reveal { animation: none; } }
 }
+
+/* L-14 (F2) — a 44x44px touch hit-area for SMALL controls that must keep
+   their compact visual shape (a switch pill, a text link, a chip's remove
+   X, an input's clear button). Rather than inflating the element itself to
+   44x44 (which distorted the switch into a circle and widened tab/row
+   controls), this lays a transparent `::after` over the control, expanded to
+   max(100%, 44px) in both axes and centred. Because a pseudo-element
+   hit-tests as its originating element, `document.elementFromPoint` and a
+   real finger both resolve to the control across the full 44px box — the
+   audit's five-point 44x44 hit test passes — while the rendered size is
+   untouched.
+
+   The control MUST already be positioned (`relative` or `absolute`) so the
+   pseudo anchors to it; the rule below supplies `position: relative` only
+   under coarse pointers, leaving fine-pointer layout byte-identical.
+   Only use it where there is room around the control; in a dense row it can
+   overlap a neighbour (row-action clusters keep a real 44x44 box instead). */
+@media (pointer: coarse) {
+  .touch-target { position: relative; }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* L-14 (Section 4) — a visible focus ring for the NATIVE date and time
+   inputs. Chromium keeps focus on an internal shadow-DOM segment of
+   `input[type=date]` / `input[type=time]`, so the host input never matches
+   `:focus` or `:focus-visible` (it is `document.activeElement`, but the
+   pseudo-class does not apply) — the shared Input's `focus-visible:ring-3`
+   therefore never renders and a keyboard user would tab through Date/Time
+   with no indicator. `:focus-within` DOES match the host in that case, so
+   force the same ring there — matching every other field's keyboard focus. */
+input[type="date"]:focus-within,
+input[type="time"]:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  outline: none;
+}

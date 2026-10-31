@@ -41,7 +41,7 @@ export function SegmentedField({ name, label, options }: SegmentedFieldProps) {
                 aria-checked={field.value === option.value}
                 onClick={() => field.onChange(option.value)}
                 className={cn(
-                  "rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                  "rounded-md px-4 py-2 text-sm font-medium transition-colors pointer-coarse:min-h-11",
                   field.value === option.value
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80",
