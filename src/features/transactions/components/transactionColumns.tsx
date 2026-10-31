@@ -62,7 +62,10 @@ export function typeBadge(row: TransactionListRow) {
 
 /** The signed amount the mobile card keeps: a charge is money the
  *  business is owed, a payment money it has received (S-35). */
-export function signedAmountCell(row: TransactionListRow) {
+export function signedAmountCell(
+  row: TransactionListRow,
+  className?: string,
+) {
   return (
     <Money
       signed
@@ -70,6 +73,7 @@ export function signedAmountCell(row: TransactionListRow) {
       className={cn(
         row.type === "charge" ? "text-receivable" : "text-credit",
         row.status === "voided" && VOIDED,
+        className,
       )}
     />
   );
@@ -127,35 +131,48 @@ function particularsCell(row: TransactionListRow) {
   );
 }
 
-/** The detailed view's mobile card: the same row facts, stacked —
- *  amounts are never truncated (S-35) and the signed amount stays. */
+/** The detailed view's mobile card: money-first ledger card (V-HV3).
+ *  Amounts are never truncated (S-35) and the signed amount stays. */
 export function transactionMobileCard(
   row: TransactionListRow,
   businessId: string,
   actions: React.ReactNode,
 ) {
+  const isVoided = row.status === "voided";
+
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {formatDate(row.occurred_at)}
-        </span>
-        {transactionBadgesCell(row)}
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-3">
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-card p-3",
+        isVoided && "opacity-75",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
         {transactionCustomerCell(row, businessId)}
         <span className="shrink-0">{typeBadge(row)}</span>
       </div>
-      <div className="mt-2 flex items-baseline justify-between gap-3">
-        <span className="text-base font-semibold">{signedAmountCell(row)}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {row.created_by_name ?? "Former member"}
-        </span>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+        <span className="tabular-nums">{formatDate(row.occurred_at)}</span>
+        {hasBadges(row) && transactionBadgesCell(row)}
+        {row.note && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span className="break-words text-foreground">{row.note}</span>
+          </>
+        )}
       </div>
-      {row.note && (
-        <p className="mt-1 text-xs text-muted-foreground">{row.note}</p>
-      )}
-      {actions && <div className="mt-2 flex justify-end gap-1">{actions}</div>}
+
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        by <span>{row.created_by_name ?? "Former member"}</span>
+      </p>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="font-heading text-xl font-semibold tabular-nums">
+          {signedAmountCell(row, "font-heading text-xl font-semibold")}
+        </div>
+        {actions && <div className="shrink-0">{actions}</div>}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import {
   buildDetailColumns,
   buildSummaryColumns,
+  transactionMobileCard,
 } from "@/features/transactions/components/transactionColumns";
 import type { TransactionListRow } from "@/features/transactions/api";
 
@@ -117,5 +118,55 @@ describe("L-09 buildSummaryColumns", () => {
   it("labels the restyled rollup Period/Entries/Charged/Paid/Net", () => {
     const headers = buildSummaryColumns().map((column) => column.header);
     expect(headers).toEqual(["Period", "Entries", "Charged", "Paid", "Net"]);
+  });
+});
+
+describe("L-09 transactionMobileCard (V-HV3)", () => {
+  it("renders customer, type badge, date, note, recorder and amount", () => {
+    const row = seedRow({
+      type: "charge",
+      amount: 450,
+      note: "Weekly groceries",
+      created_by_name: "Asha",
+    });
+    render(
+      <MemoryRouter>
+        {transactionMobileCard(row, "b1", <button type="button">Actions</button>)}
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Asha Verma")).toBeTruthy();
+    expect(screen.getByText("Charge")).toBeTruthy();
+    expect(screen.getByText("Weekly groceries")).toBeTruthy();
+    expect(screen.getByText("by Asha")).toBeTruthy();
+    expect(screen.getByText("+₹450.00")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Actions" })).toBeTruthy();
+  });
+
+  it("voided card shows Voided chip and struck-through amount", () => {
+    const row = seedRow({
+      status: "voided",
+      type: "charge",
+      amount: 450,
+    });
+    const { container } = render(
+      <MemoryRouter>
+        {transactionMobileCard(row, "b1", null)}
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Voided")).toBeTruthy();
+    const amountEl = container.querySelector(".line-through");
+    expect(amountEl).not.toBeNull();
+  });
+
+  it("import card shows Import chip", () => {
+    const row = seedRow({
+      source: "import",
+    });
+    render(
+      <MemoryRouter>
+        {transactionMobileCard(row, "b1", null)}
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Import")).toBeTruthy();
   });
 });
