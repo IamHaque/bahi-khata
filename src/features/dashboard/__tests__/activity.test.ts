@@ -211,5 +211,35 @@ describe("activity helpers", () => {
 
       expect(buckets[2]?.label).toBe("Nov 26");
     });
+
+    it("marks partial weekly and monthly buckets with descriptive fullDateLabels", () => {
+      // 2026-10-15 is Thursday (mid-week), 2026-10-21 is Wednesday (next week)
+      const partialWeeklyRows: DailyActivityRow[] = [
+        { activity_date: "2026-10-15", charges: 500, payments: 100 },
+        { activity_date: "2026-10-21", charges: 800, payments: 200 },
+      ];
+      const weeklyBuckets = bucketActivity(partialWeeklyRows, "weekly");
+      expect(weeklyBuckets).toHaveLength(2);
+      expect(weeklyBuckets[0]?.partial).toBe(true);
+      expect(weeklyBuckets[0]?.fullDateLabel).toBe("Week of 12 Oct (from 15 Oct)");
+      expect(weeklyBuckets[1]?.partial).toBe(true);
+      expect(weeklyBuckets[1]?.fullDateLabel).toBe("Week of 19 Oct (to 21 Oct)");
+
+      // Monthly: starts mid-Oct, ends mid-Nov
+      const partialMonthlyRows: DailyActivityRow[] = [
+        { activity_date: "2026-10-17", charges: 1000, payments: 200 },
+        { activity_date: "2026-11-15", charges: 1200, payments: 300 },
+      ];
+      const monthlyBuckets = bucketActivity(partialMonthlyRows, "monthly");
+      expect(monthlyBuckets).toHaveLength(2);
+      expect(monthlyBuckets[0]?.partial).toBe(true);
+      expect(monthlyBuckets[0]?.fullDateLabel).toBe("Oct 2026 (from 17 Oct)");
+      expect(monthlyBuckets[1]?.partial).toBe(true);
+      expect(monthlyBuckets[1]?.fullDateLabel).toBe("Nov 2026 (so far)");
+
+      // Daily: never partial
+      const dailyBuckets = bucketActivity(partialMonthlyRows, "daily");
+      expect(dailyBuckets.every((b) => b.partial === false)).toBe(true);
+    });
   });
 });

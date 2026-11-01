@@ -129,6 +129,18 @@ Every list and table follows one shared contract:
 7. **Footer & Totals:** `TableFooter` supports standard pagination (`Showing a–b of n`, rows per page, prev/next) and `mode="more"` (`Showing k of n`, "Show more" button). `totals` slot renders a `TotalsRule` within `tfoot`.
 8. **Top row slot:** `topRow` renders an optional `<tr>` above `tbody` for inline quick-entry.
 
+## Dashboard Activity chart (PRD v3.2 U-06, D-34)
+
+1. **Diverging bar chart:** Charges above zero (receivable), payments below zero (credit). Symmetric Y-axis with nice limits and compact INR formatting (0, 1k, 50k, 1L, 10L, 1Cr).
+2. **Range controls:** 7 days, 30 days, 90 days, 12 months synced to URL (?activity=30 default).
+3. **Summary comparison tiles:** Charged, Paid, Net comparing current period against the immediately preceding period of equal length.
+4. **Partial buckets:**
+   - Daily buckets (7 and 30 days) are never partial.
+   - Weekly buckets (90 days): first bucket is partial if the range starts after Monday 00:00; last bucket is partial if the range ends before Sunday 23:59. Label: `Week of 13 Oct (from 15 Oct)` or `Week of 13 Oct (to 15 Oct)`.
+   - Monthly buckets (12 months): first bucket is partial if range starts after the 1st; last bucket is partial if the current month has not ended. Label: `Oct 2026 (from 17 Oct)` or `Nov 2026 (so far)`.
+   - Visual: partial bars render with reduced opacity (`fillOpacity={0.6}`).
+   - Accessible descriptions: interactive readout and screen-reader `sr-only` table describe partial bucket coverage.
+
 ## Permission matrix ↔ database agreement (S-21)
 
 `src/lib/permissions.ts` is the single UI source for PRD §3. The

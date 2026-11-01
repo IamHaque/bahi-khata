@@ -171,6 +171,32 @@ describe("U-06 TrendChart", () => {
     expect(within(table).getAllByRole("columnheader")).toHaveLength(4);
   });
 
+  it("labels partial monthly buckets in the readout and sr-only table", async () => {
+    vi.mocked(dashboardApi.getDailyActivity).mockResolvedValue([
+      { activity_date: "2026-10-17", charges: 500, payments: 100 },
+      { activity_date: "2026-11-10", charges: 800, payments: 200 },
+    ]);
+
+    renderTrendChart("/b/b1?activity=12m");
+    await screen.findByRole("heading", { name: "Activity" });
+
+    // sr-only table includes partial descriptions in row headers
+    const table = await screen.findByRole("table", {
+      name: /Activity: charges and payments for last 12 months/,
+    });
+    expect(within(table).getByText("Oct 2026 (from 17 Oct)")).toBeTruthy();
+    expect(within(table).getByText("Nov 2026 (so far)")).toBeTruthy();
+
+    // Keyboard navigation selects first partial bucket and readout shows the description
+    const chartRegion = screen.getByRole("group", {
+      name: "Activity chart, use left and right arrow keys",
+    });
+    chartRegion.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(await screen.findByRole("link", { name: "View entries" })).toBeTruthy();
+    expect(screen.getAllByText("Oct 2026 (from 17 Oct)")).toHaveLength(2);
+  });
+
   it("phone scenario: 390px viewport renders chart and tap updates readout", async () => {
     __setMatchMedia(true);
     try {

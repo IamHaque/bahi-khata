@@ -14,6 +14,8 @@ export interface ActivityBucket {
   net: number;
   /** Negative payment amount for diverging bar chart below zero */
   paymentsNegative: number;
+  /** True when bucket time window is only partially inside the selected range */
+  partial: boolean;
 }
 
 export interface ActivitySummary {
@@ -215,6 +217,9 @@ export function bucketActivity(
 ): ActivityBucket[] {
   if (rows.length === 0) return [];
 
+  const rangeStart = rows[0]!.activity_date;
+  const rangeEnd = rows[rows.length - 1]!.activity_date;
+
   if (bucket === "daily") {
     return rows.map((row) => {
       const date = toLocalDate(row.activity_date);
@@ -235,6 +240,7 @@ export function bucketActivity(
         payments: row.payments,
         net,
         paymentsNegative: -row.payments,
+        partial: false,
       };
     });
   }
@@ -270,14 +276,35 @@ export function bucketActivity(
       }
     }
 
-    return Array.from(map.entries()).map(([mondayStr, data]) => {
+    const entries = Array.from(map.entries());
+    return entries.map(([mondayStr, data], idx) => {
       const day = data.mondayDate.getDate();
       const month = MONTH_NAMES_SHORT[data.mondayDate.getMonth()] ?? "";
       const label = `${day} ${month}`; // e.g. "13 Oct"
       const endDay = data.sundayDate.getDate();
       const endMonth = MONTH_NAMES_SHORT[data.sundayDate.getMonth()] ?? "";
-      const fullDateLabel = `${day} ${month} – ${endDay} ${endMonth}`;
       const net = data.charges - data.payments;
+
+      const isFirst = idx === 0;
+      const isLast = idx === entries.length - 1;
+      const isFirstPartial = isFirst && rangeStart > mondayStr;
+      const isLastPartial = isLast && rangeEnd < data.sundayStr;
+      const partial = Boolean(isFirstPartial || isLastPartial);
+
+      let fullDateLabel: string;
+      if (isFirstPartial && isLastPartial) {
+        const startD = toLocalDate(rangeStart);
+        const endD = toLocalDate(rangeEnd);
+        fullDateLabel = `Week of ${day} ${month} (from ${startD.getDate()} ${MONTH_NAMES_SHORT[startD.getMonth()]} to ${endD.getDate()} ${MONTH_NAMES_SHORT[endD.getMonth()]})`;
+      } else if (isFirstPartial) {
+        const startD = toLocalDate(rangeStart);
+        fullDateLabel = `Week of ${day} ${month} (from ${startD.getDate()} ${MONTH_NAMES_SHORT[startD.getMonth()]})`;
+      } else if (isLastPartial) {
+        const endD = toLocalDate(rangeEnd);
+        fullDateLabel = `Week of ${day} ${month} (to ${endD.getDate()} ${MONTH_NAMES_SHORT[endD.getMonth()]})`;
+      } else {
+        fullDateLabel = `${day} ${month} – ${endDay} ${endMonth}`;
+      }
 
       return {
         key: mondayStr,
@@ -289,6 +316,7 @@ export function bucketActivity(
         payments: data.payments,
         net,
         paymentsNegative: -data.payments,
+        partial,
       };
     });
   }
@@ -323,17 +351,36 @@ export function bucketActivity(
     }
   }
 
-  return Array.from(map.entries()).map(([key, data]) => {
+  const entries = Array.from(map.entries());
+  return entries.map(([key, data], idx) => {
     const monthName = MONTH_NAMES_SHORT[data.month - 1] ?? "";
     const shortYear = String(data.year).slice(-2);
     const label = `${monthName} ${shortYear}`; // e.g. "Oct 26"
-    const fullDateLabel = `${monthName} ${data.year}`;
 
     // Last day of month
     const lastDay = new Date(data.year, data.month, 0).getDate();
     const startDate = `${key}-01`;
     const endDate = `${key}-${PAD(lastDay)}`;
     const net = data.charges - data.payments;
+
+    const isFirst = idx === 0;
+    const isLast = idx === entries.length - 1;
+    const isFirstPartial = isFirst && rangeStart > startDate;
+    const isLastPartial = isLast && rangeEnd < endDate;
+    const partial = Boolean(isFirstPartial || isLastPartial);
+
+    let fullDateLabel: string;
+    if (isFirstPartial && isLastPartial) {
+      const startD = toLocalDate(rangeStart);
+      fullDateLabel = `${monthName} ${data.year} (from ${startD.getDate()} ${monthName} so far)`;
+    } else if (isFirstPartial) {
+      const startD = toLocalDate(rangeStart);
+      fullDateLabel = `${monthName} ${data.year} (from ${startD.getDate()} ${monthName})`;
+    } else if (isLastPartial) {
+      fullDateLabel = `${monthName} ${data.year} (so far)`;
+    } else {
+      fullDateLabel = `${monthName} ${data.year}`;
+    }
 
     return {
       key,
@@ -345,6 +392,7 @@ export function bucketActivity(
       payments: data.payments,
       net,
       paymentsNegative: -data.payments,
+      partial,
     };
   });
 }

@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -369,7 +370,15 @@ export function TrendChart({ businessId }: { businessId: string }) {
                       fill="var(--receivable)"
                       radius={0}
                       isAnimationActive={false}
-                    />
+                    >
+                      {buckets.map((b) => (
+                        <Cell
+                          key={`charges-${b.key}`}
+                          fill="var(--receivable)"
+                          fillOpacity={b.partial ? 0.6 : 1}
+                        />
+                      ))}
+                    </Bar>
                     {/* Payments below zero */}
                     <Bar
                       dataKey="paymentsNegative"
@@ -377,7 +386,15 @@ export function TrendChart({ businessId }: { businessId: string }) {
                       fill="var(--credit)"
                       radius={0}
                       isAnimationActive={false}
-                    />
+                    >
+                      {buckets.map((b) => (
+                        <Cell
+                          key={`payments-${b.key}`}
+                          fill="var(--credit)"
+                          fillOpacity={b.partial ? 0.6 : 1}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -460,7 +477,9 @@ export function TrendChart({ businessId }: { businessId: string }) {
               <tbody>
                 {buckets.map((b) => (
                   <tr key={b.key}>
-                    <th scope="row">{b.label}</th>
+                    <th scope="row">
+                      {b.partial ? b.fullDateLabel : b.label}
+                    </th>
                     <td>{formatMoney(b.charges)}</td>
                     <td>{formatMoney(b.payments)}</td>
                     <td>{formatMoney(b.net)}</td>
