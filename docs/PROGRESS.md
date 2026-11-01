@@ -1247,7 +1247,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
 | S-72 Transaction revision history (B-08) | Done | 7c728a4 | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
 | S-73 Deletion log export and purge (B-12) | Done | 0e642de | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
-| S-74 Ownership transfer (B-14) | Done | [hash] | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
+| S-74 Ownership transfer (B-14) | Done | 86e3873 | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
 | S-75 Bulk select and act (B-13) | todo | | |
 | U-08 Entry row on the ledger (L-12) | todo | | |
 | S-76 Documentation, rollout guide, backlog | todo | | |
