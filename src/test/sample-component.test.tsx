@@ -13,6 +13,7 @@ const columns: Column<Row>[] = [
   {
     key: "name",
     header: "Name",
+    width: "fill",
     sortable: true,
     render: (row) => <span>{row.name}</span>,
     sortValue: (row) => row.name,
@@ -20,6 +21,7 @@ const columns: Column<Row>[] = [
   {
     key: "phone",
     header: "Phone",
+    width: "fit",
     render: (row) => <span>{row.id === "1" ? "9876543210" : "9876543211"}</span>,
   },
 ];

@@ -23,6 +23,7 @@ const columns: Column<Row>[] = [
   {
     key: "name",
     header: "Name",
+    width: "fill",
     sortable: true,
     render: (row) => <span>{row.name}</span>,
     sortValue: (row) => row.name,
@@ -30,6 +31,7 @@ const columns: Column<Row>[] = [
   {
     key: "amount",
     header: "Amount",
+    width: "fit",
     align: "right",
     sortable: true,
     render: (row) => <span>₹{row.amount}</span>,
@@ -157,7 +159,7 @@ describe("DataTable", () => {
       renderApp(
         <DataTable
           {...baseProps}
-          renderMobileCard={(row) => <p>{row.name} card</p>}
+          mobile={(row) => ({ title: `${row.name} card` })}
         />,
       );
       await waitFor(() => expect(screen.getByText("Asha card")).toBeTruthy());
@@ -254,5 +256,35 @@ describe("DataTable v2 (U-02)", () => {
     );
     expect(screen.getAllByText("Showing 2 of 10").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Show more" })).toBeTruthy();
+  });
+
+  describe("fill column invariant", () => {
+    it("throws an error when zero columns have width fill", () => {
+      const zeroFillCols: Column<Row>[] = [
+        { key: "a", header: "A", width: "fit", render: (r) => r.name },
+        { key: "b", header: "B", width: "fit", render: (r) => r.amount },
+      ];
+      expect(() =>
+        renderApp(<DataTable {...baseProps} columns={zeroFillCols} />),
+      ).toThrow("DataTable must have exactly one fill column");
+    });
+
+    it("throws an error when two columns have width fill", () => {
+      const twoFillCols: Column<Row>[] = [
+        { key: "a", header: "A", width: "fill", render: (r) => r.name },
+        { key: "b", header: "B", width: "fill", render: (r) => r.amount },
+      ];
+      expect(() =>
+        renderApp(<DataTable {...baseProps} columns={twoFillCols} />),
+      ).toThrow("DataTable must have exactly one fill column");
+    });
+
+    it("renders successfully when exactly one column has width fill and stamps data-width", () => {
+      renderApp(<DataTable {...baseProps} />);
+      const nameTh = screen.getByRole("columnheader", { name: /name/i });
+      const amountTh = screen.getByRole("columnheader", { name: /amount/i });
+      expect(nameTh.getAttribute("data-width")).toBe("fill");
+      expect(amountTh.getAttribute("data-width")).toBe("fit");
+    });
   });
 });

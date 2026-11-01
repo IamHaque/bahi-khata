@@ -65,7 +65,6 @@ export interface DataTableProps<T> {
   pageSizes?: number[];
   onRowClick?: (row: T) => void;
   renderRowActions?: (row: T) => React.ReactNode;
-  renderMobileCard?: (row: T) => React.ReactNode;
   mobile?: (row: T) => TableCardSpec;
   selectable?: TableSelectable<T>;
   caption?: string;
@@ -117,7 +116,6 @@ export function DataTable<T>({
   pageSizes,
   onRowClick,
   renderRowActions,
-  renderMobileCard,
   mobile,
   selectable,
   caption,
@@ -134,6 +132,14 @@ export function DataTable<T>({
   resultCount,
   className,
 }: DataTableProps<T>) {
+  if (
+    (import.meta.env.DEV || (typeof process !== "undefined" && process.env?.NODE_ENV === "test")) &&
+    columns.length >= 2 &&
+    columns.filter((c) => c.width === "fill" || (c as { fill?: boolean }).fill).length !== 1
+  ) {
+    throw new Error("DataTable must have exactly one fill column");
+  }
+
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   const handleSort = (column: Column<T>) => {
@@ -204,10 +210,11 @@ export function DataTable<T>({
           <Table>
             <TableHeader>
               <TableRow className="h-9">
-                {selectable && <TableHead className="w-px px-3 bg-muted/60" />}
+                {selectable && <TableHead className="w-px px-3 bg-muted/60" data-width="fit" />}
                 {columns.map((col) => (
                   <TableHead
                     key={col.key}
+                    data-width={col.width === "fill" ? "fill" : "fit"}
                     className={cn(
                       "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
                       getPriorityClass(col.priority),
@@ -220,7 +227,7 @@ export function DataTable<T>({
                   </TableHead>
                 ))}
                 {renderRowActions && (
-                  <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" />
+                  <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" data-width="fit" />
                 )}
               </TableRow>
             </TableHeader>
@@ -228,13 +235,14 @@ export function DataTable<T>({
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={i}>
                   {selectable && (
-                    <TableCell className="w-px px-3">
+                    <TableCell className="w-px px-3" data-width="fit">
                       <Skeleton className="size-4" />
                     </TableCell>
                   )}
                   {columns.map((col) => (
                     <TableCell
                       key={col.key}
+                      data-width={col.width === "fill" ? "fill" : "fit"}
                       className={cn(
                         getPriorityClass(col.priority),
                         getWidthClass(col.width),
@@ -245,7 +253,7 @@ export function DataTable<T>({
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
                   ))}
-                  {renderRowActions && <TableCell className="w-px px-3" />}
+                  {renderRowActions && <TableCell className="w-px px-3" data-width="fit" />}
                 </TableRow>
               ))}
             </TableBody>
@@ -291,39 +299,32 @@ export function DataTable<T>({
     }
 
     // Mobile cards layout (< 768 px)
-    if (isMobile && (mobile || renderMobileCard)) {
+    if (isMobile && mobile) {
       return (
         <div className="space-y-2 md:hidden">
           <div className="space-y-2" role="list">
             {rows.map((row) => {
               const key = getRowKey(row);
-              if (mobile) {
-                const cardSpec = mobile(row);
-                const cardWithActions = renderRowActions
-                  ? { ...cardSpec, actions: cardSpec.actions ?? renderRowActions(row) }
-                  : cardSpec;
+              const cardSpec = mobile(row);
+              const cardWithActions = renderRowActions
+                ? { ...cardSpec, actions: cardSpec.actions ?? renderRowActions(row) }
+                : cardSpec;
 
-                return (
-                  <TableCard
-                    key={key}
-                    card={cardWithActions}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    selected={isSelected(row)}
-                    onSelectChange={
-                      selectable
-                        ? (checked) => handleSelectRow(row, checked)
-                        : undefined
-                    }
-                    canSelect={
-                      selectable?.canSelect ? selectable.canSelect(row) : !!selectable
-                    }
-                  />
-                );
-              }
               return (
-                <div key={key}>
-                  {renderMobileCard!(row)}
-                </div>
+                <TableCard
+                  key={key}
+                  card={cardWithActions}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  selected={isSelected(row)}
+                  onSelectChange={
+                    selectable
+                      ? (checked) => handleSelectRow(row, checked)
+                      : undefined
+                  }
+                  canSelect={
+                    selectable?.canSelect ? selectable.canSelect(row) : !!selectable
+                  }
+                />
               );
             })}
           </div>
@@ -341,7 +342,7 @@ export function DataTable<T>({
           <TableHeader>
             <TableRow className="h-9">
               {selectable && (
-                <TableHead className="w-px px-3 bg-muted/60">
+                <TableHead className="w-px px-3 bg-muted/60" data-width="fit">
                   <input
                     type="checkbox"
                     aria-label="Select all on this page"
@@ -356,6 +357,7 @@ export function DataTable<T>({
                 return (
                   <TableHead
                     key={col.key}
+                    data-width={col.width === "fill" ? "fill" : "fit"}
                     aria-sort={
                       col.sortable
                         ? sortActive
@@ -410,7 +412,7 @@ export function DataTable<T>({
                 );
               })}
               {renderRowActions && (
-                <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3">
+                <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" data-width="fit">
                   <span className="sr-only">Actions</span>
                 </TableHead>
               )}
@@ -430,6 +432,7 @@ export function DataTable<T>({
                 {selectable && (
                   <TableCell
                     className="w-px px-3"
+                    data-width="fit"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
@@ -448,6 +451,7 @@ export function DataTable<T>({
                 {columns.map((col) => (
                   <TableCell
                     key={col.key}
+                    data-width={col.width === "fill" ? "fill" : "fit"}
                     className={cn(
                       cellPadding,
                       cellTextSize,
@@ -479,6 +483,7 @@ export function DataTable<T>({
                 {renderRowActions && (
                   <TableCell
                     className="w-px whitespace-nowrap px-3 text-right"
+                    data-width="fit"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {renderRowActions(row)}
