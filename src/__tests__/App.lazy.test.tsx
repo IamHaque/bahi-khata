@@ -66,7 +66,7 @@ describe("App route splitting (S-48)", () => {
       name: /Continue with Google/,
     });
     expect(button).toBeTruthy();
-  });
+  }, 15000);
 });
 
 describe("RouteFallback (S-48)", () => {

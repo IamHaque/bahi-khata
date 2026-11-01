@@ -12,6 +12,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     exclude: ["node_modules", "dist"],
-    testTimeout: 15000,
+    testTimeout: Number(process.env.VITEST_TEST_TIMEOUT ?? 5000),
   },
 });
