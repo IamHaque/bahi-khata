@@ -82,6 +82,8 @@ export const dashboardKeys = {
     [...dashboardKeys.all(businessId), "daily", days] as const,
   feed: (businessId: string) =>
     [...dashboardKeys.all(businessId), "feed"] as const,
+  lastPayments: (businessId: string, ids: string[]) =>
+    [...dashboardKeys.all(businessId), "lastPayments", [...ids].sort()] as const,
 };
 
 // S-38: the CSV import page's read — the customers the preview matches

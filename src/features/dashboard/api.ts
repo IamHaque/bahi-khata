@@ -135,3 +135,23 @@ export async function getActivityFeed(
     }));
   });
 }
+
+/**
+ * L-13 / U-07 — fetch last_payment_at for specific customers from the
+ * customer_balances view to compute who to chase.
+ */
+export async function getLastPayments(
+  ids: string[],
+): Promise<Record<string, string | null>> {
+  if (ids.length === 0) return {};
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("customer_balances")
+      .select("id, last_payment_at")
+      .in("id", ids);
+    if (error) throw error;
+    return Object.fromEntries(
+      (data ?? []).map((r) => [r.id as string, (r.last_payment_at as string | null) ?? null]),
+    );
+  });
+}

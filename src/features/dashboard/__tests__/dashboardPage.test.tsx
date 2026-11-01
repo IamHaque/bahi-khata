@@ -111,6 +111,7 @@ vi.mock("@/features/transactions/api", () => ({
 vi.mock("@/features/dashboard/api", () => ({
   getDailyActivity: dashboardApi.getDailyActivity,
   getActivityFeed: dashboardApi.getActivityFeed,
+  getLastPayments: vi.fn(async () => ({})),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -343,7 +344,7 @@ describe("L-06 dashboard as a ledger page", () => {
     expect(screen.queryByText(formatMoney(9500))).toBeNull();
   });
 
-  it("top outstanding: up to 5, monogram, share of the total and a link to detail", async () => {
+  it("who to chase: up to 5, monogram, and a link to detail and all debtors", async () => {
     server.summary.top_debtors = Array.from({ length: 9 }, (_, index) => {
       const rank = 9 - index;
       return { id: `d${rank}`, name: `Debtor ${rank}`, balance: rank * 1000 };
@@ -351,7 +352,7 @@ describe("L-06 dashboard as a ledger page", () => {
     renderPage();
 
     const list = await screen.findByRole("list", {
-      name: "Top outstanding balances",
+      name: "Who to chase",
     });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(5); // capped at 5
@@ -360,16 +361,19 @@ describe("L-06 dashboard as a ledger page", () => {
       paths.customerDetail("b1", "d9"),
     );
     expect(within(items[0]!).getByText("₹9,000.00")).toBeTruthy();
-    // 9000 of a 9000 total is the whole pie, rounded.
-    expect(within(items[0]!).getByText("100% of the total")).toBeTruthy();
+    expect(within(items[0]!).getByText("no payments yet")).toBeTruthy();
     // The decorative monogram rides along.
     expect(items[0]!.querySelector("span.rounded-sm")).not.toBeNull();
     // The ninth debtor never renders.
     expect(screen.queryByText("Debtor 1")).toBeNull();
     expect(screen.queryByText("Debtor 4")).toBeNull();
+
+    // Link under list
+    const seeAll = screen.getByRole("link", { name: /see all customers who owe/i });
+    expect(seeAll.getAttribute("href")).toBe(`${paths.customers("b1")}?sort=balance-desc`);
   });
 
-  it("Top outstanding shows each debtor's share of the total receivable", async () => {
+  it("Who to chase shows each debtor's name and link", async () => {
     server.summary = {
       ...server.summary,
       total_receivable: 309188.56,
@@ -378,10 +382,9 @@ describe("L-06 dashboard as a ledger page", () => {
     renderPage();
 
     const list = await screen.findByRole("list", {
-      name: "Top outstanding balances",
+      name: "Who to chase",
     });
     const item = within(list).getAllByRole("listitem")[0]!;
-    expect(within(item).getByText("77% of the total")).toBeTruthy();
     expect(
       within(item).getByRole("link", { name: "Rahim Traders" }).getAttribute("href"),
     ).toBe(paths.customerDetail("b1", "c9"));

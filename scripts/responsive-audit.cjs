@@ -943,6 +943,15 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customer_balances": {
+      if (select.includes("last_payment_at")) {
+        if (fixtureMode === "empty") return jsonResult([]);
+        return jsonResult(
+          CUSTOMERS.map((c) => ({
+            id: c.id,
+            last_payment_at: c.id === "c1" ? "2026-09-15T10:00:00.000Z" : null,
+          })),
+        );
+      }
       if (select.includes("customer_id")) {
         if (fixtureMode === "empty") return jsonResult([]);
         return jsonResult(

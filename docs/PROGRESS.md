@@ -1244,7 +1244,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
 | U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
 | S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
-| U-07 Who to chase (L-13) | todo | | |
+| U-07 Who to chase (L-13) | Done | (commit below) | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
 | S-72 Transaction revision history (B-08) | todo | | |
 | S-73 Deletion log export and purge (B-12) | todo | | |
 | S-74 Ownership transfer (B-14) | todo | | |
@@ -1356,6 +1356,19 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] Decision rule recorded: keep `CHASE_AFTER_DAYS = 30` if >= 20% of outstanding amount is older than 30 days and fewer than half of owing customers are flagged; choose 60 if more than half flagged; choose 14 if fewer than 5% flagged; default 30 if no production data pasted before U-07.
 - [x] Owner input requested:
   > **Owner input requested for S-71:** Run the read-only query in `docs/MANUAL_STEPS.md` §"v3.2 analysis query (S-71)" in Supabase SQL editor and paste results here. Until provided, U-07 continues with default threshold `CHASE_AFTER_DAYS = 30`.
+
+## U-07 scenarios (checklist)
+
+- [x] Threshold `CHASE_AFTER_DAYS = 30` configured in `src/features/dashboard/chase.ts` and re-exported in `constants.ts`; `AgeFlag` uses the same constant.
+- [x] `getLastPayments(ids)` api function in `features/dashboard/api.ts` querying `customer_balances.last_payment_at`.
+- [x] `useLastPayments(businessId, ids)` hook in `features/dashboard/hooks.ts` with key in `dashboardKeys.lastPayments`.
+- [x] `ChaseList` component (`Card p-6 min-w-0`) replaces `TopOutstanding` on row 1 right of DashboardPage.
+- [x] Rows rendered as `LeaderRow`s: Monogram, customer link, sub-line (paid today, paid yesterday, last paid N days ago, no payments yet), AgeFlag, amount. Entire row is a 44px link target on touch.
+- [x] "See all customers who owe" link under list leads to `/b/:businessId/customers?sort=balance-desc`.
+- [x] Empty state ("All settled — no outstanding balances.") preserved when there are no debtors.
+- [x] `TopOutstanding.tsx` deleted as nothing else imports it.
+- [x] Tests pass: `ChaseList.test.tsx` (13 tests including 5 PRD scenarios, fake timer day arithmetic, api test, axe) and `dashboardPage.test.tsx` (26 tests).
+
 
 
 
