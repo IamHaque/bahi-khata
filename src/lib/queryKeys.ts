@@ -55,6 +55,11 @@ export const transactionKeys = {
     ...transactionKeys.all(businessId),
     "summary",
   ],
+  history: (transactionId: string, businessId?: string) => [
+    ...transactionKeys.all(businessId),
+    "history",
+    transactionId,
+  ],
 };
 
 // User-level (not business-scoped): how the app discovers businesses.

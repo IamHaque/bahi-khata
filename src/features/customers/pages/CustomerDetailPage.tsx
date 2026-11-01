@@ -284,6 +284,7 @@ export function CustomerDetailPage() {
           ) : (
             <LedgerTable
               entries={filtered}
+              businessId={businessId}
               renderActions={renderLedgerActions}
             />
           )}

@@ -16,6 +16,7 @@ import {
   getCustomerLedger,
   getDashboardSummary,
   getTransactionById,
+  getTransactionHistory,
   queryTransactions,
   restoreTransaction,
   transactionRollup,
@@ -216,3 +217,14 @@ export function useDeleteTransaction(businessId: string) {
 }
 
 export type { TransactionWithCustomer };
+
+export function useTransactionHistory(
+  businessId: string,
+  transactionId: string,
+) {
+  return useQuery({
+    queryKey: transactionKeys.history(transactionId, businessId),
+    queryFn: () => getTransactionHistory(transactionId),
+    enabled: Boolean(transactionId),
+  });
+}

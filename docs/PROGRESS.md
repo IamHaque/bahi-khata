@@ -1245,7 +1245,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
 | S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
 | U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
-| S-72 Transaction revision history (B-08) | todo | | |
+| S-72 Transaction revision history (B-08) | Done | pending | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
 | S-73 Deletion log export and purge (B-12) | todo | | |
 | S-74 Ownership transfer (B-14) | todo | | |
 | S-75 Bulk select and act (B-13) | todo | | |
@@ -1368,6 +1368,27 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] Empty state ("All settled — no outstanding balances.") preserved when there are no debtors.
 - [x] `TopOutstanding.tsx` deleted as nothing else imports it.
 - [x] Tests pass: `ChaseList.test.tsx` (13 tests including 5 PRD scenarios, fake timer day arithmetic, api test, axe) and `dashboardPage.test.tsx` (26 tests).
+
+## S-72 Transaction revision history (checklist)
+
+- [x] Migration `20261201000000_v32_transaction_revisions.sql`:
+  - `transaction_revisions` table: `id`, `business_id` (cascade), `transaction_id` (no FK), `action` check (edit, void, restore), `changes` jsonb, `reason`, `changed_by` (set null), `changed_at`.
+  - RLS: business members can select (`transaction_revisions_select` using `is_member(business_id)`); client writes revoked.
+  - Trigger `record_transaction_revision()` on `transactions` after update: records edit diff (content tuple changed), void with `void_reason`, restore; suppresses when `bahikhata.restoring = 'on'`.
+  - RPC `transaction_history(uuid)` security invoker returning actor name from `profiles`, ordered newest first, limit 200.
+- [x] Constant `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` with helper `isBeforeHistoryStart()` and `HISTORY_START_LABEL`.
+- [x] API functions `getTransactionHistory(transactionId)` and updated `getTransactionById()` resolving creator name; `useTransactionHistory` hook with query key `transactionKeys.history`.
+- [x] UI `TransactionHistory` component mounted on `TransactionDetailPage` under details with `#history` container:
+  - Timeline of revisions newest first with icons (`Pencil`, `Ban`, `RotateCcw`), relative time with tooltip for absolute timestamp, readable change sentences with amounts through `Money`.
+  - Bottom derived item: "Recorded by {creator} on {date}".
+  - Empty state: "No changes recorded".
+  - Error state with Retry button.
+  - `#history` hash smooth scroll on detail page mount.
+- [x] `EditedBadge` links to `#history` when `businessId` and `transactionId` present; pre-migration edits show `(earlier changes were not recorded)`.
+- [x] SQL tests: Section 20 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering edit amount, 2-field edit, no-op update, void, restore, viewer vs outsider visibility, client write denial, and restore suppression.
+- [x] Documentation: `supabase/tests/README.md` updated to 20 sections; `docs/RLS.md` updated with `transaction_revisions` and RPC details; `docs/MANUAL_STEPS.md` updated with rollout verification queries.
+- [x] Frontend tests: `src/features/transactions/__tests__/transactionHistory.test.tsx` (6 tests passing including actions, empty, error retry, pre-migration label, and axe accessibility).
+
 
 
 

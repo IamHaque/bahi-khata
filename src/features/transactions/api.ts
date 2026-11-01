@@ -640,12 +640,25 @@ export function currentTimeZone(): string {
   }
 }
 
+export interface TransactionRevision {
+  id: string;
+  action: "edit" | "void" | "restore";
+  changes: Record<string, { from: unknown; to: unknown }>;
+  reason: string | null;
+  changed_at: string;
+  changed_by: string | null;
+  actor_name: string | null;
+}
+
+export type TransactionDetail = TransactionWithCustomer &
+  Pick<TransactionWithAudit, "void_reason"> & {
+    creator_name?: string | null;
+  };
+
 export async function getTransactionById(
   id: string,
   businessId: string,
-): Promise<
-  (TransactionWithCustomer & Pick<TransactionWithAudit, "void_reason">) | null
-> {
+): Promise<TransactionDetail | null> {
   return guard(async () => {
     const { data, error } = await supabase
       .from("transactions")
@@ -663,10 +676,37 @@ export async function getTransactionById(
       customers: { name: string; phone: string } | null;
       void_reason: string | null;
     };
+    let creator_name: string | null = null;
+    if (tx.created_by) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", tx.created_by)
+        .maybeSingle();
+      if (profile) {
+        creator_name = profile.full_name ?? profile.email ?? null;
+      }
+    }
     return {
       ...tx,
       customer_name: tx.customers?.name ?? "Unknown",
       customer_phone: tx.customers?.phone ?? "",
+      creator_name,
     };
+  });
+}
+
+/**
+ * S-72 — fetch revision history timeline for a transaction
+ */
+export async function getTransactionHistory(
+  transactionId: string,
+): Promise<TransactionRevision[]> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("transaction_history", {
+      p_transaction_id: transactionId,
+    });
+    if (error) throw error;
+    return (data ?? []) as TransactionRevision[];
   });
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Money } from "@/components/app/Money";
 import { TypeBadge } from "@/components/app/TypeBadge";
@@ -21,6 +21,7 @@ import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate, formatTime } from "@/lib/format";
 import { paths } from "@/lib/paths";
+import { TransactionHistory } from "@/features/transactions/components/TransactionHistory";
 import { toast } from "sonner";
 
 export function TransactionDetailPage() {
@@ -46,6 +47,15 @@ export function TransactionDetailPage() {
   const ledger = useCustomerLedger(transaction?.customer_id ?? "", businessId);
   const { can } = usePermissions();
   const restore = useRestoreTransaction(businessId);
+
+  useEffect(() => {
+    if (window.location.hash === "#history" && transaction) {
+      const el = document.getElementById("history");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }, [transaction]);
 
   if (isLoading) {
     return (
@@ -271,6 +281,12 @@ export function TransactionDetailPage() {
           </div>
         )}
       </div>
+
+      {/* S-72: Transaction revision history */}
+      <TransactionHistory
+        businessId={businessId}
+        transaction={transaction}
+      />
 
       {/* S-34: the void confirmation; its own toast carries Undo. */}
       <VoidTransactionDialog

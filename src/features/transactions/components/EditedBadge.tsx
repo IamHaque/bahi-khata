@@ -1,30 +1,60 @@
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { formatDate, formatTime } from "@/lib/format";
+import { paths } from "@/lib/paths";
+import { isBeforeHistoryStart } from "../historyStart";
 
 /**
- * S-33 — the audit marker: a stored entry that was corrected keeps an
+ * S-33 / S-72 — the audit marker: a stored entry that was corrected keeps an
  * "Edited" pill on its ledger row. Hovering or focusing it reads who
- * edited and when — "Edited by Eli on 12 Oct 2026, 14:05". The name
- * was resolved against profiles by the transactions api; an editor
- * whose profile is no longer readable (they left the business) falls
- * back to "Former member", matching the creator fallback direction
- * planned for S-35.
+ * edited and when — "Edited by Eli on 12 Oct 2026, 14:05".
+ * S-72 links it to the detail page's #history hash.
+ * Rows edited before the v3.2 migration state "Edited (earlier changes were not recorded)".
  */
 export function EditedBadge({
   editorName,
   updatedAt,
+  businessId,
+  transactionId,
   className,
 }: {
   editorName?: string | null;
   updatedAt?: string | null;
+  businessId?: string;
+  transactionId?: string;
   className?: string;
 }) {
   if (!updatedAt) return null;
 
-  const detail = `Edited by ${editorName ?? "Former member"} on ${formatDate(
-    updatedAt,
-  )}, ${formatTime(updatedAt)}`;
+  const isBefore = isBeforeHistoryStart(updatedAt);
+  const detail = isBefore
+    ? "Edited (earlier changes were not recorded)"
+    : `Edited by ${editorName ?? "Former member"} on ${formatDate(
+        updatedAt,
+      )}, ${formatTime(updatedAt)}`;
+
+  if (businessId && transactionId) {
+    return (
+      <span
+        tabIndex={0}
+        title={detail}
+        className={cn(
+          "inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          className,
+        )}
+      >
+        <Link
+          to={`${paths.transactionDetail(businessId, transactionId)}#history`}
+          className="inline-flex rounded-full hover:opacity-80"
+          tabIndex={-1}
+        >
+          <StatusBadge label="Edited" tone="muted" />
+          <span className="sr-only"> {detail}</span>
+        </Link>
+      </span>
+    );
+  }
 
   return (
     <span
@@ -36,8 +66,6 @@ export function EditedBadge({
       )}
     >
       <StatusBadge label="Edited" tone="muted" />
-      {/* Focus (and screen readers) get the full who-and-when even
-          where the native tooltip would not appear. */}
       <span className="sr-only"> {detail}</span>
     </span>
   );

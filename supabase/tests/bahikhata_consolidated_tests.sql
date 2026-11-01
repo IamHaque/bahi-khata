@@ -3624,10 +3624,100 @@ rollback to savepoint s19;   -- discard this section's fixtures
 release savepoint s19;
 
 -- ============================================================================
+-- SECTION 20 — Transaction revision history (S-72)
+--   Source: NEW in v3.2 — migration 20261201000000_v32_transaction_revisions.sql
+-- ============================================================================
+savepoint s20;
+select pg_temp.section('20 Transaction revision history (S-72)');
+
+select pg_temp.as_admin();
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vicki@example.com',  '{"full_name":"Vicki Viewer"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', '44444444-4444-4444-4444-444444444444', 'Beta');
+
+insert into public.memberships (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer');
+
+insert into public.customers (id, business_id, name, created_by) values
+  ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 1', '11111111-1111-1111-1111-111111111111');
+
+insert into public.transactions (id, business_id, customer_id, type, amount, status, occurred_at, created_by) values
+  ('dddddddd-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 1000, 'active', now(), '11111111-1111-1111-1111-111111111111');
+
+-- 20.1 Edit creates revision row
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+update public.transactions set amount = 1200, updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+
+select pg_temp.expect_eq('edit creates one revision row',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_text('edit action is edit',
+  (select action from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' order by changed_at desc limit 1), 'edit');
+
+select pg_temp.expect_text('changes json records amount from 1000 to 1200',
+  (select (changes->'amount'->>'to') from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' order by changed_at desc limit 1), '1200');
+
+-- 20.2 Edit of two fields creates one row with both
+update public.transactions set amount = 1500, note = 'Updated note', updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('revision count is now 2',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 2);
+
+select pg_temp.expect_text('two field changes recorded in single revision',
+  (select (changes->'note'->>'to') from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' order by changed_at desc limit 1), 'Updated note');
+
+-- 20.3 No-op update creates none
+update public.transactions set amount = 1500, updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('no-op update inserts nothing',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 2);
+
+-- 20.4 Void creates revision with reason and actor
+update public.transactions set status = 'voided', void_reason = 'duplicate entry', voided_at = now(), voided_by = '11111111-1111-1111-1111-111111111111' where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('void creates revision',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'void'), 1);
+select pg_temp.expect_text('void reason recorded',
+  (select reason from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'void'), 'duplicate entry');
+
+-- 20.5 Restore creates revision
+update public.transactions set status = 'active', void_reason = null where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('restore creates revision',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'restore'), 1);
+
+-- 20.6 RPC transaction_history readable by Viewer, hidden from outsider
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vicki@example.com');
+select pg_temp.expect_eq('viewer can read transaction_history RPC',
+  (select count(*) from public.transaction_history('dddddddd-0000-0000-0000-000000000001')), 4);
+
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444', 'zed@example.com');
+select pg_temp.expect_eq('outsider cannot read transaction_history RPC',
+  (select count(*) from public.transaction_history('dddddddd-0000-0000-0000-000000000001')), 0);
+
+-- 20.7 Direct client insert/update/delete denied
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_user_denied('direct insert denied',
+  $insert into public.transaction_revisions (business_id, transaction_id, action) values ('aaaaaaaa-0000-0000-0000-000000000001', 'dddddddd-0000-0000-0000-000000000001', 'edit')$);
+
+-- 20.8 Restoring deleted transaction preserves history and adds no new revision
+select pg_temp.as_admin();
+set local "bahikhata.restoring" = 'on';
+update public.transactions set amount = 9999 where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('restoring flag suppresses revision creation',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 4);
+
+select pg_temp.as_admin();
+rollback to savepoint s20;
+release savepoint s20;
+
+-- ============================================================================
 -- RESULT
 -- ============================================================================
 -- Reached only if every assertion above passed (any failure aborts the script).
-do $$ begin raise notice 'ALL 19 TEST SECTIONS PASSED'; end $$;
-select 'ALL 19 TEST SECTIONS PASSED' as result;
+do $ begin raise notice 'ALL 20 TEST SECTIONS PASSED'; end $;
+select 'ALL 20 TEST SECTIONS PASSED' as result;
 
 rollback;   -- nothing was ever committed

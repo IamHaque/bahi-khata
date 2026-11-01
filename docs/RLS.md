@@ -28,6 +28,7 @@ member).
 | `customer_balances` (view, security invoker) | read (own business) | same | same | zero rows |
 | `deletion_log` | — | — | **read only** (see below) | zero rows |
 | `daily_activity` / rollups (RPCs) | read (own business) | same | same | refused / zero rows |
+| `transaction_revisions` | read | read | read | zero rows |
 
 ## v3.1 additions (S-50…S-56)
 
@@ -79,6 +80,17 @@ The security-invoker view gained two computed relationship columns:
   payments of any type (v3.1 migration; feeds "Who to chase" when gate
   G-A1 is approved).
 
+## v3.2 additions (S-72)
+
+### `transaction_revisions`
+
+One row per transaction edit, void, or restore. Records what changed, by whom, and when.
+
+- **Read:** Business members can read (`transaction_revisions_select` policy using `is_member(business_id)`), Viewers included.
+- **Write:** Revoked for all client roles; rows are written exclusively by the `record_transaction_revision()` SECURITY DEFINER trigger.
+- **Restore suppression:** When `bahikhata.restoring = 'on'`, the trigger skips revision creation.
+- **RPC:** `transaction_history(uuid)` (SECURITY INVOKER) returns up to 200 revision rows with actor names resolved from `profiles`.
+
 ## Permission matrix ↔ SQL agreement
 
 The three v3 actions are Owner-only and each has a suite section:
@@ -103,6 +115,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 19-section suite. It
+three migrations in filename order, then runs the 20-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.

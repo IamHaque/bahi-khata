@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { DataTable, type Column } from "@/components/app/DataTable";
 import { Money } from "@/components/app/Money";
 import { EditedBadge } from "@/features/transactions/components/EditedBadge";
+import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TransactionStatus, TransactionType } from "@/types";
@@ -22,6 +23,7 @@ export interface LedgerEntry {
 interface LedgerTableProps {
   /** Newest first, as customer_ledger returns them. */
   entries: LedgerEntry[];
+  businessId?: string;
   renderActions?: (entry: LedgerEntry) => ReactNode;
   /** An entry row (L-12), rendered first in tbody. */
   topRow?: ReactNode;
@@ -36,9 +38,12 @@ const PAGE_SIZE = 50;
  */
 export function LedgerTable({
   entries,
+  businessId: explicitBusinessId,
   renderActions,
   topRow,
 }: LedgerTableProps) {
+  const scopedBusinessId = useScopedBusinessId();
+  const businessId = explicitBusinessId ?? scopedBusinessId ?? "";
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   const shown = entries.slice(0, limit);
@@ -64,6 +69,8 @@ export function LedgerTable({
       <EditedBadge
         editorName={entry.updated_by_name}
         updatedAt={entry.updated_at}
+        businessId={businessId}
+        transactionId={entry.id}
         className="ml-2 align-middle"
       />
     ) : null;

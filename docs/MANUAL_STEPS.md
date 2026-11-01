@@ -1173,3 +1173,36 @@ select count(*) filter (where last_payment_at is null) as never_paid,
 - If more than half would be flagged, choose `60`.
 - If fewer than 5% of the amount would be flagged, choose `14`.
 - If the owner has not pasted a result when U-07 starts, use `30` as default.
+
+---
+
+## v3.2 database rollout: S-72 (`20261201000000_v32_transaction_revisions.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'transaction_revisions';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'transaction_revisions' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'transaction_revisions';
+-- [1] (transaction_revisions_select)
+
+-- 3. Trigger exists on transactions
+select count(*) from pg_trigger
+ where tgname = 'tr_record_transaction_revision';
+-- [1]
+
+-- 4. transaction_history function exists with security invoker
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'transaction_history';
+-- [false] (security invoker)
+```
+
+### Post-rollout constant
+After applying `20261201000000_v32_transaction_revisions.sql`, set `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` to the rollout ISO timestamp (default text: "History is recorded from the day v3.2 was installed").

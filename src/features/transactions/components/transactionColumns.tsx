@@ -83,13 +83,16 @@ export function signedAmountCell(
 
 // "status or source badges": the S-33 edit marker, the S-34 void
 // marker and the import provenance in one cell.
-export function transactionBadgesCell(row: TransactionListRow) {
+export function transactionBadgesCell(row: TransactionListRow, businessId?: string) {
+  const bid = businessId || (row as unknown as { business_id?: string }).business_id;
   return (
     <div className="flex items-center gap-1.5">
       {row.status === "edited" && (
         <EditedBadge
           editorName={row.updated_by_name ?? null}
           updatedAt={row.updated_at}
+          businessId={bid}
+          transactionId={row.id}
         />
       )}
       {row.status === "voided" && <StatusBadge label="Voided" tone="muted" />}
@@ -130,7 +133,7 @@ export function transactionCustomerParticularsCell(
           <Monogram name={row.customer.name} />
           <span className="truncate">{row.customer.name}</span>
         </Link>
-        {hasBadges(row) && transactionBadgesCell(row)}
+        {hasBadges(row) && transactionBadgesCell(row, businessId)}
       </div>
       {row.note && (
         <p className="truncate text-xs text-muted-foreground mt-0.5">
@@ -161,7 +164,7 @@ export function transactionMobileSpec(
     meta: (
       <span className="flex items-center gap-1.5">
         {typeBadge(row)}
-        {hasBadges(row) && transactionBadgesCell(row)}
+        {hasBadges(row) && transactionBadgesCell(row, businessId)}
         {row.note && <span>· {row.note}</span>}
       </span>
     ),
@@ -192,7 +195,7 @@ export function transactionMobileCard(
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
         <span className="tabular-nums">{formatDate(row.occurred_at)}</span>
-        {hasBadges(row) && transactionBadgesCell(row)}
+        {hasBadges(row) && transactionBadgesCell(row, businessId)}
         {row.note && (
           <>
             <span aria-hidden="true">·</span>
