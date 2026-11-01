@@ -303,7 +303,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
                 tabIndex={0}
                 aria-label="Activity chart, use left and right arrow keys"
                 onKeyDown={handleKeyDown}
-                className="mt-6 min-w-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                className="mt-6 min-w-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
               >
                 <ResponsiveContainer
                   width="100%"

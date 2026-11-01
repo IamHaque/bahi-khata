@@ -89,7 +89,7 @@ function getPriorityClass(priority?: 1 | 2 | 3): string {
 }
 
 function getWidthClass(width?: "fit" | "fill"): string {
-  if (width === "fill") return "w-full";
+  if (width === "fill") return "w-full max-w-0 whitespace-normal";
   if (width === "fit") return "w-px whitespace-nowrap";
   return "";
 }
@@ -133,7 +133,7 @@ export function DataTable<T>({
   className,
 }: DataTableProps<T>) {
   if (
-    (import.meta.env.DEV || (typeof process !== "undefined" && process.env?.NODE_ENV === "test")) &&
+    (import.meta.env.DEV || import.meta.env.MODE === "test") &&
     columns.length >= 2 &&
     columns.filter((c) => c.width === "fill" || (c as { fill?: boolean }).fill).length !== 1
   ) {

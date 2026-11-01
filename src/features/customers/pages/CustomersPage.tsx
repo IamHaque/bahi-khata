@@ -505,15 +505,7 @@ export function CustomersPage() {
         renderRowActions={renderRowActions}
         mobile={(row) => ({
           lead: <Monogram name={row.name} tone={balanceTone(row.balance)} />,
-          title: (
-            <Link
-              to={paths.customerDetail(businessId, row.id)}
-              onClick={(e) => e.stopPropagation()}
-              className="font-medium text-foreground hover:underline"
-            >
-              {row.name}
-            </Link>
-          ),
+          title: row.name,
           subtitle: row.phone ?? undefined,
           meta: row.archived_at ? "Archived" : undefined,
           trailing: (

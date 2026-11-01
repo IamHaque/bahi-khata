@@ -151,7 +151,7 @@ export function transactionMobileSpec(
       <Link
         to={paths.customerDetail(businessId, row.customer_id)}
         onClick={(event) => event.stopPropagation()}
-        className="font-medium text-foreground hover:underline"
+        className="font-medium text-foreground hover:underline pointer-coarse:min-h-11 pointer-coarse:inline-flex pointer-coarse:items-center"
       >
         {row.customer.name}
       </Link>

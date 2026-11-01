@@ -102,7 +102,7 @@ export function findRawIconButtons(filePath: string, code: string): string[] {
       if (found) return;
       if (ts.isJsxElement(n)) {
         const classAttr = n.openingElement.attributes.properties.find(
-          (p) => ts.isJsxAttribute(p) && p.name.text === "className",
+          (p) => ts.isJsxAttribute(p) && p.name.getText(sf) === "className",
         );
         const classVal =
           classAttr && ts.isJsxAttribute(classAttr) && classAttr.initializer
@@ -157,7 +157,7 @@ export function findRawIconButtons(filePath: string, code: string): string[] {
         isCandidate = true;
       } else {
         const renderAttr = node.openingElement.attributes.properties.find(
-          (p) => ts.isJsxAttribute(p) && p.name.text === "render",
+          (p) => ts.isJsxAttribute(p) && p.name.getText(sf) === "render",
         );
         if (
           renderAttr &&

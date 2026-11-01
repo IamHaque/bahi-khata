@@ -179,7 +179,7 @@ export function Topbar({
               <IconButton
                 icon={<Avatar name={user?.email ?? "User"} />}
                 label="Account"
-                ariaLabel="Account"
+                ariaLabel="User menu"
                 className="rounded-full p-0"
               />
             }

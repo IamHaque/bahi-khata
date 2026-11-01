@@ -40,12 +40,11 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     ref,
   ) => {
     const accessibleName = ariaLabel ?? label;
+    const isReasonDisabled = disabled && !!disabledReason;
     const tooltipText =
-      disabled && disabledReason ? `${label}: ${disabledReason}` : label;
+      isReasonDisabled ? `${label}: ${disabledReason}` : label;
     const accessibleLabel =
-      disabled && disabledReason
-        ? `${accessibleName}: ${disabledReason}`
-        : accessibleName;
+      isReasonDisabled ? `${accessibleName}: ${disabledReason}` : accessibleName;
 
     const button = (
       <Button
@@ -54,9 +53,9 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         variant={tone === "destructive" ? "destructive" : variant}
         size={size}
         disabled={disabled}
-        aria-label={disabled ? undefined : accessibleName}
-        aria-hidden={disabled ? true : undefined}
-        tabIndex={disabled ? -1 : undefined}
+        aria-label={isReasonDisabled ? undefined : accessibleName}
+        aria-hidden={isReasonDisabled ? true : undefined}
+        tabIndex={isReasonDisabled ? -1 : undefined}
         className={cn(
           "touch-target",
           tone === "destructive" &&
@@ -74,7 +73,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       <Tooltip>
         <TooltipTrigger
           render={
-            disabled ? (
+            isReasonDisabled ? (
               <span
                 role="button"
                 tabIndex={0}

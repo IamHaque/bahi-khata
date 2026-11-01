@@ -166,9 +166,9 @@ export function LedgerTable({
 
   const mobileTotals = (
     <div className="border-t border-foreground border-b-[6px] border-double px-4 py-2 text-sm">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium">Totals</span>
-        <span className="flex items-baseline gap-3">
+        <span className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1">
           <Money amount={charged} className="text-receivable" />
           <Money amount={paid} className="text-credit" />
           <Money amount={finalBalance} className="font-medium" />
