@@ -5,31 +5,36 @@ file is the ordered, copy-paste procedure for everything that needs a human
 with dashboard or CLI access. Each entry names the exact files, the order,
 and how to verify success.
 
-**Current state (v3.1, 2026-10-29, branch `feat/v3`):** the database
-schema is the **three-file v3.1 chain** described in section 0 below
-(consolidated baseline + two v3 migrations). The pre-v3 chain (v1
-baselines + `0001`-`0010`) is **archived** in
+**Current state (v3.2, 2026-11-02, branch `feat/v3.2`):** the database
+schema is the **seven-file v3.2 chain** described in section 0 below
+(consolidated baseline + two v3/v3.1 migrations + four v3.2 migrations).
+The pre-v3 chain (v1 baselines + `0001`-`0010`) is **archived** in
 `supabase/migrations_archive/` - those files were consolidated into
 `20261017000000_bahikhata_consolidated_schema.sql` and must not be
-replayed. For a **new** project: apply the three files in filename
-order (the "v3 database rollout" section near the end of this file has
+replayed. For an upgrade from v3.1: apply the four v3.2 migrations in
+filename order. For a **new** project: apply all seven files in filename
+order (the "v3.2 database rollout" section near the end of this file has
 the full runbook, post-deploy checklist and rollback). Everything
 earlier in this document (the SYNC runbook and the per-story S-xx
-sections) is **history** - the record of how the v2 build was applied
+sections) is **history** - the record of how earlier builds were applied
 - kept for reference, not a current procedure.
 
 ---
 
-## 0. How to apply migrations (v3.1 chain - current)
+## 0. How to apply migrations (v3.2 chain - current)
 
 Migrations live in `supabase/migrations/` and are applied in filename
-order (all three are idempotent, safe to re-run after themselves):
+order (all seven are idempotent, safe to re-run after themselves):
 
 | File | Story | Purpose |
 | --- | --- | --- |
 | `20261017000000_bahikhata_consolidated_schema.sql` | S-50 | consolidated multi-business schema: tables, membership RLS, RPCs, views (the whole pre-v3 chain in one file) |
 | `20261101000000_v3_deletion_log_and_integrity.sql` | S-50 | `deletion_log`, `delete_transaction()`, snapshotting `delete_customer_permanently()`, `restore_deleted()`, actor-stamp triggers, `dashboard_summary` timezone, EXECUTE revocations |
 | `20261108000000_v31_last_payment_at.sql` | S-53 | `last_payment_at` on the `customer_balances` view |
+| `20261201000000_v32_transaction_revisions.sql` | S-72 | `transaction_revisions` table, audit trigger `tr_record_transaction_revision`, `transaction_history` RPC |
+| `20261201000100_v32_deletion_log_purge.sql` | S-73 | `deletion_log_purges` audit table, `purge_deletion_log` RPC (30-day floor), `export_deletion_log` RPC |
+| `20261201000200_v32_ownership_transfer.sql` | S-74 | `ownership_transfers` audit table, atomic `transfer_ownership` RPC, updated `leave_business` |
+| `20261201000300_v32_bulk_actions.sql` | S-75 | 5 atomic bulk RPCs capped at 100 items (archive, void, delete txs/customers, restore deleted) |
 
 The archived pre-v3 files (`supabase/migrations_archive/`) are kept as
 history only - see the warning in the "v3 database rollout" section:
@@ -1141,6 +1146,24 @@ Owner, Editor and Viewer where it applies) and record the result in
 redeploy of the previous Vercel build; database rollback is the backup
 from step (a).
 
+
+---
+
+## v3.2 database rollout runbook (S-76)
+
+### Prerequisites & Safety Rules
+1. **Backups first:** Perform a full database backup via Supabase Dashboard (Database -> Backups) or CLI (`pg_dump`) before executing any migrations.
+2. **Order of execution:** Apply the 4 migration files in exact filename order:
+   1. `20261201000000_v32_transaction_revisions.sql` (S-72)
+   2. `20261201000100_v32_deletion_log_purge.sql` (S-73)
+   3. `20261201000200_v32_ownership_transfer.sql` (S-74)
+   4. `20261201000300_v32_bulk_actions.sql` (S-75)
+3. **Failure procedure:** If any migration file fails:
+   - **STOP IMMEDIATELY.** Do not run subsequent files.
+   - Investigate the error message.
+   - If data or schema was partially altered, restore from the backup taken in Step 1.
+   - All migrations are additive and backwards-compatible with v3.1 clients.
+4. **Deploy client after:** Client build and deployment should take place after migrations are confirmed via verification queries.
 
 ---
 

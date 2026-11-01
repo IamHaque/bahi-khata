@@ -138,6 +138,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 23-section suite. It
+seven migrations in filename order, then runs the 23-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.

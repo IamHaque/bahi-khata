@@ -81,6 +81,11 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 | Bring back a deleted item | Restore | Undelete, Recover |
 | Workspace | Business | Tenant, Workspace, Organization |
 | Shared access | Member, Editor, Viewer, Owner | Admin, User |
+| Transfer business ownership | Make owner | Transfer, Hand over |
+| Clean up old deletion log | Clean up | Purge, Prune, Wipe |
+| Transaction edits and audit trail | History | Audit log, Revisions, Changelog |
+| Bulk action mode | Select | Multi-select, Batch |
+| Dashboard trend visualization | Activity | Chart, Trends, Volume |
 
 The note field keeps the label **Note** in forms; its ledger column header
 is **Particulars** (D-27).
@@ -176,3 +181,53 @@ Two guard rails keep the two layers honest:
 - **Database → UI:** `assertCan` only blocks *known* roles; an unknown
   role falls through and the RLS policies refuse the write anyway.
   The UI hiding a control is experience, never security.
+
+
+## Tooltips & IconButton (PRD v3.2 U-01, D-32)
+1. **Single Tooltip primitive:** Wrapped `@base-ui/react/tooltip`, styled with `bg-popover border border-border text-xs rounded px-2 py-1`.
+2. **IconButton:** Standard icon-only button control. Requires `label` (or `ariaLabel`), renders Lucide icon, auto-wraps in `Tooltip`. Touch hit target is expanded to 44px on coarse pointers via `.touch-target`.
+3. **Disabled state with reason:** When disabled, `disabledReason` displays in the tooltip as `"{label}: {disabledReason}"`. The button renders an accessible focusable wrapper with `aria-label` describing the reason.
+4. **Touch suppression:** Tooltips never open on tap/touch (`pointer: coarse`); clicking or tapping activates the control directly without lingering tooltip artifacts. Enforced by `src/test/iconButtonGuard.test.tsx`.
+
+## Bulk Selection & Actions (PRD v3.2 S-75, B-13)
+1. **Selection contract:**
+   - Desktop and mobile: Checkboxes appear on selectable rows/cards.
+   - Header checkbox toggles all visible rows on current page, with indeterminate state for partial selection.
+   - Shift+click allows range selection across rows on desktop.
+   - Page change, filter change, search query change, tab switch, or Escape key clears active selection.
+2. **BulkActionBar:**
+   - Sticky floating bar on desktop; fixed above bottom safe area on mobile.
+   - `aria-live="polite"` announcement of count (e.g., "3 customers selected").
+   - Action buttons with icon + label (Archive/Restore/Delete for customers; Void/Restore/Delete for transactions; Restore for deleted items).
+   - Escape key dismisses selection.
+3. **BulkConfirmDialog:**
+   - Dialog listing up to 5 affected items plus "and n more".
+   - Shows summary totals (e.g. sum of charged and paid amounts for transactions).
+   - Explains recoverability (archived/voided can be undone; permanently deleted can be restored within 30 days).
+   - Destructive permanent deletes require typing uppercase `DELETE {n}` before confirming.
+   - Provides a 10-second Undo toast on completion.
+4. **Batch limits:** Backend caps operations to 100 items per call with atomic all-or-nothing rollback on any row error.
+
+## Transaction Revision History (PRD v3.2 S-72, B-08)
+1. **Audit trail:** Any edit, void, or restore to a transaction is recorded in `transaction_revisions` via database trigger.
+2. **History section:** Displayed on `TransactionDetailPage` below the details card for all members (Viewers included).
+3. **Changes formatting:** Each revision displays actor name, timestamp, and field-level differences (amount, note, occurred date, status).
+4. **Edited badge:** In tables and lists, the `EditedBadge` displays a pencil icon and links directly to `#history` on the detail page.
+5. **History start notice:** Revisions are tracked starting from the v3.2 database installation date.
+
+## Ownership Transfer (PRD v3.2 S-74, B-14)
+1. **Owner-only atomic transfer:** Executed via `transfer_ownership(p_business_id, p_new_owner)` RPC.
+2. **Make owner dialog:**
+   - Opened from member row menu on Members page for business Owner.
+   - Warns of irreversible consequences (caller becomes Editor; new owner can change roles, remove anyone, or delete business).
+   - Requires typing the exact business name to enable confirmation.
+   - Refreshes app permissions and navigates safely upon completion.
+
+## Deletion Log Export & Purge (PRD v3.2 S-73, B-12)
+1. **Clean up dialog:**
+   - Owner-only operation on Recently Deleted page.
+   - Floor of 30 days: items deleted within the last 30 days can never be purged.
+   - Dry run preview calculates exact count of items eligible for permanent removal.
+   - Requires typing `PURGE` to confirm.
+   - Audit trail logged to `deletion_log_purges`.
+2. **Export:** Export button downloads deletion log as CSV before cleanup.
