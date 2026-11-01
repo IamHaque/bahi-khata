@@ -1251,7 +1251,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-75 Bulk select and act (B-13) | Done | b9a5202 | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
 | U-08 Entry row on the ledger (L-12) | Done | fd0408f | LedgerEntryRow with 6 columns, live balance preview, auto-clearing / error validation, entry-reveal highlight, responsive desktop-only; 88 test files passing (722 tests). |
 | S-76 Documentation, rollout guide, backlog | Done | 013616b | Updated MANUAL_STEPS.md with v3.2 rollout runbook, UI-CONTRACT.md with all new systems & glossary, RLS.md, RELEASE-NOTES-v3.2.md, BACKLOG.md (closed B-08/12/13/14, added B-24..29), and README.md. |
-| S-77 Final verification and release candidate | Done | pending | Release candidate verified: 88 test files (722 tests), lint 0 errors, tsc clean, bundle 350.88 kB max, contrast 82/82, 280/280 responsive & table audit PASS. |
+| S-77 Final verification and release candidate | Done | 54efe23 | Release candidate verified: 88 test files (722 tests), lint 0 errors, tsc clean, bundle 350.88 kB max, contrast 82/82, 280/280 responsive & table audit PASS. |
 
 ## S-77 Final verification and release candidate (checklist)
 
