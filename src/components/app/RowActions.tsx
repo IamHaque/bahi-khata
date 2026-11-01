@@ -110,6 +110,7 @@ export function RowActions({
             label={action.label}
             ariaLabel={action.ariaLabel ?? action.label}
             disabled={action.disabled}
+            disabledReason={action.disabledReason}
             tone={action.destructive ? "destructive" : "default"}
             onClick={(e) => {
               e.stopPropagation();
@@ -156,6 +157,11 @@ export function RowActions({
                       type="button"
                       role="menuitem"
                       disabled={action.disabled}
+                      aria-describedby={
+                        action.disabled && action.disabledReason
+                          ? `action-reason-${action.id}`
+                          : undefined
+                      }
                       className={cn(
                         "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted disabled:opacity-50 pointer-coarse:min-h-11",
                         action.destructive && "text-destructive hover:text-destructive",
@@ -166,8 +172,18 @@ export function RowActions({
                       }}
                       onKeyDown={(e) => onItemKeyDown(e, i)}
                     >
-                      <Icon className="size-4 shrink-0" />
-                      <span>{action.label}</span>
+                      <Icon className="size-4 shrink-0 mt-0.5 self-start" />
+                      <div className="flex flex-col items-start text-left">
+                        <span>{action.label}</span>
+                        {action.disabled && action.disabledReason && (
+                          <span
+                            id={`action-reason-${action.id}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            {action.disabledReason}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   </li>
                 );

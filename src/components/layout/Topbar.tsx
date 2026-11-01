@@ -152,17 +152,19 @@ export function Topbar({
         {/* Invitation count badge (S-24) — opens the businesses page
             where each invitation is answered. */}
         {invitationCount > 0 && (
-          <button
-            type="button"
+          <IconButton
+            icon={
+              <span className="relative inline-flex items-center justify-center">
+                <Mail className="size-5" />
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {invitationCount}
+                </span>
+              </span>
+            }
+            label="Invitations"
+            ariaLabel={`Invitations (${invitationCount} pending)`}
             onClick={() => navigate(paths.businesses)}
-            aria-label={`Invitations (${invitationCount} pending)`}
-            className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent-wash hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11"
-          >
-            <Mail className="size-5" />
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-              {invitationCount}
-            </span>
-          </button>
+          />
         )}
 
         <IconButton
@@ -174,15 +176,14 @@ export function Topbar({
         <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
           <PopoverTrigger
             render={
-              <button
-                type="button"
-                aria-label="User menu"
-                className="rounded-full transition-opacity hover:opacity-80 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              <IconButton
+                icon={<Avatar name={user?.email ?? "User"} />}
+                label="Account"
+                ariaLabel="Account"
+                className="rounded-full p-0"
               />
             }
-          >
-            <Avatar name={user?.email ?? "User"} />
-          </PopoverTrigger>
+          />
           <PopoverContent className="w-56 p-1" align="end">
             <div className="border-b border-border px-2 py-2">
               <p className="truncate text-sm font-medium text-foreground">

@@ -12,6 +12,7 @@ export interface IconButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   label: string;
   ariaLabel?: string;
+  disabledReason?: string;
   icon: React.ReactNode;
   variant?: VariantProps<typeof buttonVariants>["variant"];
   size?: VariantProps<typeof buttonVariants>["size"];
@@ -24,6 +25,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     {
       label,
       ariaLabel,
+      disabledReason,
       icon,
       onClick,
       variant = "ghost",
@@ -38,6 +40,12 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     ref,
   ) => {
     const accessibleName = ariaLabel ?? label;
+    const tooltipText =
+      disabled && disabledReason ? `${label}: ${disabledReason}` : label;
+    const accessibleLabel =
+      disabled && disabledReason
+        ? `${accessibleName}: ${disabledReason}`
+        : accessibleName;
 
     const button = (
       <Button
@@ -46,7 +54,9 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         variant={tone === "destructive" ? "destructive" : variant}
         size={size}
         disabled={disabled}
-        aria-label={accessibleName}
+        aria-label={disabled ? undefined : accessibleName}
+        aria-hidden={disabled ? true : undefined}
+        tabIndex={disabled ? -1 : undefined}
         className={cn(
           "touch-target",
           tone === "destructive" &&
@@ -66,10 +76,11 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           render={
             disabled ? (
               <span
+                role="button"
                 tabIndex={0}
                 className="inline-flex touch-target"
                 aria-disabled="true"
-                aria-label={accessibleName}
+                aria-label={accessibleLabel}
               >
                 {button}
               </span>
@@ -78,7 +89,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             )
           }
         />
-        <TooltipContent side={tooltipSide}>{label}</TooltipContent>
+        <TooltipContent side={tooltipSide}>{tooltipText}</TooltipContent>
       </Tooltip>
     );
   },

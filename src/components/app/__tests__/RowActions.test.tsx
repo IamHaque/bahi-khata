@@ -107,4 +107,55 @@ describe("RowActions (U-02)", () => {
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.getByRole("button", { name: "Void" })).toBeTruthy();
   });
+
+  it("supports disabledReason inline and in the More actions menu", async () => {
+    const user = userEvent.setup();
+    const actions: RowAction[] = [
+      {
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onSelect: vi.fn(),
+        disabled: true,
+        disabledReason: "Entry is reconciled",
+      },
+      {
+        id: "delete",
+        label: "Delete",
+        icon: Trash2,
+        onSelect: vi.fn(),
+        destructive: true,
+        disabled: true,
+        disabledReason: "Only owner can delete",
+      },
+    ];
+
+    renderWithTooltip(<RowActions actions={actions} />);
+
+    // Inline disabled action has reason in accessible name and tooltip
+    const inlineTrigger = screen.getByRole("button", {
+      name: "Edit: Entry is reconciled",
+    });
+    expect(inlineTrigger).toBeTruthy();
+    expect(inlineTrigger.getAttribute("aria-disabled")).toBe("true");
+
+    await user.hover(inlineTrigger);
+    expect(await screen.findByText("Edit: Entry is reconciled")).toBeTruthy();
+
+    // Menu disabled action displays reason as second line with aria-describedby
+    const moreBtn = screen.getByRole("button", { name: "More actions" });
+    await user.click(moreBtn);
+
+    const deleteItem = screen.getByRole("menuitem", {
+      name: /Delete.*Only owner can delete/,
+    });
+    expect(deleteItem).toBeTruthy();
+    expect(deleteItem.getAttribute("aria-describedby")).toBe(
+      "action-reason-delete",
+    );
+
+    const reasonEl = screen.getByText("Only owner can delete");
+    expect(reasonEl.id).toBe("action-reason-delete");
+    expect(reasonEl.className).toContain("text-muted-foreground");
+  });
 });
