@@ -78,8 +78,17 @@ const path = require("node:path");
 // Configuration
 // ---------------------------------------------------------------------------
 
-const DEV_ORIGIN = "http://localhost:5173";
+let DEV_ORIGIN = process.env.AUDIT_DEV_ORIGIN || "http://localhost:5173";
 const DEBUG_PORT = 9333;
+const VERBOSE = process.env.AUDIT_VERBOSE === "1";
+const SCENARIO_TIMEOUT = Number(process.env.AUDIT_TIMEOUT || 60000);
+
+function logVerbose(step, detail = "") {
+  if (VERBOSE) {
+    const ts = new Date().toISOString().slice(11, 19);
+    console.log(`[CDP ${ts}] ${step} ${detail}`);
+  }
+}
 // Debug subset support (used during development of this script):
 // AUDIT_ROUTES="/businesses" AUDIT_WIDTHS=360 AUDIT_THEMES=light narrows the
 // matrix; AUDIT_IDS="dashboard-data,dashboard-empty" picks scenarios by id.
@@ -129,18 +138,30 @@ const SCENARIOS = [
   { id: "onboarding", path: "/onboarding/business", marker: "Create your business" },
 
   // Dashboard: with data, empty (first-run) and loading (skeleton) states.
-  { id: "dashboard-data", path: "/b/b1", marker: "Top outstanding balances", focus: true },
+  { id: "dashboard-data", path: "/b/b1", marker: "Where you stand", focus: true },
+  {
+    id: "dashboard-chart-7",
+    path: "/b/b1",
+    marker: "Where you stand",
+    open: [{ role: "button", name: /^7 days$/ }],
+  },
   {
     id: "dashboard-chart-30",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^30 days$/ }],
   },
   {
     id: "dashboard-chart-90",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^90 days$/ }],
+  },
+  {
+    id: "dashboard-chart-12m",
+    path: "/b/b1",
+    marker: "Where you stand",
+    open: [{ role: "button", name: /^12 months$/ }],
   },
   { id: "dashboard-empty", path: "/b/b1", marker: "Getting started", mode: "empty" },
   {
@@ -188,7 +209,7 @@ const SCENARIOS = [
   {
     id: "sheet-add-transaction",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^Add transaction$/ }],
     dialog: true,
     focus: true,
@@ -196,7 +217,7 @@ const SCENARIOS = [
   {
     id: "dialog-add-customer",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^Add customer$/ }],
     dialog: true,
   },
@@ -1050,6 +1071,7 @@ class CdpClient {
 
   send(method, params = {}) {
     const id = this.nextId++;
+    logVerbose(`-> ${method}`, JSON.stringify(params).slice(0, 100));
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));
@@ -1063,6 +1085,7 @@ class CdpClient {
   }
 
   waitEvent(method, timeoutMs = 30000) {
+    logVerbose(`waiting for event: ${method}`);
     return new Promise((resolve, reject) => {
       const list = this.eventWaiters.get(method) || [];
       const timer = setTimeout(() => {
@@ -1072,6 +1095,7 @@ class CdpClient {
       }, timeoutMs);
       const handler = (params) => {
         clearTimeout(timer);
+        logVerbose(`received event: ${method}`);
         resolve(params);
       };
       list.push(handler);
@@ -1100,12 +1124,17 @@ function findChrome() {
 }
 
 async function devServerUp() {
-  try {
-    const res = await fetch(DEV_ORIGIN, { redirect: "manual" });
-    return res.status < 500;
-  } catch {
-    return false;
+  const candidates = [DEV_ORIGIN, "http://localhost:5173", "http://localhost:5175", "http://localhost:5174"];
+  for (const origin of new Set(candidates)) {
+    try {
+      const res = await fetch(origin, { redirect: "manual" });
+      if (res.status < 500) {
+        DEV_ORIGIN = origin;
+        return true;
+      }
+    } catch {}
   }
+  return false;
 }
 
 async function pollForTarget(timeoutMs) {
@@ -1144,6 +1173,7 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
   for (const el of all) {
     const cs = getComputedStyle(el);
     if (cs.display === "none" || cs.visibility === "hidden" || cs.position === "fixed") continue;
+    if (el.classList.contains("sr-only") || el.closest(".sr-only")) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
     const ownText = Array.from(el.childNodes)
@@ -1625,7 +1655,7 @@ async function main() {
           /* about:blank */
         }
       }
-      const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 90000 : 45000);
+      const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 45000 : 25000);
       await cdp.send("Page.navigate", { url: DEV_ORIGIN + scenario.path });
       let ok = true;
       try {
@@ -1639,7 +1669,7 @@ async function main() {
       const markerWait = scenario.markerSelector
         ? SELECTOR_SOURCE(scenario.markerSelector)
         : MARKER_SOURCE(scenario.marker);
-      let found = await waitFor(cdp, markerWait, 30000);
+      let found = await waitFor(cdp, markerWait, 10000);
       await sleep(700); // settle transitions (S-41: no animation waits)
 
       // Colour theme: next-themes follows the emulated prefers-color-scheme;
@@ -1660,10 +1690,10 @@ async function main() {
           await evaluate(cdp, CLICK_SOURCE(step));
           await sleep(500);
         }
-        if (!found) found = await waitFor(cdp, markerWait, 8000);
+        if (!found) found = await waitFor(cdp, markerWait, 5000);
         await sleep(400);
       }
-      if (!found) found = await waitFor(cdp, markerWait, 8000);
+      if (!found) found = await waitFor(cdp, markerWait, 5000);
       return { ok: true, found, themeApplied };
     };
 
@@ -1695,8 +1725,52 @@ async function main() {
           });
 
           const cellKey = `${width}/${theme}`;
-          const nav = await navigateAndSettle(scenario, width, theme);
+          const cellStart = Date.now();
+          const startIso = new Date().toISOString().slice(11, 19);
+          process.stdout.write(`[${startIso}] [${scenario.id}] [${width}px] [${theme}] starting...\n`);
+
+          let nav = false;
+          let timer = null;
+          try {
+            const timeoutPromise = new Promise((_, reject) => {
+              timer = setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      `timed out waiting for ${scenario.marker || scenario.markerSelector || "settle"}`,
+                    ),
+                  ),
+                SCENARIO_TIMEOUT,
+              );
+            });
+            nav = await Promise.race([
+              navigateAndSettle(scenario, width, theme),
+              timeoutPromise,
+            ]);
+          } catch (err) {
+            nav = false;
+            const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+            process.stdout.write(
+              `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] FAILED: ${err.message} (${elapsed}s)\n`,
+            );
+            row.cells[cellKey] = {
+              status: "FAIL",
+              detail: `FAILED: ${err.message}`,
+              theme,
+              innerWidth: width,
+              scrollWidth: width,
+              pathname: scenario.path,
+            };
+            continue;
+          } finally {
+            if (timer) clearTimeout(timer);
+          }
+
           if (nav === false) {
+            const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+            process.stdout.write(
+              `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] NOT VERIFIED (navigation failed) (${elapsed}s)\n`,
+            );
             row.cells[cellKey] = { status: "NOT VERIFIED", detail: "navigation failed" };
             continue;
           }
@@ -1795,6 +1869,10 @@ async function main() {
             pathname: measurement.pathname,
             screenshot: shotFile,
           };
+          const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+          process.stdout.write(
+            `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] ${status} (${elapsed}s)\n`,
+          );
         }
       }
       results.push(row);
