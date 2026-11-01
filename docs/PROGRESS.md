@@ -1239,10 +1239,10 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-70 Branch, baseline, decisions | Done | 0186842 | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
 | U-01 Tooltips and `IconButton` | Done | 5855dad | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
 | U-02 Table system: `DataTable` v2 and `RowActions` | Done | 1e608d4 | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
-| U-03 Migrate Transactions and Customers pages | Done | 8c62478 | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
+| U-03 Migrate Transactions and Customers pages | Done | bb3f78e | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 219fadb | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
 | U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
-| U-06 Dashboard activity chart, rebuilt | Done | 60ac7bb | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
+| U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
 | S-71 Analysis: the "who to chase" threshold | todo | | |
 | U-07 Who to chase (L-13) | todo | | |
 | S-72 Transaction revision history (B-08) | todo | | |
