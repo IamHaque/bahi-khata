@@ -1244,7 +1244,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
 | U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
 | S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
-| U-07 Who to chase (L-13) | Done | (commit below) | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
+| U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
 | S-72 Transaction revision history (B-08) | todo | | |
 | S-73 Deletion log export and purge (B-12) | todo | | |
 | S-74 Ownership transfer (B-14) | todo | | |
