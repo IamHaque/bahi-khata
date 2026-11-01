@@ -1249,7 +1249,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-73 Deletion log export and purge (B-12) | Done | 0e642de | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
 | S-74 Ownership transfer (B-14) | Done | 86e3873 | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
 | S-75 Bulk select and act (B-13) | Done | b9a5202 | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
-| U-08 Entry row on the ledger (L-12) | todo | | |
+| U-08 Entry row on the ledger (L-12) | Done | fd0408f | LedgerEntryRow with 6 columns, live balance preview, auto-clearing / error validation, entry-reveal highlight, responsive desktop-only; 88 test files passing (722 tests). |
 | S-76 Documentation, rollout guide, backlog | todo | | |
 | S-77 Final verification and release candidate | todo | | |
 
@@ -1454,3 +1454,26 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] SQL tests: Section 23 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/owner permission matrix, 100-item cap (54000), foreign id refusal, all-or-nothing rollback, deletion log undo roundtrip, archived customer transaction void refusal. Suite updated to 23 sections.
 - [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
 - [x] Frontend tests: `src/features/__tests__/bulkActions.test.tsx` (5 tests) passing; `dataTable.test.tsx` (21 tests), `customersList.test.tsx` (18 tests), `transactionsPage.test.tsx` (16 tests), `deletedItemsPage.test.tsx` (13 tests) passing; axe accessibility and 0 lint errors.
+
+
+## U-08 Entry row on the customer ledger (L-12 checklist)
+
+- [x] Schema & validation:
+  - `src/features/transactions/schemas.ts`: exported `amountField` (required, > 0, <= 2 decimals).
+  - Both-columns validation: shows inline `Enter either Charged or Paid` error if both are populated and disables Save button.
+  - Auto-clearing: typing into Charged clears Paid and vice versa.
+- [x] Component `LedgerEntryRow.tsx`:
+  - 6 table cells matching ledger columns: Date (defaults today, accessible change date button with date input), Particulars (input max 500 chars), Charged (amount input), Paid (amount input), Balance (live preview `after: ₹X.XX`), Action (Save button).
+  - Live balance preview dynamically updates according to current customer balance plus charge or minus payment.
+  - Keyboard flow: Tab moves through Date -> Particulars -> Charged -> Paid -> Save; Enter in amount input saves; Escape key clears row.
+  - On submit: calls `useCreateTransaction`, clears row, fires toast "Charge added" or "Payment added", returns focus to Charged input, and passes new transaction ID to `onSuccess`.
+- [x] Integration in `LedgerTable.tsx` and `CustomerDetailPage.tsx`:
+  - `LedgerTable`: supports `topRow` and `highlightId`; applies `.entry-reveal` class to newly created row.
+  - `CustomerDetailPage`: mounts `LedgerEntryRow` as `topRow` when `canWriteTransactions` (`can("manageTransactions") && !archived`); tracks `revealedId` on success.
+  - Responsive: entry row only appears on desktop (`md` and up via `DataTable`'s desktop `<table>` body); below `md`, `DataTable` switches to mobile cards where entry row is absent, leaving the header buttons "Add charge" and "Add payment" as the sole mobile entry point.
+- [x] Frontend tests:
+  - `src/features/customers/__tests__/LedgerEntryRow.test.tsx` (8 tests) passing: 6 table cells, charge flow balance increase, payment flow balance decrease, both-filled error and disabled save, button click save and onSuccess, Enter key save, Escape clear, accessible change date button.
+  - `src/features/customers/__tests__/customerDetail.test.tsx` (11 tests) passing: row index assertions, viewer and archived customer omit entry row, narrow mobile screen omits entry row.
+- [ ] Human validation item:
+  - On desktop (>=768px), navigate to customer detail page: verify LedgerEntryRow is present at the top of the ledger table. Type a charge and press Enter; verify toast "Charge added", row clears, focus returns to Charged input, and new row fades in with `entry-reveal`.
+  - On mobile (<768px), verify no entry row is rendered, only "Add charge" / "Add payment" header buttons.
