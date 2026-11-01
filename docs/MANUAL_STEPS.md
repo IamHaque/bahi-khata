@@ -1266,3 +1266,27 @@ select count(*) from pg_proc
  where pronamespace = 'public'::regnamespace and proname = 'leave_business';
 -- [1]
 ```
+
+---
+
+## v3.2 database rollout: S-75 (`20261201000300_v32_bulk_actions.sql`)
+
+### Verification queries
+```sql
+-- 1. All 5 bulk functions exist
+select proname, prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace
+   and proname in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_delete_customers',
+     'bulk_restore_deleted'
+   )
+ order by proname;
+-- bulk_delete_customers          | t
+-- bulk_delete_transactions       | t
+-- bulk_restore_deleted           | t
+-- bulk_set_customers_archived    | f
+-- bulk_set_transactions_voided   | f
+```

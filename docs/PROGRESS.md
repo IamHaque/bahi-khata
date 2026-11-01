@@ -1248,7 +1248,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-72 Transaction revision history (B-08) | Done | 7c728a4 | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
 | S-73 Deletion log export and purge (B-12) | Done | 0e642de | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
 | S-74 Ownership transfer (B-14) | Done | 86e3873 | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
-| S-75 Bulk select and act (B-13) | todo | | |
+| S-75 Bulk select and act (B-13) | Done | [PENDING_HASH] | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
 | U-08 Entry row on the ledger (L-12) | todo | | |
 | S-76 Documentation, rollout guide, backlog | todo | | |
 | S-77 Final verification and release candidate | todo | | |
@@ -1430,3 +1430,27 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] SQL tests: Section 22 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/outsider refusal (42501), target non-member refusal (55000), target owning another business refusal (55000), self-transfer refusal (55000), role swap & `owner_id` update & audit row logging, old owner privilege loss, new owner privilege gain, cascade delete.
 - [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
 - [x] Frontend tests: `transferOwnership.test.tsx` (4 tests) passing including typed confirmation, success toast, inline server error, and axe accessibility; `memberManagement.test.tsx` (11 tests) and `RowActions.test.tsx` (7 tests) passing.
+
+
+## S-75 Bulk select and act (checklist)
+
+- [x] Migration `20261201000300_v32_bulk_actions.sql`:
+  - 5 atomic RPCs capped at 100 items (error `54000`):
+    - `bulk_set_customers_archived(p_business_id uuid, p_ids uuid[], p_archived boolean)` (security invoker)
+    - `bulk_set_transactions_voided(p_business_id uuid, p_ids uuid[], p_voided boolean, p_reason text)` (security invoker)
+    - `bulk_delete_transactions(p_business_id uuid, p_ids uuid[], p_reason text)` (security definer, owner only, loops `delete_transaction`)
+    - `bulk_delete_customers(p_business_id uuid, p_ids uuid[], p_reason text)` (security definer, owner only, loops `delete_customer_permanently`)
+    - `bulk_restore_deleted(p_log_ids uuid[])` (security definer, owner only, loops `restore_deleted`)
+  - All-or-nothing rollback on any row error (P0002, 55000, 42501).
+- [x] Components:
+  - `src/components/ui/checkbox.tsx`: built on `@base-ui/react/checkbox` with `.touch-target` (44px on coarse pointer), indeterminate state, Check and Minus icons.
+  - `src/components/app/BulkActionBar.tsx`: sticky on desktop, fixed above safe area on phone, `aria-live="polite"` count readout, Escape key to clear.
+  - `src/components/app/BulkConfirmDialog.tsx`: shows first 5 items + "and n more", totals summary, recovery notice, typed `DELETE {n}` gate for destructive deletes.
+  - `src/components/app/DataTable.tsx` & `TableCard.tsx`: selectable rows, header indeterminate checkbox, Shift+click range selection, card checkbox.
+- [x] Page integrations:
+  - `CustomersPage`: selection state cleared on search/filter/sort/page; viewers see no checkboxes; BulkActionBar with Archive/Restore/Delete; BulkConfirmDialog with typed `DELETE {n}`; 10s Undo toast calling `bulk_restore_deleted`.
+  - `TransactionsPage`: selection state cleared on filter/range/page/sort/tab; viewers see no checkboxes; BulkActionBar with Void/Restore/Delete; BulkConfirmDialog with typed `DELETE {n}` and sum charged/paid; 10s Undo toast calling `bulk_restore_deleted`.
+  - `DeletedItemsPage`: selection state cleared on filter/tab; BulkActionBar with Restore (Owner only); only unrestored items selectable.
+- [x] SQL tests: Section 23 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/owner permission matrix, 100-item cap (54000), foreign id refusal, all-or-nothing rollback, deletion log undo roundtrip, archived customer transaction void refusal. Suite updated to 23 sections.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Frontend tests: `src/features/__tests__/bulkActions.test.tsx` (5 tests) passing; `dataTable.test.tsx` (21 tests), `customersList.test.tsx` (18 tests), `transactionsPage.test.tsx` (16 tests), `deletedItemsPage.test.tsx` (13 tests) passing; axe accessibility and 0 lint errors.

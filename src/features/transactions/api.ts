@@ -710,3 +710,55 @@ export async function getTransactionHistory(
     return (data ?? []) as TransactionRevision[];
   });
 }
+
+
+export interface BulkDeleteResult {
+  count: number;
+  log_ids: string[];
+}
+
+/**
+ * S-75: Bulk void/unvoid transactions. Max 100 per call.
+ */
+export async function bulkSetTransactionsVoided(
+  businessId: string,
+  ids: string[],
+  voided: boolean,
+  reason?: string,
+): Promise<number> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_set_transactions_voided", {
+      p_business_id: businessId,
+      p_ids: ids,
+      p_voided: voided,
+      p_reason: reason ?? null,
+    });
+
+    if (error) throw error;
+    return (data as number) ?? 0;
+  });
+}
+
+/**
+ * S-75: Bulk delete transactions permanently. Owner only. Returns log_ids.
+ */
+export async function bulkDeleteTransactions(
+  businessId: string,
+  ids: string[],
+  reason?: string,
+): Promise<BulkDeleteResult> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_delete_transactions", {
+      p_business_id: businessId,
+      p_ids: ids,
+      p_reason: reason ?? null,
+    });
+
+    if (error) throw error;
+    const res = data as { count?: number; log_ids?: string[] };
+    return {
+      count: Number(res?.count ?? 0),
+      log_ids: (res?.log_ids ?? []) as string[],
+    };
+  });
+}

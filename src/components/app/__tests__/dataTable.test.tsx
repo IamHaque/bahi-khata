@@ -236,8 +236,8 @@ describe("DataTable v2 (U-02)", () => {
 
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes.length).toBe(3);
-    expect((checkboxes[1] as HTMLInputElement).checked).toBe(true);
-    expect((checkboxes[2] as HTMLInputElement).checked).toBe(false);
+    expect(checkboxes[1]?.getAttribute("aria-checked")).toBe("true");
+    expect(checkboxes[2]?.getAttribute("aria-checked")).toBe("false");
 
     await user.click(checkboxes[2]!);
     expect(onSelectChange).toHaveBeenCalledWith(["1", "2"]);

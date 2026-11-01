@@ -258,3 +258,18 @@ export async function getLastPurge(
     };
   });
 }
+
+
+/**
+ * S-75: Bulk restore deleted items. Owner only. Max 100 per call.
+ */
+export async function bulkRestoreDeleted(logIds: string[]): Promise<number> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_restore_deleted", {
+      p_log_ids: logIds,
+    });
+    if (error) throw error;
+    const res = data as { count?: number } | number;
+    return typeof res === "object" ? Number(res?.count ?? 0) : Number(res ?? 0);
+  });
+}

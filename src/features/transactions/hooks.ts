@@ -7,6 +7,8 @@ import {
 } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  bulkDeleteTransactions,
+  bulkSetTransactionsVoided,
   createTransaction,
   createTransactionsBatch,
   currentTimeZone,
@@ -209,6 +211,50 @@ export function useDeleteTransaction(businessId: string) {
     onSuccess: () => {
       invalidate();
       // The Recently deleted page must show the new entry at once.
+      queryClient.invalidateQueries({
+        queryKey: deletionLogKeys.all(businessId),
+      });
+    },
+  });
+}
+
+/**
+ * S-75: Bulk void/unvoid transactions. Max 100 per call.
+ */
+export function useBulkSetTransactionsVoided(businessId: string) {
+  const invalidate = useTransactionInvalidation(businessId);
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({
+      ids,
+      voided,
+      reason,
+    }: {
+      ids: string[];
+      voided: boolean;
+      reason?: string;
+    }) => {
+      assertCan("manageTransactions");
+      return bulkSetTransactionsVoided(businessId, ids, voided, reason);
+    },
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * S-75: Bulk delete transactions permanently. Owner only. Returns array of deletion_log UUIDs.
+ */
+export function useBulkDeleteTransactions(businessId: string) {
+  const invalidate = useTransactionInvalidation(businessId);
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: string[]; reason?: string }) => {
+      assertCan("deleteTransaction");
+      return bulkDeleteTransactions(businessId, ids, reason);
+    },
+    onSuccess: () => {
+      invalidate();
       queryClient.invalidateQueries({
         queryKey: deletionLogKeys.all(businessId),
       });

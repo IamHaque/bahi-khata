@@ -104,6 +104,15 @@ One row per transaction edit, void, or restore. Records what changed, by whom, a
 - **RPC `transfer_ownership`:** SECURITY DEFINER, Owner only (`errcode 42501`). Target must be a member of the business and must not already own a business (`55000`). Caller cannot transfer to self (`55000`). Atomically demotes caller to editor, promotes target to owner, updates `businesses.owner_id`, and writes the audit log.
 - **Updated `leave_business`:** Mentions "Owners cannot leave. Transfer ownership first, or delete the business." (42501).
 
+### Bulk actions (S-75)
+
+Batch operations capped at 100 items per call. Atomic: all or nothing.
+- `bulk_set_customers_archived(business_id, ids, archived)`: SECURITY INVOKER (Editors/Owners can update; Viewers refused).
+- `bulk_set_transactions_voided(business_id, ids, voided, reason)`: SECURITY INVOKER (Editors/Owners can void/restore; Viewers refused; transactions of archived customers refused).
+- `bulk_delete_transactions(business_id, ids, reason)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count, log_ids}`.
+- `bulk_delete_customers(business_id, ids, reason)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count, transactions, log_ids}`.
+- `bulk_restore_deleted(log_ids)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count}`.
+
 ## Permission matrix ↔ SQL agreement
 
 The three v3 actions are Owner-only and each has a suite section:
@@ -129,6 +138,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 22-section suite. It
+three migrations in filename order, then runs the 23-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.

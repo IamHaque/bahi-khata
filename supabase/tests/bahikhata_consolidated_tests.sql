@@ -3901,7 +3901,125 @@ select pg_temp.as_admin();
 rollback to savepoint s22;
 release savepoint s22;
 
-do $ begin raise notice 'ALL 22 TEST SECTIONS PASSED'; end $;
-select 'ALL 22 TEST SECTIONS PASSED' as result;
+
+-- ============================================================
+-- 23. Bulk select and act (S-75, B-13)
+-- ============================================================
+savepoint s23;
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vic@example.com',    '{"full_name":"Vic"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor');
+
+insert into public.customers (id, business_id, name, is_archived) values
+  ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 1', false),
+  ('cccccccc-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 2', false),
+  ('cccccccc-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 3', true);
+
+insert into public.transactions (id, business_id, customer_id, type, amount, status, occurred_at) values
+  ('dddddddd-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 100, 'active', now()),
+  ('dddddddd-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'payment', 50, 'active', now()),
+  ('dddddddd-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000003', 'charge', 200, 'active', now());
+
+-- 23.1 bulk_set_customers_archived: Eli (editor) can archive; Vic (viewer) cannot; cap 100 enforced; foreign id refused
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+select pg_temp.expect_user_denied('viewer cannot archive customers',
+  $select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], true)$);
+
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_eq('editor archives 2 customers',
+  (select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-0000-0000-0000-000000000002'::uuid], true)), 2);
+
+select pg_temp.expect_eq('customers are now archived',
+  (select count(*) from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and is_archived = true), 3);
+
+-- Unarchive
+select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], false);
+select pg_temp.expect_eq('customer 1 is unarchived',
+  (select is_archived from public.customers where id = 'cccccccc-0000-0000-0000-000000000001'), false);
+
+-- Foreign id refused (all or nothing)
+do $
+begin
+  perform public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-9999-9999-9999-999999999999'::uuid], true);
+  raise exception 'failed: foreign id should raise P0002';
+exception when sqlstate 'P0002' then
+  -- expected
+end $;
+
+select pg_temp.expect_eq('all or nothing preserved customer 1 status on error',
+  (select is_archived from public.customers where id = 'cccccccc-0000-0000-0000-000000000001'), false);
+
+-- 23.2 bulk_set_transactions_voided: Editor can void/restore; archived customer transaction cannot be voided
+select pg_temp.expect_eq('editor voids 2 transactions',
+  (select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], true, 'test void')), 2);
+
+select pg_temp.expect_eq('transactions are voided',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'voided'), 2);
+
+-- Archived customer transaction cannot be voided
+do $
+begin
+  perform public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000003'::uuid], true, 'void archived');
+  raise exception 'failed: voiding transaction of archived customer should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $;
+
+-- Bulk restore voided transactions
+select pg_temp.expect_eq('editor restores 2 transactions',
+  (select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], false)), 2);
+
+select pg_temp.expect_eq('transactions restored to active',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'active'), 3);
+
+-- 23.3 bulk_delete_transactions: Owner only; editor refused 42501; returns {count, log_ids}
+select pg_temp.expect_user_denied('editor cannot bulk delete transactions',
+  $select public.bulk_delete_transactions('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid], 'del')$);
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_eq('owner bulk deletes 2 transactions',
+  (select (public.bulk_delete_transactions('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], 'bulk del')->>'count')::int), 2);
+
+select pg_temp.expect_eq('transactions removed from ledger',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_eq('deletion_log entries created',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and entity_type = 'transaction'), 2);
+
+-- 23.4 bulk_restore_deleted: Owner restores deleted items using log_ids
+select pg_temp.expect_eq('owner bulk restores 2 deleted transactions',
+  (select (public.bulk_restore_deleted((select array_agg(id) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and entity_type = 'transaction'))->>'count')::int), 2);
+
+select pg_temp.expect_eq('transactions restored to ledger',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 3);
+
+-- 23.5 bulk_delete_customers: Owner only; editor refused; deletes customer and their transactions
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_user_denied('editor cannot bulk delete customers',
+  $select public.bulk_delete_customers('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], 'del')$);
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_eq('owner bulk deletes 2 customers',
+  (select (public.bulk_delete_customers('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-0000-0000-0000-000000000002'::uuid], 'cust del')->>'count')::int), 2);
+
+select pg_temp.expect_eq('customers removed',
+  (select count(*) from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.as_admin();
+rollback to savepoint s23;
+release savepoint s23;
+
+do $ begin raise notice 'ALL 23 TEST SECTIONS PASSED'; end $;
+select 'ALL 23 TEST SECTIONS PASSED' as result;
 
 rollback;   -- nothing was ever committed

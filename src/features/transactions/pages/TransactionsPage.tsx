@@ -32,10 +32,18 @@ import { TransactionTotals } from "@/features/transactions/components/Transactio
 import { VoidTransactionDialog } from "@/features/transactions/components/VoidTransactionDialog";
 import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
 import {
+  useBulkDeleteTransactions,
+  useBulkSetTransactionsVoided,
   useRestoreTransaction,
   useTransactionList,
   useTransactionRollup,
 } from "@/features/transactions/hooks";
+import { useBulkRestoreDeleted } from "@/features/deleted-items/hooks";
+import { BulkActionBar } from "@/components/app/BulkActionBar";
+import { BulkConfirmDialog } from "@/components/app/BulkConfirmDialog";
+import { formatMoney } from "@/lib/format";
+import { toAppError } from "@/lib/AppError";
+import { Ban, RotateCcw, Trash2 } from "lucide-react";
 import type {
   TransactionListRow,
   TransactionListParams,
@@ -196,8 +204,94 @@ export function TransactionsPage() {
   const [voidTx, setVoidTx] = useState<TransactionListRow | null>(null);
   // v3 (S-54): the owner's hard delete — same shape of state as Void.
   const [deleteTx, setDeleteTx] = useState<TransactionListRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [
+    rangePreset,
+    customFrom,
+    customTo,
+    type,
+    customerId,
+    q,
+    includeVoided,
+    sortBy,
+    sortDir,
+    page,
+    pageSize,
+    view,
+  ]);
+
+  const bulkVoid = useBulkSetTransactionsVoided(businessId);
+  const bulkDelete = useBulkDeleteTransactions(businessId);
+  const bulkRestore = useBulkRestoreDeleted(businessId);
 
   const rows = list.data?.rows ?? [];
+  const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
+  const hasActiveSelected = selectedRows.some((r) => r.status !== "voided");
+  const hasVoidedSelected = selectedRows.some((r) => r.status === "voided");
+  const canVoid = can("manageTransactions");
+  const canDelete = can("deleteTransaction");
+  const canSelect = view === "detailed" && (canVoid || canDelete);
+
+  const chargedSum = selectedRows
+    .filter((r) => r.type === "charge")
+    .reduce((sum, r) => sum + r.amount, 0);
+  const paidSum = selectedRows
+    .filter((r) => r.type === "payment")
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  const handleBulkVoid = async () => {
+    try {
+      const idsToVoid = selectedRows.filter((r) => r.status !== "voided").map((r) => r.id);
+      const count = await bulkVoid.mutateAsync({ ids: idsToVoid, voided: true });
+      setSelectedIds([]);
+      toast.success(`Voided ${count} ${count === 1 ? "transaction" : "transactions"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    try {
+      const idsToRestore = selectedRows.filter((r) => r.status === "voided").map((r) => r.id);
+      const count = await bulkVoid.mutateAsync({ ids: idsToRestore, voided: false });
+      setSelectedIds([]);
+      toast.success(`Restored ${count} ${count === 1 ? "transaction" : "transactions"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      const result = await bulkDelete.mutateAsync({ ids: selectedIds });
+      setBulkDeleteDialogOpen(false);
+      const deletedCount = result.count;
+      const logIds = result.log_ids;
+      setSelectedIds([]);
+      toast.success(`Deleted ${deletedCount} ${deletedCount === 1 ? "transaction" : "transactions"}`, {
+        duration: 10000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            bulkRestore.mutate(logIds, {
+              onSuccess: (cnt) => {
+                toast.success(`Restored ${cnt} items`);
+              },
+              onError: (err) => {
+                toast.error(toAppError(err).message);
+              },
+            });
+          },
+        },
+      });
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
   // An old shared link with ?page= beyond the count lands on page 1
   // instead of a phantom empty page. During a page change list.data is
   // undefined (fresh key), so this cannot fire mid-load.
@@ -360,29 +454,83 @@ export function TransactionsPage() {
       />
 
       {view === "detailed" ? (
-        <DataTable
-          columns={detailColumns}
-          rows={rows}
-          getRowKey={(row) => row.id}
-          sortBy={sortBy}
-          sortDir={sortDir}
-          onSortChange={toggleSort}
-          onRowClick={onRowClick}
-          loading={list.isPending}
-          error={list.error ? list.error.message : null}
-          onRetry={() => list.refetch()}
-          renderRowActions={renderRowActions}
-          mobile={(row) => transactionMobileSpec(row, businessId)}
-          footer={<TransactionTotals total={totalRow} />}
-          emptyState={hasFilters ? undefined : trueEmptyNode}
-          noResultsState={hasFilters ? noResultsNode : undefined}
-          onClearFilters={clearFilters}
-          page={page}
-          pageSize={pageSize}
-          totalCount={list.data?.total}
-          onPageChange={(next) => updateParams({ page: String(next) })}
-          onPageSizeChange={(size) => setPageSize(size)}
-        />
+        <>
+          {canSelect && (
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              {canVoid && hasActiveSelected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkVoid}
+                  disabled={bulkVoid.isPending}
+                >
+                  <Ban className="size-4" />
+                  Void ({selectedRows.filter((r) => r.status !== "voided").length})
+                </Button>
+              )}
+              {canVoid && hasVoidedSelected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkRestore}
+                  disabled={bulkVoid.isPending}
+                >
+                  <RotateCcw className="size-4" />
+                  Restore ({selectedRows.filter((r) => r.status === "voided").length})
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBulkDeleteDialogOpen(true)}
+                  disabled={bulkDelete.isPending}
+                >
+                  <Trash2 className="size-4" />
+                  Delete ({selectedIds.length})
+                </Button>
+              )}
+            </BulkActionBar>
+          )}
+
+          <DataTable
+            selectable={
+              canSelect
+                ? {
+                    getId: (row) => row.id,
+                    selected: selectedIds,
+                    onChange: setSelectedIds,
+                    getRowLabel: (row) =>
+                      `${row.customer.name} - ${row.type === "charge" ? "Charged" : "Paid"} ${formatMoney(row.amount)}`,
+                  }
+                : undefined
+            }
+            columns={detailColumns}
+            rows={rows}
+            getRowKey={(row) => row.id}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortChange={toggleSort}
+            onRowClick={onRowClick}
+            loading={list.isPending}
+            error={list.error ? list.error.message : null}
+            onRetry={() => list.refetch()}
+            renderRowActions={renderRowActions}
+            mobile={(row) => transactionMobileSpec(row, businessId)}
+            footer={<TransactionTotals total={totalRow} />}
+            emptyState={hasFilters ? undefined : trueEmptyNode}
+            noResultsState={hasFilters ? noResultsNode : undefined}
+            onClearFilters={clearFilters}
+            page={page}
+            pageSize={pageSize}
+            totalCount={list.data?.total}
+            onPageChange={(next) => updateParams({ page: String(next) })}
+            onPageSizeChange={(size) => setPageSize(size)}
+          />
+        </>
       ) : (
         <DataTable
           columns={buildSummaryColumns()}
@@ -431,6 +579,25 @@ export function TransactionsPage() {
           const row = list.data?.rows.find((r) => r.id === id);
           if (row) setVoidTx(row);
         }}
+      />
+
+      <BulkConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "transaction" : "transactions"} permanently?`}
+        description="This will permanently delete the selected entries."
+        items={selectedRows.map(
+          (r) =>
+            `${r.customer.name}: ${r.type === "charge" ? "Charged" : "Paid"} ${formatMoney(r.amount)}`,
+        )}
+        totalSummary={`Total: Charged ${formatMoney(chargedSum)}, Paid ${formatMoney(paidSum)}`}
+        recoveryNotice="They go to Recently deleted. You can restore them from there within 30 days."
+        confirmLabel={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "transaction" : "transactions"}`}
+        tone="destructive"
+        requireTypedConfirmation={true}
+        expectedConfirmation={`DELETE ${selectedIds.length}`}
+        isPending={bulkDelete.isPending}
+        onConfirm={handleConfirmBulkDelete}
       />
     </div>
   );

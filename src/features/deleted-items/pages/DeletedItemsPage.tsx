@@ -16,7 +16,8 @@ import { formatRelative } from "@/lib/format";
 import { toAppError } from "@/lib/AppError";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
-import { useDeletionLog, useRestoreDeleted, useLastPurge } from "../hooks";
+import { useDeletionLog, useRestoreDeleted, useLastPurge, useBulkRestoreDeleted } from "../hooks";
+import { BulkActionBar } from "@/components/app/BulkActionBar";
 import type { DeletionLogEntry, DeletedItemsFilter } from "../api";
 
 /**
@@ -30,6 +31,8 @@ export function DeletedItemsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const restore = useRestoreDeleted(businessId);
+  const bulkRestore = useBulkRestoreDeleted(businessId);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [cleanUpOpen, setCleanUpOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -77,6 +80,19 @@ export function DeletedItemsPage() {
       ? typeParam
       : undefined;
   const showRestored = searchParams.get("restored") === "1";
+
+  // S-75: clear selection on filter / tab change
+  const canRestore = can("restoreDeleted");
+
+  const handleBulkRestore = async () => {
+    try {
+      const count = await bulkRestore.mutateAsync(selectedIds);
+      setSelectedIds([]);
+      toast.success(`Restored ${count} ${count === 1 ? "item" : "items"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
   const updateParams = (patch: Record<string, string | null>) => {
     setSearchParams(
       (prev) => {
@@ -280,7 +296,34 @@ export function DeletedItemsPage() {
       </div>
 
       <div className="space-y-3">
+        {canRestore && (
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            onClear={() => setSelectedIds([])}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkRestore}
+              disabled={bulkRestore.isPending}
+            >
+              <Undo2 className="size-4" />
+              Restore ({selectedIds.length})
+            </Button>
+          </BulkActionBar>
+        )}
         <DataTable
+          selectable={
+            canRestore
+              ? {
+                  getId: (row) => row.id,
+                  selected: selectedIds,
+                  onChange: setSelectedIds,
+                  getRowLabel: (row) => row.label,
+                  canSelect: (row) => !row.restored_at,
+                }
+              : undefined
+          }
           columns={columns}
           rows={entries}
           getRowKey={(row) => row.id}

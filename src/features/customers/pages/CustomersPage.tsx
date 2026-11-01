@@ -11,9 +11,14 @@ import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  useBulkDeleteCustomers,
+  useBulkSetCustomersArchived,
   useCustomerList,
   useSetCustomerArchived,
 } from "@/features/customers/hooks";
+import { useBulkRestoreDeleted } from "@/features/deleted-items/hooks";
+import { BulkActionBar } from "@/components/app/BulkActionBar";
+import { BulkConfirmDialog } from "@/components/app/BulkConfirmDialog";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import { exportCustomersCsv } from "@/features/import-export/exports";
@@ -209,6 +214,16 @@ export function CustomersPage() {
   const pageParam = Number(searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam >= 1 ? pageParam : 1;
   const [pageSize, setPageSize] = useState(10);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [q, status, sort, dir, page, pageSize]);
+
+  const bulkArchive = useBulkSetCustomersArchived(businessId);
+  const bulkDelete = useBulkDeleteCustomers(businessId);
+  const bulkRestore = useBulkRestoreDeleted(businessId);
 
   const updateParams = useCallback(
     (
@@ -256,6 +271,62 @@ export function CustomersPage() {
   };
 
   const rows = data?.items ?? [];
+  const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
+  const hasArchivedSelected = selectedRows.some((r) => r.archived_at != null);
+  const hasUnarchivedSelected = selectedRows.some((r) => r.archived_at == null);
+  const canArchive = can("archiveCustomers");
+  const canDelete = can("deleteCustomer");
+  const canSelect = canArchive || canDelete;
+
+  const handleBulkArchive = async () => {
+    try {
+      const idsToArchive = selectedRows.filter((r) => !r.archived_at).map((r) => r.id);
+      const count = await bulkArchive.mutateAsync({ ids: idsToArchive, archived: true });
+      setSelectedIds([]);
+      toast.success(`Archived ${count} ${count === 1 ? "customer" : "customers"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleBulkUnarchive = async () => {
+    try {
+      const idsToRestore = selectedRows.filter((r) => r.archived_at).map((r) => r.id);
+      const count = await bulkArchive.mutateAsync({ ids: idsToRestore, archived: false });
+      setSelectedIds([]);
+      toast.success(`Restored ${count} ${count === 1 ? "customer" : "customers"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      const result = await bulkDelete.mutateAsync({ ids: selectedIds });
+      setBulkDeleteDialogOpen(false);
+      const deletedCount = result.count;
+      const logIds = result.log_ids;
+      setSelectedIds([]);
+      toast.success(`Deleted ${deletedCount} ${deletedCount === 1 ? "customer" : "customers"}`, {
+        duration: 10000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            bulkRestore.mutate(logIds, {
+              onSuccess: (cnt) => {
+                toast.success(`Restored ${cnt} items`);
+              },
+              onError: (err) => {
+                toast.error(toAppError(err).message);
+              },
+            });
+          },
+        },
+      });
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
   const owesYou = Object.values(balances ?? {}).reduce(
     (sum, balance) => (balance > 0 ? sum + balance : sum),
     0,
@@ -460,7 +531,58 @@ export function CustomersPage() {
         </div>
       </FilterBar>
 
+      {canSelect && (
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+        >
+          {canArchive && hasUnarchivedSelected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkArchive}
+              disabled={bulkArchive.isPending}
+            >
+              <Archive className="size-4" />
+              Archive ({selectedRows.filter((r) => !r.archived_at).length})
+            </Button>
+          )}
+          {canArchive && hasArchivedSelected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkUnarchive}
+              disabled={bulkArchive.isPending}
+            >
+              <RotateCcw className="size-4" />
+              Restore ({selectedRows.filter((r) => r.archived_at).length})
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              disabled={bulkDelete.isPending}
+            >
+              <Trash2 className="size-4" />
+              Delete ({selectedIds.length})
+            </Button>
+          )}
+        </BulkActionBar>
+      )}
+
       <DataTable
+        selectable={
+          canSelect
+            ? {
+                getId: (row) => row.id,
+                selected: selectedIds,
+                onChange: setSelectedIds,
+                getRowLabel: (row) => row.name,
+              }
+            : undefined
+        }
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
@@ -535,6 +657,20 @@ export function CustomersPage() {
         onOpenChange={closeDialog}
         businessId={businessId}
         customer={dialog?.kind === "delete" ? dialog.customer : null}
+      />
+      <BulkConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "customer" : "customers"} permanently?`}
+        description="This will delete the selected customers and all their transaction history."
+        items={selectedRows.map((r) => r.name)}
+        recoveryNotice="They go to Recently deleted. You can restore them from there within 30 days."
+        confirmLabel={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "customer" : "customers"}`}
+        tone="destructive"
+        requireTypedConfirmation={true}
+        expectedConfirmation={`DELETE ${selectedIds.length}`}
+        isPending={bulkDelete.isPending}
+        onConfirm={handleConfirmBulkDelete}
       />
     </div>
   );

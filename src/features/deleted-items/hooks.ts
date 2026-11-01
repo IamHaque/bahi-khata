@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deletionLogKeys } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  bulkRestoreDeleted,
   listDeletionLog,
   restoreDeleted,
   purgeDeletionLog,
@@ -44,6 +45,25 @@ export function useRestoreDeleted(businessId: string) {
     },
   });
 }
+
+/**
+ * S-75: Bulk restore deleted items. Owner only. Max 100 per call.
+ */
+export function useBulkRestoreDeleted(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: (logIds: string[]) => {
+      assertCan("restoreDeleted");
+      return bulkRestoreDeleted(logIds);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["business", businessId] });
+      queryClient.invalidateQueries({ queryKey: deletionLogKeys.all(businessId) });
+    },
+  });
+}
+
 export function useLastPurge(businessId: string) {
   const { can } = usePermissions();
   return useQuery({

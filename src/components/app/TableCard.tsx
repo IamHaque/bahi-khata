@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface TableCardSpec {
   lead?: React.ReactNode;
@@ -17,6 +18,7 @@ export interface TableCardProps {
   selected?: boolean;
   onSelectChange?: (selected: boolean) => void;
   canSelect?: boolean;
+  selectAriaLabel?: string;
   className?: string;
 }
 
@@ -26,6 +28,7 @@ export function TableCard({
   selected = false,
   onSelectChange,
   canSelect = false,
+  selectAriaLabel = "Select row",
   className,
 }: TableCardProps) {
   const { lead, title, subtitle, meta, trailing, lines, actions } = card;
@@ -47,11 +50,10 @@ export function TableCard({
             className="flex items-center pt-0.5"
             onClick={(e) => e.stopPropagation()}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={selected}
-              onChange={(e) => onSelectChange(e.target.checked)}
-              className="size-4 rounded border-input text-primary focus:ring-ring"
+              onCheckedChange={(checked) => onSelectChange(Boolean(checked))}
+              aria-label={selectAriaLabel}
             />
           </div>
         )}

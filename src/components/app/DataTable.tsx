@@ -14,6 +14,7 @@ import { TableCard, type TableCardSpec } from "./TableCard";
 import { TableFooter } from "./TableFooter";
 import { ErrorState } from "./ErrorState";
 import { Skeleton } from "./Skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 export {
@@ -41,6 +42,7 @@ export interface TableSelectable<T> {
   selected: Set<string> | string[];
   onChange: (selected: string[]) => void;
   canSelect?: (row: T) => boolean;
+  getRowLabel?: (row: T) => string;
 }
 
 export interface DataTableProps<T> {
@@ -170,19 +172,48 @@ export function DataTable<T>({
     return (selectable.selected as string[]).includes(id);
   };
 
-  const handleSelectRow = (row: T, checked: boolean) => {
-    if (!selectable) return;
-    const id = selectable.getId(row);
-    const current = Array.from(selectable.selected);
-    const next = checked ? [...current, id] : current.filter((x) => x !== id);
-    selectable.onChange(next);
-  };
+  const [lastClickedIndex, setLastClickedIndex] = React.useState<number | null>(null);
 
   const selectableRows = selectable?.canSelect
     ? rows.filter(selectable.canSelect)
     : rows;
   const allSelected =
     selectableRows.length > 0 && selectableRows.every(isSelected);
+  const someSelected =
+    selectableRows.length > 0 && selectableRows.some(isSelected);
+
+  const handleSelectRow = (
+    row: T,
+    checked: boolean,
+    index?: number,
+    shiftKey?: boolean,
+  ) => {
+    if (!selectable) return;
+    const id = selectable.getId(row);
+    const current = new Set(selectable.selected);
+
+    if (shiftKey && index !== undefined && lastClickedIndex !== null) {
+      const start = Math.min(lastClickedIndex, index);
+      const end = Math.max(lastClickedIndex, index);
+      const slice = rows.slice(start, end + 1);
+      slice.forEach((r) => {
+        if (!selectable.canSelect || selectable.canSelect(r)) {
+          current.add(selectable.getId(r));
+        }
+      });
+      selectable.onChange(Array.from(current));
+    } else {
+      if (checked) {
+        current.add(id);
+      } else {
+        current.delete(id);
+      }
+      selectable.onChange(Array.from(current));
+      if (index !== undefined) {
+        setLastClickedIndex(index);
+      }
+    }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (!selectable) return;
@@ -303,7 +334,7 @@ export function DataTable<T>({
       return (
         <div className="space-y-2 md:hidden">
           <div className="space-y-2" role="list">
-            {rows.map((row) => {
+            {rows.map((row, rowIndex) => {
               const key = getRowKey(row);
               const cardSpec = mobile(row);
               const cardWithActions = renderRowActions
@@ -318,11 +349,16 @@ export function DataTable<T>({
                   selected={isSelected(row)}
                   onSelectChange={
                     selectable
-                      ? (checked) => handleSelectRow(row, checked)
+                      ? (checked) => handleSelectRow(row, checked, rowIndex)
                       : undefined
                   }
                   canSelect={
                     selectable?.canSelect ? selectable.canSelect(row) : !!selectable
+                  }
+                  selectAriaLabel={
+                    selectable?.getRowLabel
+                      ? `Select ${selectable.getRowLabel(row)}`
+                      : "Select row"
                   }
                 />
               );
@@ -343,13 +379,14 @@ export function DataTable<T>({
             <TableRow className="h-9">
               {selectable && (
                 <TableHead className="w-px px-3 bg-muted/60" data-width="fit">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all on this page"
-                    checked={allSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="size-4 rounded border-input text-primary focus:ring-ring"
-                  />
+                  <div className="flex items-center">
+                    <Checkbox
+                      aria-label="Select all on this page"
+                      checked={allSelected}
+                      indeterminate={someSelected && !allSelected}
+                      onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                    />
+                  </div>
                 </TableHead>
               )}
               {columns.map((col) => {
@@ -420,7 +457,7 @@ export function DataTable<T>({
           </TableHeader>
           <TableBody>
             {topRow}
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <TableRow
                 key={getRowKey(row)}
                 className={cn(
@@ -435,17 +472,32 @@ export function DataTable<T>({
                     data-width="fit"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected(row)}
-                      disabled={
-                        selectable.canSelect
-                          ? !selectable.canSelect(row)
-                          : false
-                      }
-                      onChange={(e) => handleSelectRow(row, e.target.checked)}
-                      className="size-4 rounded border-input text-primary focus:ring-ring"
-                    />
+                    <div
+                      className="flex items-center"
+                      onClick={(e) => {
+                        if (e.shiftKey) {
+                          e.preventDefault();
+                          handleSelectRow(row, !isSelected(row), rowIndex, true);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={isSelected(row)}
+                        disabled={
+                          selectable.canSelect
+                              ? !selectable.canSelect(row)
+                              : false
+                        }
+                        onCheckedChange={(checked) =>
+                          handleSelectRow(row, Boolean(checked), rowIndex, false)
+                        }
+                        aria-label={
+                          selectable.getRowLabel
+                            ? `Select ${selectable.getRowLabel(row)}`
+                            : "Select row"
+                        }
+                      />
+                    </div>
                   </TableCell>
                 )}
                 {columns.map((col) => (
