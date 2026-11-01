@@ -10,7 +10,7 @@ import { DeletedItemsPage } from "../pages/DeletedItemsPage";
 import { formatRelative } from "@/lib/format";
 import { AppError } from "@/lib/AppError";
 import type { Memberships } from "@/features/business/api";
-import type { DeletionLogEntry } from "../api";
+import type { DeletionLogEntry, LastPurgeInfo } from "../api";
 
 // v3 (S-56) — the owner's Recently deleted page: newest-first log,
 // per-row Restore with its own spinner, the database's message on a
@@ -20,6 +20,9 @@ const businessApi = vi.hoisted(() => ({ getMemberships: vi.fn() }));
 const deletedApi = vi.hoisted(() => ({
   listDeletionLog: vi.fn(),
   restoreDeleted: vi.fn(),
+  getLastPurge: vi.fn(async (): Promise<LastPurgeInfo | null> => null),
+  exportDeletionLog: vi.fn(async () => []),
+  purgeDeletionLog: vi.fn(),
 }));
 
 vi.mock("@/features/business/api", () => ({
@@ -313,4 +316,81 @@ describe("S-56 Recently deleted page", () => {
     await screen.findByText("Rahim Uddin");
     await expectNoSeriousViolations(screen.getByRole("table"));
   });
+describe("S-73 deletion log export and purge (B-12)", () => {
+  beforeEach(() => {
+    businessApi.getMemberships.mockResolvedValue(membershipsFor("owner"));
+    deletedApi.listDeletionLog.mockResolvedValue([customerEntry, transactionEntry]);
+    deletedApi.getLastPurge.mockResolvedValue(null);
+  });
+
+  it("renders Export CSV and Clean up... buttons for owner", async () => {
+    renderPage();
+    expect(await screen.findByRole("button", { name: /Export CSV/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Clean up…/i })).toBeTruthy();
+  });
+
+  it("hides Export CSV and Clean up... for editor and viewer", async () => {
+    businessApi.getMemberships.mockResolvedValue(membershipsFor("editor"));
+    renderPage();
+    await screen.findByText("Recently deleted");
+    expect(screen.queryByRole("button", { name: /Export CSV/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Clean up…/i })).toBeNull();
+  });
+
+  it("displays last purge banner when a previous purge exists", async () => {
+    deletedApi.getLastPurge.mockResolvedValue({
+      id: "purge-1",
+      purged_at: "2026-10-01T12:00:00.000Z",
+      purger_name: "Olivia Owner",
+      entries_removed: 42,
+    });
+    renderPage();
+    expect(await screen.findByText(/Last cleaned up.*Olivia Owner: 42 entries removed/i)).toBeTruthy();
+  });
+
+  it("opens Clean up dialog, shows dry run preview, and submits with confirmation", async () => {
+    const user = userEvent.setup();
+    deletedApi.purgeDeletionLog.mockResolvedValue({
+      entries_removed: 5,
+      customers_removed: 2,
+      transactions_removed: 3,
+      revisions_removed: 1,
+      unrestored: 1,
+    });
+
+    renderPage();
+    const cleanUpBtn = await screen.findByRole("button", { name: /Clean up…/i });
+    await user.click(cleanUpBtn);
+
+    // Dialog title
+    expect(await screen.findByRole("heading", { name: "Clean up deletion log" })).toBeTruthy();
+
+    // Dry run preview text
+    expect(await screen.findByText(/5 entries: 2 customers, 3 transactions; 1 are not restored/i)).toBeTruthy();
+
+    // Since unrestored > 0, PURGE confirmation is required
+    const submitBtn = screen.getByRole("button", { name: "Clean up" });
+    expect((submitBtn as HTMLButtonElement).disabled).toBe(true);
+
+    // Type PURGE
+    const confirmInput = screen.getByPlaceholderText("PURGE");
+    await user.type(confirmInput, "PURGE");
+    expect((submitBtn as HTMLButtonElement).disabled).toBe(false);
+
+    // Submit
+    await user.click(submitBtn);
+    await waitFor(() => {
+      expect(deletedApi.purgeDeletionLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          businessId: "b1",
+          scope: "restored",
+          dryRun: false,
+        }),
+      );
+    });
+    expect(toast.success).toHaveBeenCalledWith(
+      expect.stringContaining("Cleaned up 5 entries"),
+    );
+  });
+});
 });

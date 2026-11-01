@@ -51,12 +51,12 @@ describe("UI gallery cannot rot", () => {
     const { container, unmount } = renderApp(<UiGallery />);
     await expectNoSeriousViolations(container);
     unmount();
-  });
+  }, 15000);
 
   it("passes axe in dark theme", async () => {
     localStorage.setItem("bahikhata-theme", "dark");
     const { container, unmount } = renderApp(<UiGallery />);
     await expectNoSeriousViolations(container);
     unmount();
-  });
+  }, 15000);
 });

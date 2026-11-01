@@ -29,6 +29,7 @@ member).
 | `deletion_log` | — | — | **read only** (see below) | zero rows |
 | `daily_activity` / rollups (RPCs) | read (own business) | same | same | refused / zero rows |
 | `transaction_revisions` | read | read | read | zero rows |
+| `deletion_log_purges` | — | — | read only | zero rows |
 
 ## v3.1 additions (S-50…S-56)
 
@@ -91,6 +92,12 @@ One row per transaction edit, void, or restore. Records what changed, by whom, a
 - **Restore suppression:** When `bahikhata.restoring = 'on'`, the trigger skips revision creation.
 - **RPC:** `transaction_history(uuid)` (SECURITY INVOKER) returns up to 200 revision rows with actor names resolved from `profiles`.
 
+### `deletion_log_purges` and clean-up (S-73)
+
+- **Audit table:** `deletion_log_purges` records every purge (scope, before timestamp, counts of entries/customers/transactions/revisions removed). Owners can select; client writes revoked.
+- **RPC `purge_deletion_log`:** SECURITY DEFINER, Owner only (`has_role(..., 'owner')`, `42501` otherwise). Enforces 30-day minimum (`22023`), supports dry-run preview and scope ('restored' vs 'all'). Removes orphaned revisions of purged, non-existent transactions.
+- **RPC `export_deletion_log`:** SECURITY INVOKER, Owner only, returns up to 5000 rows without heavy snapshot for safe CSV export.
+
 ## Permission matrix ↔ SQL agreement
 
 The three v3 actions are Owner-only and each has a suite section:
@@ -115,6 +122,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 20-section suite. It
+three migrations in filename order, then runs the 21-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.

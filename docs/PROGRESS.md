@@ -1246,7 +1246,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
 | U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
 | S-72 Transaction revision history (B-08) | Done | 7c728a4 | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
-| S-73 Deletion log export and purge (B-12) | todo | | |
+| S-73 Deletion log export and purge (B-12) | Done | [hash] | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
 | S-74 Ownership transfer (B-14) | todo | | |
 | S-75 Bulk select and act (B-13) | todo | | |
 | U-08 Entry row on the ledger (L-12) | todo | | |
@@ -1393,3 +1393,18 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 
 
 
+
+## S-73 Deletion log export and purge (checklist)
+
+- [x] Migration `20261201000100_v32_deletion_log_purge.sql`:
+  - `deletion_log_purges` table: `id`, `business_id` (cascade), `purged_by` (set null), `purged_at`, `scope` check (`restored_only`, `all`), `older_than`, `entries_purged`, `revisions_purged`.
+  - RPC `purge_deletion_log(p_business_id, p_scope, p_older_than, p_dry_run)`: security definer, owner only, 30-day minimum validation (`older_than <= now() - interval '30 days'` or raises 22023), logs to `deletion_log_purges` unless dry run, returns counts `entries_purged`, `revisions_purged`, `dry_run`. Purges orphaned `transaction_revisions` where transaction was permanently purged.
+  - RPC `export_deletion_log(p_business_id)`: security invoker, limit 5000 rows without snapshot, actor name resolved.
+  - RLS: business owners can select `deletion_log_purges`; client writes revoked.
+- [x] Permissions: `exportDeletionLog` and `purgeDeletionLog` added to `permissions.ts` (Owner only); UI contract and permissions test (53 tests) updated.
+- [x] API functions: `purgeDeletionLog`, `exportDeletionLog`, and `getLastPurge` in `deleted-items/api.ts`; hooks `useLastPurge`, `usePurgeDryRun`, `usePurgeDeletionLog` in `deleted-items/hooks.ts`.
+- [x] `CleanUpDialog`: scope radio ("Items already restored" vs "All items"), age select (30 days to 1 year), live dry-run preview sentence, typed `PURGE` confirmation when unrestored items or scope="all", "Export first" button, submit button with loading state.
+- [x] `DeletedItemsPage`: "Export CSV" and "Clean up…" buttons (Owner only), safe CSV formatting, "Last cleaned up {when} by {name}: {n} entries removed" sub-header line.
+- [x] SQL tests: Section 21 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering owner authorization, 30-day minimum limit enforcement, dry-run accuracy, restored scope isolation, purge of unrestored entries & orphaned revisions, and export RPC.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Tests: `deletedItemsPage.test.tsx` (13 tests) and `deletedItemsApi.test.ts` (11 tests) passing.

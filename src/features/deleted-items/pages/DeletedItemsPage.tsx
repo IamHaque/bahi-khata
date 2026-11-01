@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeftRight, Info, Loader2, Undo2, User } from "lucide-react";
+import { ArrowLeftRight, Download, Info, Loader2, Trash2, Undo2, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/PageHeader";
+import { toCsv, downloadCsv } from "@/features/import-export/csv";
+import { exportDeletionLog } from "../api";
+import { CleanUpDialog } from "../components/CleanUpDialog";
 import { DataTable, type Column } from "@/components/app/DataTable";
 import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -12,7 +16,7 @@ import { formatRelative } from "@/lib/format";
 import { toAppError } from "@/lib/AppError";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
-import { useDeletionLog, useRestoreDeleted } from "../hooks";
+import { useDeletionLog, useRestoreDeleted, useLastPurge } from "../hooks";
 import type { DeletionLogEntry, DeletedItemsFilter } from "../api";
 
 /**
@@ -26,6 +30,46 @@ export function DeletedItemsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const restore = useRestoreDeleted(businessId);
+
+  const [cleanUpOpen, setCleanUpOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const lastPurgeQuery = useLastPurge(businessId);
+  const lastPurge = lastPurgeQuery.data;
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      const rows = await exportDeletionLog(businessId);
+      const headers = [
+        "Deleted at",
+        "Type",
+        "Item",
+        "Deleted by",
+        "Reason",
+        "Restored at",
+        "Restored by",
+        "Amount",
+      ];
+      const dataRows = rows.map((r) => [
+        r.deleted_at,
+        r.entity_type === "customer" ? "Customer" : "Transaction",
+        r.label,
+        r.deleter_name ?? "",
+        r.reason ?? "",
+        r.restored_at ?? "",
+        r.restorer_name ?? "",
+        r.amount !== null && r.amount !== undefined ? r.amount : "",
+      ]);
+      const csv = toCsv(headers, dataRows);
+      const today = new Date().toISOString().slice(0, 10);
+      downloadCsv(`deleted-items-${businessId}-${today}.csv`, csv);
+      toast.success("Deletion log exported");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to export CSV");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const typeParam = searchParams.get("type");
   const entityType: DeletedItemsFilter | undefined =
@@ -179,7 +223,35 @@ export function DeletedItemsPage() {
       <PageHeader
         title="Recently deleted"
         description="Items you deleted. Only owners can see and restore them."
-      />
+      >
+        {can("exportDeletionLog") && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={exporting}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {exporting ? "Exporting…" : "Export CSV"}
+          </Button>
+        )}
+        {can("purgeDeletionLog") && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCleanUpOpen(true)}
+          >
+            <Trash2 className="mr-1.5 h-4 w-4 text-destructive" />
+            Clean up…
+          </Button>
+        )}
+      </PageHeader>
+
+      {lastPurge && (
+        <p className="text-xs text-muted-foreground">
+          Last cleaned up {formatRelative(lastPurge.purged_at)} by {lastPurge.purger_name}: {lastPurge.entries_removed} entries removed.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Tabs
@@ -238,6 +310,13 @@ export function DeletedItemsPage() {
           </p>
         )}
       </div>
+
+      <CleanUpDialog
+        open={cleanUpOpen}
+        onOpenChange={setCleanUpOpen}
+        businessId={businessId}
+        onExportFirst={handleExportCsv}
+      />
     </div>
   );
 }

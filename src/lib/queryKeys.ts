@@ -108,4 +108,14 @@ export const deletionLogKeys = {
     "list",
     filter ?? "all",
   ],
+  lastPurge: (businessId?: string) => [
+    ...deletionLogKeys.all(businessId),
+    "last-purge",
+  ],
+  dryRun: (businessId?: string, before?: string, scopeVal?: string) => [
+    ...deletionLogKeys.all(businessId),
+    "dry-run",
+    before ?? "",
+    scopeVal ?? "",
+  ],
 };

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { deleteTransaction } from "@/features/transactions/api";
 import { deleteCustomerPermanently } from "@/features/customers/api";
-import { listDeletionLog, restoreDeleted } from "../api";
+import { listDeletionLog, restoreDeleted, purgeDeletionLog, exportDeletionLog } from "../api";
 import { AppError } from "@/lib/AppError";
 
 // v3 (S-52) — the deletion API layer: the delete RPCs return the
@@ -199,5 +199,36 @@ describe("deletion API (S-52)", () => {
     state.resolveQueue = [[], []];
     await listDeletionLog("b1", { limit: 200 });
     expect(state.chains[0]).toContainEqual({ method: "limit", args: [200] });
+  });
+it("purgeDeletionLog calls purge_deletion_log RPC with dry_run and scope", async () => {
+    state.rpcValue = [{ entries_removed: 5, customers_removed: 2, transactions_removed: 3, revisions_removed: 1, unrestored: 0 }];
+    const res = await purgeDeletionLog({
+      businessId: "b1",
+      before: "2026-09-01T00:00:00.000Z",
+      scope: "restored",
+      dryRun: true,
+    });
+    expect(state.rpcCalls).toContainEqual({
+      fn: "purge_deletion_log",
+      args: {
+        p_business_id: "b1",
+        p_before: "2026-09-01T00:00:00.000Z",
+        p_scope: "restored",
+        p_dry_run: true,
+      },
+    });
+    expect(res.entries_removed).toBe(5);
+  });
+
+  it("exportDeletionLog calls export_deletion_log RPC", async () => {
+    state.rpcValue = [{ id: "log-1", entity_type: "customer", label: "Cust 1" }];
+    const res = await exportDeletionLog("b1");
+    expect(state.rpcCalls).toContainEqual({
+      fn: "export_deletion_log",
+      args: {
+        p_business_id: "b1",
+      },
+    });
+    expect(res).toHaveLength(1);
   });
 });

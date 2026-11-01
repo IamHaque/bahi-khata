@@ -3717,7 +3717,87 @@ release savepoint s20;
 -- RESULT
 -- ============================================================================
 -- Reached only if every assertion above passed (any failure aborts the script).
-do $ begin raise notice 'ALL 20 TEST SECTIONS PASSED'; end $;
-select 'ALL 20 TEST SECTIONS PASSED' as result;
+-- ============================================================================
+-- SECTION 21 — Deletion log export and purge (S-73)
+-- ============================================================================
+savepoint s21;
+select pg_temp.section('21 Deletion log export and purge (S-73)');
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vicki@example.com',  '{"full_name":"Vicki"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor');
+
+-- Fixtures: deletion_log entries (older than 40 days)
+insert into public.deletion_log (id, business_id, entity_type, entity_id, label, summary, snapshot, deleted_at, restored_at, restored_by) values
+  ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'customer', 'cccccccc-0000-0000-0000-000000000001', 'Cust 1', '{"balance": 100}'::jsonb, '{"customer":{"id":"cccccccc-0000-0000-0000-000000000001"},"transactions":[]}'::jsonb, now() - interval '45 days', now() - interval '40 days', '11111111-1111-1111-1111-111111111111'),
+  ('eeeeeeee-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000001', 'Tx 1', '{"amount": 500}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000001"}'::jsonb, now() - interval '45 days', now() - interval '40 days', '11111111-1111-1111-1111-111111111111'),
+  ('eeeeeeee-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000002', 'Tx 2', '{"amount": 300}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000002"}'::jsonb, now() - interval '45 days', null),
+  ('eeeeeeee-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000003', 'Tx 3', '{"amount": 200}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000003"}'::jsonb, now() - interval '10 days', null);
+
+insert into public.transaction_revisions (id, business_id, transaction_id, action, changes) values
+  ('rrrrrrrr-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'dddddddd-0000-0000-0000-000000000002', 'edit', '{"amount":{"from":200,"to":300}}'::jsonb);
+
+-- 21.1 Non-owner cannot call purge_deletion_log (refused 42501)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_user_denied('editor cannot purge deletion log',
+  $select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', true)$);
+
+-- 21.2 30-day minimum enforced (raising 22023)
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+do $
+begin
+  perform public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '15 days', 'restored', true);
+  raise exception 'failed: should have raised 22023 for <30 days';
+exception when sqlstate '22023' then
+  -- expected
+end $;
+
+-- 21.3 Dry run changes nothing
+select pg_temp.expect_eq('dry run returns correct entries count',
+  (select entries_removed from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', true)), 2);
+
+select pg_temp.expect_eq('dry run changes nothing in deletion_log',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 4);
+
+-- 21.4 Restored scope never removes unrestored entry
+select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', false);
+
+select pg_temp.expect_eq('unrestored entries preserved',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and restored_at is null), 2);
+
+select pg_temp.expect_eq('restored entries removed',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and restored_at is not null), 0);
+
+select pg_temp.expect_eq('one audit row created in deletion_log_purges',
+  (select count(*) from public.deletion_log_purges where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+-- 21.5 Real run with scope all removes unrestored entry older than 30 days and its orphaned revisions
+select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'all', false);
+
+select pg_temp.expect_eq('recent entry (<30 days) remains',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_eq('orphaned revision was deleted',
+  (select count(*) from public.transaction_revisions where id = 'rrrrrrrr-0000-0000-0000-000000000001'), 0);
+
+-- 21.6 export_deletion_log returns rows for owner
+select pg_temp.expect_eq('owner can export deletion log',
+  (select count(*) from public.export_deletion_log('aaaaaaaa-0000-0000-0000-000000000001')), 1);
+
+select pg_temp.as_admin();
+rollback to savepoint s21;
+release savepoint s21;
+
+do $ begin raise notice 'ALL 21 TEST SECTIONS PASSED'; end $;
+select 'ALL 21 TEST SECTIONS PASSED' as result;
 
 rollback;   -- nothing was ever committed

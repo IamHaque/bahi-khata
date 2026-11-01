@@ -164,6 +164,8 @@ outsider.
 | `manageMembers` | ✅ | ❌ | ❌ | 0002 §6 "Eli cannot change a member role" / "Eli cannot remove a member" / "Eli cannot insert an invitation" (S-21); 0002c §3 owner changes a role, owner row protected (no promote-to-owner, no remove) (S-25) |
 | `deleteBusiness` | ✅ | ❌ | ❌ | §6 "Eli cannot delete the business"; §10 "Olivia deleted the business" |
 | `leaveBusiness` | ❌ | ✅ | ✅ | 0002 §7 "Olivia cannot leave her own business" (owner must delete instead); 0002c §5 a member leaves and loses access (S-25) |
+| `exportDeletionLog` | ✅ | ❌ | ❌ | §21 export_deletion_log: owner reads; editor/viewer/outsider refused |
+| `purgeDeletionLog` | ✅ | ❌ | ❌ | §21 purge_deletion_log: owner cleans up; editor/viewer/outsider refused (42501) |
 
 Two guard rails keep the two layers honest:
 

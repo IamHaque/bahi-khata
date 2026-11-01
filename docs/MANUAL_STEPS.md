@@ -1206,3 +1206,33 @@ select prosecdef from pg_proc
 
 ### Post-rollout constant
 After applying `20261201000000_v32_transaction_revisions.sql`, set `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` to the rollout ISO timestamp (default text: "History is recorded from the day v3.2 was installed").
+
+---
+
+## v3.2 database rollout: S-73 (`20261201000100_v32_deletion_log_purge.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'deletion_log_purges';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'deletion_log_purges' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'deletion_log_purges';
+-- [1] (deletion_log_purges_select)
+
+-- 3. purge_deletion_log function exists with security definer
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'purge_deletion_log';
+-- [true] (security definer)
+
+-- 4. export_deletion_log function exists with security invoker
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'export_deletion_log';
+-- [false] (security invoker)
+```
