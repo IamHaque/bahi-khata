@@ -16,6 +16,7 @@ import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCust
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { CustomerHeader } from "@/features/customers/components/CustomerHeader";
 import { LedgerTable } from "@/features/customers/components/LedgerTable";
+import { LedgerEntryRow } from "@/features/customers/components/LedgerEntryRow";
 import { useCustomer, useSetCustomerArchived } from "@/features/customers/hooks";
 import type { CustomerListRow } from "@/features/customers/api";
 import { useLedgerRowActions } from "@/features/customers/useLedgerRowActions";
@@ -84,6 +85,7 @@ export function CustomerDetailPage() {
     "all",
   );
   const [showVoided, setShowVoided] = useState(true);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
 
   // Derived before the early returns: the row-actions hook must run on
   // every render (React's hook order), and every value it reads is
@@ -286,6 +288,17 @@ export function CustomerDetailPage() {
               entries={filtered}
               businessId={businessId}
               renderActions={renderLedgerActions}
+              topRow={
+                canWriteTransactions ? (
+                  <LedgerEntryRow
+                    businessId={businessId}
+                    customerId={customer.id}
+                    initialBalance={balance}
+                    onSuccess={(newId) => setRevealedId(newId)}
+                  />
+                ) : undefined
+              }
+              highlightId={revealedId}
             />
           )}
         </TabsContent>

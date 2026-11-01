@@ -413,7 +413,8 @@ describe("S-31 customer detail v2", () => {
 
     // Newest first: the voided charge (one day ago) leads.
     const rows = screen.getAllByRole("row");
-    within(rows[1]!).getByText("Voided");
+    within(rows[1]!).getByLabelText("Particulars");
+    within(rows[2]!).getByText("Voided");
 
     // Balance is the running total in date order; the voided
     // 300-charged row shows the live balance (its own amount is not
@@ -636,6 +637,7 @@ describe("S-31 customer detail v2", () => {
       // column word and its balance.
       await waitFor(() => expect(screen.queryByRole("table")).toBeNull());
       const [paymentRow, chargeRow] = screen.getAllByRole("listitem");
+      expect(screen.queryByLabelText("Particulars")).toBeNull();
       within(chargeRow!).getByText("Charged");
       within(chargeRow!).getByText(/balance/);
       within(paymentRow!).getByText("Paid");

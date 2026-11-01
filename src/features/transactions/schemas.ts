@@ -41,18 +41,20 @@ function localTime(when: Date): string {
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export const amountField = z
+  .number({ error: "Amount is required" })
+  .refine((value) => value > 0, { message: "Amount must be above zero" })
+  .refine(
+    (value) =>
+      Number.isFinite(value) &&
+      Math.abs(Math.round(value * 100) - value * 100) < 1e-9,
+    { message: "Amount can have at most 2 decimals" },
+  );
+
 export const transactionSchema = z.object({
   customer_id: z.string().min(1, "Choose a customer"),
   type: z.enum(["charge", "payment"]),
-  amount: z
-    .number({ error: "Amount is required" })
-    .refine((value) => value > 0, { message: "Amount must be above zero" })
-    .refine(
-      (value) =>
-        Number.isFinite(value) &&
-        Math.abs(Math.round(value * 100) - value * 100) < 1e-9,
-      { message: "Amount can have at most 2 decimals" },
-    ),
+  amount: amountField,
   occurred_on: z
     .string()
     .min(1, "Date is required")

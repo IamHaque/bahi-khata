@@ -27,6 +27,8 @@ interface LedgerTableProps {
   renderActions?: (entry: LedgerEntry) => ReactNode;
   /** An entry row (L-12), rendered first in tbody. */
   topRow?: ReactNode;
+  /** S-70 / L-12: id of a newly inserted entry to highlight with entry-reveal */
+  highlightId?: string | null;
 }
 
 const PAGE_SIZE = 50;
@@ -41,6 +43,7 @@ export function LedgerTable({
   businessId: explicitBusinessId,
   renderActions,
   topRow,
+  highlightId,
 }: LedgerTableProps) {
   const scopedBusinessId = useScopedBusinessId();
   const businessId = explicitBusinessId ?? scopedBusinessId ?? "";
@@ -198,7 +201,10 @@ export function LedgerTable({
       rows={shown}
       getRowKey={(entry) => entry.id}
       getRowClassName={(entry) =>
-        entry.status === "voided" ? "text-muted-foreground" : undefined
+        cn(
+          entry.status === "voided" && "text-muted-foreground",
+          highlightId === entry.id && "entry-reveal",
+        )
       }
       topRow={topRow}
       totals={totals}
