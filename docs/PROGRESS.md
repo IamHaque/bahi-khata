@@ -1251,7 +1251,60 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-75 Bulk select and act (B-13) | Done | b9a5202 | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
 | U-08 Entry row on the ledger (L-12) | Done | fd0408f | LedgerEntryRow with 6 columns, live balance preview, auto-clearing / error validation, entry-reveal highlight, responsive desktop-only; 88 test files passing (722 tests). |
 | S-76 Documentation, rollout guide, backlog | Done | 013616b | Updated MANUAL_STEPS.md with v3.2 rollout runbook, UI-CONTRACT.md with all new systems & glossary, RLS.md, RELEASE-NOTES-v3.2.md, BACKLOG.md (closed B-08/12/13/14, added B-24..29), and README.md. |
-| S-77 Final verification and release candidate | todo | | |
+| S-77 Final verification and release candidate | Done | pending | Release candidate verified: 88 test files (722 tests), lint 0 errors, tsc clean, bundle 350.88 kB max, contrast 82/82, 280/280 responsive & table audit PASS. |
+
+## S-77 Final verification and release candidate (checklist)
+
+### Automated Verification Metrics (S-70 Baseline vs S-77 Release Candidate)
+
+| Metric | Baseline (v3.2 / S-70) | Release Candidate (v3.2 / S-77) | Status |
+| --- | --- | --- | --- |
+| **Unit tests** | 629 passed (79 files) | **722 passed (88 files)** | **PASS** (0 failing, 0 skipped) |
+| **Lint** | 0 errors, 10 warnings | **0 errors, 10 warnings** | **PASS** (0 errors, 10 pre-existing fast-refresh warnings) |
+| **Typecheck** | Clean (`tsc -b`) | **Clean (`tsc -b`)** | **PASS** (0 errors) |
+| **Build** | Succeeded (22 chunks) | **Succeeded (22 chunks in 15.83s)** | **PASS** |
+| **Largest JS chunk** | 373.0 kB (`dashboard`) | **350.88 kB (`dashboard`)** | **PASS** (< 500 kB budget) |
+| **Total JS bundle** | 1469 kB | **1491 kB** | **PASS** (across 22 code-split chunks) |
+| **Production audit** | 0 vulnerabilities | **0 vulnerabilities** | **PASS** (`npm audit --omit=dev`) |
+| **WCAG AA contrast** | 82 checks AA (41L + 41D) | **82 checks AA (41L + 41D)** | **PASS** (100% compliant) |
+| **Design token sync** | 58/58 tokens match | **58/58 tokens match** | **PASS** (`npm run audit:tokens`) |
+| **Responsive & table audit** | Deferred at S-70 (V-01) | **28 scenarios × 5 widths × 2 themes (280/280)** | **PASS** (100% PASS, 0 failures, 1230 controls checked, 0 hit misses, review shots in `.local/ui-checks`) |
+| **SQL test suite** | 19 sections | **23 sections (100% reviewed)** | **READY** (Sections 20, 21, 22, 23 added; migration chain 0000..0003 ready for Supabase SQL Editor application) |
+
+### Human Verification Checklist (PRD S-77 Step 3)
+
+The following 9 items require manual on-device / human sign-off once the 4 new database migrations are executed by the owner in Supabase:
+
+1. **Tooltips on hover and keyboard focus**:
+   - Verify tooltips on all `IconButton`s: Topbar hamburger menu, sidebar collapse rail, theme toggle button, customer palette search (`Ctrl+K`), invitations bell (with badge), account menu button, dialog/sheet close X buttons, table row actions (`RowActions`), and filter bar chip removals.
+   - Verify tooltips open on pointer hover (after 400ms delay) and on keyboard tab focus; verify tooltips never open on touch tap.
+2. **Table anatomy & responsiveness at 390 px and 1440 px**:
+   - Verify all 6 tables in both light and dark themes: Customers (`/customers`), Customer Ledger (`/customers/:id`), Transactions detailed (`/transactions`), Transactions summarized (`/transactions?view=summarized`), Day book on Dashboard, Members & pending invitations (`/members`), Recently deleted (`/deleted`), and UI gallery (`/__ui`).
+   - At 1440 px: confirm exact column fit/fill layout (single fill column, fit headers tight to data), desktop inline icon buttons (max 2 inline + 1 More menu).
+   - At 390 px: confirm transition to mobile `TableCard` with single 44px More menu button and zero inline icon buttons.
+3. **Add charge / Add payment on phone vs desktop**:
+   - At 390 px: verify header buttons "Add charge" and "Add payment" in customer header (44px hit height, flex-1). Confirm no ledger entry row is rendered below 768 px.
+   - At 1440 px: verify `LedgerEntryRow` at top of customer ledger with live balance preview, auto-clearing inputs, Enter-to-save, and `entry-reveal` fade highlight.
+4. **Activity chart on phone and desktop**:
+   - At 390 px: verify diverging bar chart renders with 220px height, charges above zero line, payments below zero line; tap a bar to verify interactive readout sentence ("Wed 15 Oct · Charged ₹... · Paid ₹... · Net ₹...") with "View entries" link; verify zero horizontal scroll on card.
+   - At 1440 px: verify 280px height, 3 comparison tiles with percentage badges vs previous period, and segmented range buttons (7 days, 30 days, 90 days, 12 months) syncing with URL query (`?activity=...`).
+5. **Bulk select, act and 10s undo**:
+   - Select multiple customers or transactions via checkboxes (including Shift+click range select and header select-all).
+   - Trigger Bulk Archive or Bulk Void: verify toast with 10s Undo button.
+   - Trigger Bulk Delete: verify `BulkConfirmDialog` with typed confirmation `DELETE {n}`, execute, and test 10s Undo restoring entries.
+6. **Ownership transfer between two real accounts**:
+   - As owner, navigate to `/members`, select "Make owner..." from a member's action menu.
+   - Verify `TransferOwnershipDialog` warning list, type exact business name to enable destructive button.
+   - Execute transfer: verify immediate demotion to Editor, new owner promotion, and permissions refresh.
+7. **Transaction revision history**:
+   - Perform an edit, void, or restore on a transaction.
+   - Navigate to transaction detail page (`/transactions/:id`): verify "History" section displays timeline of changes (old value → new value, author, timestamp with tooltip).
+8. **Deletion log export and cleanup**:
+   - As owner, navigate to `/deleted`: click "Export CSV" to download deletion history.
+   - Click "Clean up...": test dry-run preview sentence with 30-day minimum floor, enter typed `PURGE` confirmation, and confirm deletion log purges cleanly.
+9. **Ledger entry row keyboard entry**:
+   - Self-test: record 5 charges and 5 payments by keyboard alone (Tab, amounts, Enter) on a test customer and verify zero wrong-column misentries.
+
 
 ## S-70 Baseline verification report
 
