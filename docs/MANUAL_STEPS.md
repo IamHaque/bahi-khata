@@ -1140,3 +1140,36 @@ Owner, Editor and Viewer where it applies) and record the result in
 `docs/PROGRESS.md` next to S-68. Rollback: §9.5 — client rollback is a
 redeploy of the previous Vercel build; database rollback is the backup
 from step (a).
+
+
+---
+
+## v3.2 analysis query (S-71)
+
+Read-only query for the Supabase SQL editor to determine the "who to chase" threshold (`CHASE_AFTER_DAYS`).
+
+Run as a business owner or postgres user on production data:
+
+```sql
+-- days since last payment, for customers who owe money (read-only)
+select width_bucket(extract(day from now() - last_payment_at)::int,
+                    array[7,14,30,60,90]) as bucket,
+       count(*)                                           as customers,
+       round(sum(balance), 2)                             as outstanding
+  from public.customer_balances
+ where balance > 0 and archived_at is null
+ group by 1 order by 1;
+-- plus: how many owe money and never paid
+select count(*) filter (where last_payment_at is null) as never_paid,
+       count(*) as owing
+  from public.customer_balances
+ where balance > 0 and archived_at is null;
+```
+
+**Owner action:** Paste the result of the query above into `docs/PROGRESS.md` under S-71.
+
+**Decision rule:**
+- Keep `CHASE_AFTER_DAYS = 30` if at least 20% of the outstanding amount is older than 30 days and fewer than half of owing customers are flagged.
+- If more than half would be flagged, choose `60`.
+- If fewer than 5% of the amount would be flagged, choose `14`.
+- If the owner has not pasted a result when U-07 starts, use `30` as default.
