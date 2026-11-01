@@ -1243,7 +1243,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 219fadb | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
 | U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
 | U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
-| S-71 Analysis: the "who to chase" threshold | Done | (commit below) | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
+| S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
 | U-07 Who to chase (L-13) | todo | | |
 | S-72 Transaction revision history (B-08) | todo | | |
 | S-73 Deletion log export and purge (B-12) | todo | | |
