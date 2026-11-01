@@ -3797,7 +3797,111 @@ select pg_temp.as_admin();
 rollback to savepoint s21;
 release savepoint s21;
 
-do $ begin raise notice 'ALL 21 TEST SECTIONS PASSED'; end $;
-select 'ALL 21 TEST SECTIONS PASSED' as result;
+
+-- ============================================================
+-- 22. Ownership transfer (S-74, B-14)
+-- ============================================================
+savepoint s22;
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vic@example.com',    '{"full_name":"Vic"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}'),
+  ('55555555-5555-5555-5555-555555555555', 'bob@example.com',    '{"full_name":"Bob"}');
+
+-- Olivia owns Acme; Bob owns Beta
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', '55555555-5555-5555-5555-555555555555', 'Beta');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555', 'editor');
+
+-- 22.1 Non-owner refused (Editor Eli, Viewer Vic, outsider Zed)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_user_denied('editor cannot transfer ownership',
+  $select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222')$);
+
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+select pg_temp.expect_user_denied('viewer cannot transfer ownership',
+  $select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$);
+
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444', 'zed@example.com');
+select pg_temp.expect_user_denied('outsider cannot transfer ownership',
+  $select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$);
+
+-- 22.2 Target not a member refused (55000: 'Choose a member of this business.')
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+do $
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444');
+  raise exception 'failed: non-member target should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $;
+
+-- 22.3 Target who already owns another business refused (Bob owns Beta)
+do $
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555');
+  raise exception 'failed: target who owns another business should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $;
+
+-- 22.4 Self-transfer refused ('You are already the owner.')
+do $
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111');
+  raise exception 'failed: self-transfer should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $;
+
+-- 22.5 Success swaps roles, businesses.owner_id and logs to ownership_transfers
+select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333');
+
+select pg_temp.expect_eq('businesses.owner_id updated to Eli',
+  (select owner_id from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '33333333-3333-3333-3333-333333333333');
+
+select pg_temp.expect_eq('Eli is now owner in business_members',
+  (select role::text from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and user_id = '33333333-3333-3333-3333-333333333333'), 'owner');
+
+select pg_temp.expect_eq('Olivia is demoted to editor in business_members',
+  (select role::text from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and user_id = '11111111-1111-1111-1111-111111111111'), 'editor');
+
+select pg_temp.expect_eq('exactly one owner in business_members',
+  (select count(*) from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and role = 'owner'), 1);
+
+select pg_temp.expect_eq('one transfer logged in ownership_transfers',
+  (select count(*) from public.ownership_transfers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+-- 22.6 Old owner can no longer call owner-only functions (transfer, etc.)
+select pg_temp.expect_user_denied('old owner (now editor) cannot transfer ownership',
+  $select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222')$);
+
+-- 22.7 New owner Eli can call owner-only functions (e.g. transfer to Vic)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222');
+
+select pg_temp.expect_eq('Vic is now owner',
+  (select owner_id from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '22222222-2222-2222-2222-222222222222');
+
+-- 22.8 Cascade delete removes ownership_transfers
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+select pg_temp.expect_eq('ownership_transfers cascaded on delete',
+  (select count(*) from public.ownership_transfers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 0);
+
+select pg_temp.as_admin();
+rollback to savepoint s22;
+release savepoint s22;
+
+do $ begin raise notice 'ALL 22 TEST SECTIONS PASSED'; end $;
+select 'ALL 22 TEST SECTIONS PASSED' as result;
 
 rollback;   -- nothing was ever committed

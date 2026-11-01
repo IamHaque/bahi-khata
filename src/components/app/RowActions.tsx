@@ -20,6 +20,7 @@ export interface RowAction {
   disabledReason?: string;
   hidden?: boolean;
   ariaLabel?: string;
+  menuOnly?: boolean;
 }
 
 export interface RowActionsProps {
@@ -43,8 +44,9 @@ export function RowActions({
   // Filter visible actions
   const visible = actions.filter((a) => !a.hidden);
 
-  // Split into non-destructive and destructive actions
-  const nonDestructive = visible.filter((a) => !a.destructive);
+  // Split into non-destructive, menu-only, and destructive actions
+  const nonDestructive = visible.filter((a) => !a.destructive && !a.menuOnly);
+  const menuOnly = visible.filter((a) => !a.destructive && a.menuOnly);
   const destructive = visible.filter((a) => a.destructive);
 
   // If forceSingleMenu: all actions in the menu
@@ -54,14 +56,14 @@ export function RowActions({
 
   if (forceSingleMenu) {
     inlineActions = [];
-    menuActions = [...nonDestructive, ...destructive];
+    menuActions = [...nonDestructive, ...menuOnly, ...destructive];
   } else {
-    if (visible.length <= 2 && destructive.length === 0) {
+    if (visible.length <= 2 && destructive.length === 0 && menuOnly.length === 0) {
       inlineActions = nonDestructive;
       menuActions = [];
     } else {
       inlineActions = nonDestructive.slice(0, 2);
-      menuActions = [...nonDestructive.slice(2), ...destructive];
+      menuActions = [...nonDestructive.slice(2), ...menuOnly, ...destructive];
     }
   }
 

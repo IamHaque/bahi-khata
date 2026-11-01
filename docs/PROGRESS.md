@@ -1247,7 +1247,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
 | S-72 Transaction revision history (B-08) | Done | 7c728a4 | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
 | S-73 Deletion log export and purge (B-12) | Done | 0e642de | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
-| S-74 Ownership transfer (B-14) | todo | | |
+| S-74 Ownership transfer (B-14) | Done | [hash] | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
 | S-75 Bulk select and act (B-13) | todo | | |
 | U-08 Entry row on the ledger (L-12) | todo | | |
 | S-76 Documentation, rollout guide, backlog | todo | | |
@@ -1408,3 +1408,25 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] SQL tests: Section 21 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering owner authorization, 30-day minimum limit enforcement, dry-run accuracy, restored scope isolation, purge of unrestored entries & orphaned revisions, and export RPC.
 - [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
 - [x] Tests: `deletedItemsPage.test.tsx` (13 tests) and `deletedItemsApi.test.ts` (11 tests) passing.
+
+## S-74 Ownership transfer (checklist)
+
+- [x] Migration `20261201000200_v32_ownership_transfer.sql`:
+  - `ownership_transfers` table: `id`, `business_id` (cascade), `from_user` (set null), `to_user` (set null), `transferred_at`.
+  - RPC `transfer_ownership(p_business_id, p_new_owner)`: security definer, owner-only check (42501), target must be member of business (55000), target must not own another business (55000), self-transfer refused (55000). Atomically demotes caller to editor, promotes target to owner, updates `businesses.owner_id`, logs to `ownership_transfers`, returns updated rows.
+  - Updated `leave_business` message to mention ownership transfer (42501).
+  - RLS: members can select `ownership_transfers`; client writes revoked.
+- [x] Permissions: `transferOwnership` added to `permissions.ts` (Owner only), `UI-CONTRACT.md` updated, permissions matrix unit test (56 tests) passed.
+- [x] API & hooks: `transferOwnership` in `features/members/api.ts`; `useTransferOwnership` in `features/members/hooks.ts` with cache invalidation (`members`, `memberships`, `detail`).
+- [x] UI `TransferOwnershipDialog`:
+  - List of consequences (you become an Editor; target can change roles, remove anyone, delete business; cannot undo yourself).
+  - Business name to type for confirmation.
+  - Destructive primary button "Transfer ownership" (disabled until name matches).
+  - Inline error display if rejected.
+  - Toast "{name} is now the owner" and permissions refresh on success.
+- [x] MembersPage integration:
+  - RowActions menu item "Make owner…" on member rows for owner (not on owner row, not on self) using `menuOnly: true`.
+  - Updated "Owners cannot leave. Transfer ownership first, or delete the business." note.
+- [x] SQL tests: Section 22 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/outsider refusal (42501), target non-member refusal (55000), target owning another business refusal (55000), self-transfer refusal (55000), role swap & `owner_id` update & audit row logging, old owner privilege loss, new owner privilege gain, cascade delete.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Frontend tests: `transferOwnership.test.tsx` (4 tests) passing including typed confirmation, success toast, inline server error, and axe accessibility; `memberManagement.test.tsx` (11 tests) and `RowActions.test.tsx` (7 tests) passing.

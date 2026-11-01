@@ -166,6 +166,7 @@ outsider.
 | `leaveBusiness` | ❌ | ✅ | ✅ | 0002 §7 "Olivia cannot leave her own business" (owner must delete instead); 0002c §5 a member leaves and loses access (S-25) |
 | `exportDeletionLog` | ✅ | ❌ | ❌ | §21 export_deletion_log: owner reads; editor/viewer/outsider refused |
 | `purgeDeletionLog` | ✅ | ❌ | ❌ | §21 purge_deletion_log: owner cleans up; editor/viewer/outsider refused (42501) |
+| `transferOwnership` | ✅ | ❌ | ❌ | §22 transfer_ownership: owner transfers; editor/viewer/outsider refused (42501) |
 
 Two guard rails keep the two layers honest:
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck, UserPlus, UserX } from "lucide-react";
+import { Crown, ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import {
@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { toastSuccess } from "@/lib/toast";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
-import { usePermissions } from "@/features/business/hooks";
+import { useBusiness, usePermissions } from "@/features/business/hooks";
 import {
   useMembers,
   useBusinessInvitations,
@@ -27,6 +27,7 @@ import {
   useLeaveBusiness,
 } from "../hooks";
 import { InviteMemberDialog } from "../components/InviteMemberDialog";
+import { TransferOwnershipDialog } from "../components/TransferOwnershipDialog";
 import type {
   BusinessInvitation,
   BusinessMember,
@@ -59,6 +60,7 @@ export function MembersPage() {
   const businessId = useScopedBusinessId() ?? "";
   const navigate = useNavigate();
   const { isOwner } = usePermissions();
+  const { data: business } = useBusiness(businessId);
   const {
     data: members,
     isLoading,
@@ -74,6 +76,7 @@ export function MembersPage() {
   const [revoking, setRevoking] = useState<BusinessInvitation | null>(null);
   const [removing, setRemoving] = useState<BusinessMember | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<BusinessMember | null>(null);
 
   // Owner first, then everyone else by joined date (stable, matches the
   // PRD's "Owner is listed first").
@@ -291,6 +294,13 @@ export function MembersPage() {
                           },
                         ]),
                     {
+                      id: "make-owner",
+                      label: "Make owner…",
+                      icon: Crown,
+                      menuOnly: true,
+                      onSelect: () => setTransferTarget(row),
+                    },
+                    {
                       id: "remove",
                       label: "Remove",
                       destructive: true,
@@ -314,7 +324,7 @@ export function MembersPage() {
           note for owners — who must delete the business instead. */}
       {isOwner ? (
         <p className="text-sm text-muted-foreground">
-          Owners cannot leave. Delete the business instead.
+          Owners cannot leave. Transfer ownership first, or delete the business.
         </p>
       ) : (
         <div>
@@ -406,6 +416,16 @@ export function MembersPage() {
         description="You will lose access to this business's customers and transactions. You can be invited again later."
         confirmLabel="Leave business"
         onConfirm={() => void handleLeave()}
+      />
+
+      <TransferOwnershipDialog
+        open={transferTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTransferTarget(null);
+        }}
+        businessId={businessId}
+        businessName={business?.name ?? ""}
+        target={transferTarget}
       />
     </div>
   );

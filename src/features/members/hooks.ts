@@ -9,6 +9,7 @@ import {
   getMyInvitations,
   leaveBusiness,
   removeMember,
+  transferOwnership,
   respondToInvitation,
   revokeInvitation,
   type BusinessRole,
@@ -191,6 +192,35 @@ export function useLeaveBusiness(businessId: string) {
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ["business", businessId] });
       queryClient.invalidateQueries({ queryKey: businessKeys.memberships() });
+    },
+  });
+}
+
+/**
+ * Transfer business ownership (S-74, B-14). Owner-only, blocked
+ * before the network. On success, invalidates members, memberships,
+ * business detail, and business list so role switches to Editor
+ * immediately and the UI reflects the new owner.
+ */
+export function useTransferOwnership(businessId: string) {
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: (newOwnerId: string) => {
+      // S-21: a known non-owner fails here, before the network.
+      assertCan("transferOwnership");
+      return transferOwnership(businessId, newOwnerId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.members(businessId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.memberships(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: businessKeys.detail(businessId),
+      });
     },
   });
 }

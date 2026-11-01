@@ -1236,3 +1236,33 @@ select prosecdef from pg_proc
  where pronamespace = 'public'::regnamespace and proname = 'export_deletion_log';
 -- [false] (security invoker)
 ```
+
+---
+
+## v3.2 database rollout: S-74 (`20261201000200_v32_ownership_transfer.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'ownership_transfers';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'ownership_transfers' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'ownership_transfers';
+-- [1] (ownership_transfers_select)
+
+-- 3. transfer_ownership function exists with security definer
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'transfer_ownership';
+-- [true] (security definer)
+
+-- 4. leave_business function updated
+select count(*) from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'leave_business';
+-- [1]
+```

@@ -44,6 +44,7 @@ const prdSection3: Record<PermissionAction, Record<PermissionRole, boolean>> = {
   restoreDeleted: { owner: true, editor: false, viewer: false },
   exportDeletionLog: { owner: true, editor: false, viewer: false },
   purgeDeletionLog: { owner: true, editor: false, viewer: false },
+  transferOwnership: { owner: true, editor: false, viewer: false },
 };
 
 const roles: PermissionRole[] = ["owner", "editor", "viewer"];

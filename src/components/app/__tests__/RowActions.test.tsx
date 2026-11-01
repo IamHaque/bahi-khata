@@ -158,4 +158,25 @@ describe("RowActions (U-02)", () => {
     expect(reasonEl.id).toBe("action-reason-delete");
     expect(reasonEl.className).toContain("text-muted-foreground");
   });
+
+  it("keeps menuOnly actions in More menu even when fewer than 2 inline actions exist", async () => {
+    const user = userEvent.setup();
+    const editFn = vi.fn();
+    const transferFn = vi.fn();
+    const actions: RowAction[] = [
+      { id: "edit", label: "Edit", icon: Pencil, onSelect: editFn },
+      { id: "transfer", label: "Make owner…", icon: RotateCcw, onSelect: transferFn, menuOnly: true },
+    ];
+
+    renderWithTooltip(<RowActions actions={actions} />);
+
+    expect(screen.getByRole("button", { name: "Edit" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Make owner…" })).toBeNull();
+    const moreBtn = screen.getByRole("button", { name: "More actions" });
+    expect(moreBtn).toBeTruthy();
+
+    await user.click(moreBtn);
+    const transferItem = screen.getByRole("menuitem", { name: "Make owner…" });
+    expect(transferItem).toBeTruthy();
+  });
 });

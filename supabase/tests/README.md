@@ -32,7 +32,7 @@ section and ends with `==> SQL tests passed`.
   and can reuse the same fixture UUIDs without colliding.
 - Any failure raises `TEST FAILED: <what> — expected X, got Y` and stops.
 
-## Sections (21)
+## Sections (22)
 
 | # | Section | Origin |
 | --- | --- | --- |
@@ -57,6 +57,7 @@ section and ends with `==> SQL tests passed`.
 | 19 | `last_payment_at` (Who to chase) | new (v3.1) |
 | 20 | Transaction revision history (S-72) | new (v3.2) |
 | 21 | Deletion log export and purge (S-73) | new (v3.2) |
+| 22 | Ownership transfer (S-74) | new (v3.2) |
 
 The ten per-migration files these replaced are archived in
 `supabase/tests_archive/` (the migrations themselves live in

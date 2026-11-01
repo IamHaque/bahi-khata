@@ -98,6 +98,12 @@ One row per transaction edit, void, or restore. Records what changed, by whom, a
 - **RPC `purge_deletion_log`:** SECURITY DEFINER, Owner only (`has_role(..., 'owner')`, `42501` otherwise). Enforces 30-day minimum (`22023`), supports dry-run preview and scope ('restored' vs 'all'). Removes orphaned revisions of purged, non-existent transactions.
 - **RPC `export_deletion_log`:** SECURITY INVOKER, Owner only, returns up to 5000 rows without heavy snapshot for safe CSV export.
 
+### `ownership_transfers` and transfer (S-74)
+
+- **Audit table:** `ownership_transfers` records every ownership handover (`id`, `business_id`, `from_user`, `to_user`, `transferred_at`). Members can select; client writes revoked.
+- **RPC `transfer_ownership`:** SECURITY DEFINER, Owner only (`errcode 42501`). Target must be a member of the business and must not already own a business (`55000`). Caller cannot transfer to self (`55000`). Atomically demotes caller to editor, promotes target to owner, updates `businesses.owner_id`, and writes the audit log.
+- **Updated `leave_business`:** Mentions "Owners cannot leave. Transfer ownership first, or delete the business." (42501).
+
 ## Permission matrix ↔ SQL agreement
 
 The three v3 actions are Owner-only and each has a suite section:
@@ -108,6 +114,7 @@ The three v3 actions are Owner-only and each has a suite section:
 | `viewDeletedItems` | ✅ | ❌ | ❌ | §15/§16 (deletion_log reads: Owner rows only; editor/outsider zero rows) |
 | `restoreDeleted` | ✅ | ❌ | ❌ | §16 (restore_deleted: editor/viewer/outsider refused) |
 | `deleteCustomer` (entry points widened, D-15) | ✅ | ❌ | ❌ | §15/§16 + archived v2 `0004` §8 |
+| `transferOwnership` | ✅ | ❌ | ❌ | §22 (transfer_ownership: editor/viewer/outsider refused `42501`) |
 
 The v2 rows (`view`, `export`, `manageCustomers`, `archiveCustomers`,
 `manageTransactions`, `importTransactions`, `manageBusiness`,
@@ -122,6 +129,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 21-section suite. It
+three migrations in filename order, then runs the 22-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.
