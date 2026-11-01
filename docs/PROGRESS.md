@@ -1250,7 +1250,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | S-74 Ownership transfer (B-14) | Done | 86e3873 | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
 | S-75 Bulk select and act (B-13) | Done | b9a5202 | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
 | U-08 Entry row on the ledger (L-12) | Done | fd0408f | LedgerEntryRow with 6 columns, live balance preview, auto-clearing / error validation, entry-reveal highlight, responsive desktop-only; 88 test files passing (722 tests). |
-| S-76 Documentation, rollout guide, backlog | todo | | |
+| S-76 Documentation, rollout guide, backlog | Done | 013616b | Updated MANUAL_STEPS.md with v3.2 rollout runbook, UI-CONTRACT.md with all new systems & glossary, RLS.md, RELEASE-NOTES-v3.2.md, BACKLOG.md (closed B-08/12/13/14, added B-24..29), and README.md. |
 | S-77 Final verification and release candidate | todo | | |
 
 ## S-70 Baseline verification report
@@ -1477,3 +1477,23 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [ ] Human validation item:
   - On desktop (>=768px), navigate to customer detail page: verify LedgerEntryRow is present at the top of the ledger table. Type a charge and press Enter; verify toast "Charge added", row clears, focus returns to Charged input, and new row fades in with `entry-reveal`.
   - On mobile (<768px), verify no entry row is rendered, only "Add charge" / "Add payment" header buttons.
+
+## S-76 Documentation, rollout guide and backlog (checklist)
+
+- [x] `docs/MANUAL_STEPS.md`:
+  - Section 0 updated with full 7-migration v3.2 chain.
+  - "v3.2 database rollout runbook" section added covering backups, file execution order, error/stop rules, per-file verification queries, post-deploy steps, analysis query from S-71, and history start date from S-72.
+- [x] `docs/UI-CONTRACT.md`:
+  - Detailed sections added for Tooltips & `IconButton`, Table anatomy & `RowActions`, Bulk selection & actions, Activity chart, Transaction revision history, Ownership transfer, and Deletion log purge.
+  - Copy glossary updated with new concepts: Make owner, Clean up, History, Select, Activity.
+- [x] `docs/RLS.md` & `supabase/tests/README.md`:
+  - `docs/RLS.md` updated with the 7-migration chain and 23-section test suite.
+  - `supabase/tests/README.md` documents all 23 test sections including revision history (§20), deletion log export & purge (§21), ownership transfer (§22), and bulk actions (§23).
+- [x] `docs/RELEASE-NOTES-v3.2.md`:
+  - Comprehensive release notes created documenting user changes across all v3.2 stories (U-01..U-08, S-71..S-75), database migration table, rollout guide, rollback procedures, and known limits.
+- [x] `docs/BACKLOG.md`:
+  - Marked B-08, B-12, B-13, B-14 as completed in v3.2.
+  - Added future backlog items B-24 (two-step ownership transfer), B-25 (automatic purge by retention), B-26 (select-all-matching-filter), B-27 (customer revision history), B-28 (per-business chase threshold), and B-29 (cross-page selection).
+- [x] `README.md`:
+  - Updated technology stack, 7-migration list, 23 SQL test sections, script descriptions, and document links.
+
