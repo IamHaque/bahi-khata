@@ -6,7 +6,7 @@ supersedes the v1 single-business notes that used to live in
 `supabase/RLS.md`; those policies were dropped by S-20's contract phase.
 
 Prose here is a map, not the proof. Every claim below is asserted by the
-SQL suite (`supabase/tests/bahikhata_consolidated_tests.sql`, 19 sections;
+SQL suite (`supabase/tests/bahikhata_consolidated_tests.sql`, 23 sections, 22 policies;
 plus the ten archived v2 files), which runs via `npm run test:sql`
 against a scratch Postgres. The database is the source of truth; the UI
 permission matrix (`src/lib/permissions.ts`) only shapes what is shown.

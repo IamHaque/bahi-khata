@@ -98,8 +98,9 @@ begin
   end if;
 
   if v_entries > 0 then
-    -- Collect transaction IDs from matched deletion log snapshots
-    create temp table _purged_tx_ids on commit drop as
+    -- Delete transaction_revisions whose transaction_id appears only in purged snapshots
+    -- and no longer exists in transactions or remaining deletion_log entries
+    with purged_tx_ids as (
       select (snapshot->>'id')::uuid as tx_id
         from public.deletion_log
        where id = any(v_matched_ids) and entity_type = 'transaction' and snapshot ? 'id'
@@ -107,13 +108,11 @@ begin
       select (t->>'id')::uuid as tx_id
         from public.deletion_log d,
              jsonb_array_elements(d.snapshot->'transactions') t
-       where d.id = any(v_matched_ids) and d.entity_type = 'customer' and d.snapshot ? 'transactions';
-
-    -- Delete transaction_revisions whose transaction_id appears only in purged snapshots
-    -- and no longer exists in transactions or remaining deletion_log entries
+       where d.id = any(v_matched_ids) and d.entity_type = 'customer' and d.snapshot ? 'transactions'
+    )
     delete from public.transaction_revisions r
      where r.business_id = p_business_id
-       and r.transaction_id in (select tx_id from _purged_tx_ids where tx_id is not null)
+       and r.transaction_id in (select tx_id from purged_tx_ids where tx_id is not null)
        and not exists (select 1 from public.transactions t where t.id = r.transaction_id)
        and not exists (
          select 1 from public.deletion_log rem

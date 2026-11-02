@@ -122,12 +122,17 @@ begin
     end if;
     return v_count;
   else
+    if not public.has_role(p_business_id, 'editor') then
+      raise exception 'You do not have permission to change these items.'
+        using errcode = '42501';
+    end if;
+
     foreach v_id in array p_ids loop
       begin
         perform public.restore_transaction(v_id, p_business_id);
       exception
         when others then
-          if not public.is_member_with_role(p_business_id, array['owner', 'editor']) then
+          if not public.has_role(p_business_id, 'editor') then
             raise exception 'You do not have permission to change these items.' using errcode = '42501';
           end if;
           raise exception 'Could not restore transaction %: %', v_id, sqlerrm using errcode = sqlstate;
