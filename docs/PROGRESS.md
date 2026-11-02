@@ -1269,7 +1269,7 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 | **WCAG AA contrast** | 82 checks AA (41L + 41D) | **82 checks AA (41L + 41D)** | **PASS** (100% compliant) |
 | **Design token sync** | 58/58 tokens match | **58/58 tokens match** | **PASS** (`npm run audit:tokens`) |
 | **Responsive & table audit** | Deferred at S-70 (V-01) | **28 scenarios × 5 widths × 2 themes (280/280)** | **PASS** (100% PASS, 0 failures, 1230 controls checked, 0 hit misses, review shots in `.local/ui-checks`) |
-| **SQL test suite** | 19 sections | **23 sections (100% reviewed)** | **READY** (Sections 20, 21, 22, 23 added; migration chain 0000..0003 ready for Supabase SQL Editor application) |
+| **SQL test suite** | 19 sections | **23 sections (100% passed)** | **PASS** (`DATABASE_URL=... bash scripts/run-sql-tests.sh` against scratch PostgreSQL 17; all 23 sections ran clean; `==> SQL tests passed` in 10.4s) |
 
 ### Human Verification Checklist (PRD S-77 Step 3)
 
@@ -1338,6 +1338,11 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
     7. *Mobile card links*: Simplified customer mobile card spec in `CustomersPage.tsx` to eliminate sub-44px nested link hit misses.
     8. *Sticky header hit testing*: Updated `HITTEST_SOURCE` in `responsive-audit.cjs` so elements physically scrolled beneath `sticky` / `fixed` chrome are marked covered.
   - **After fixes:** Full matrix across 28 scenarios, 5 widths (360, 390, 768, 1024, 1440 px), and both themes (light & dark) yields 280/280 PASS, 0 failures. Controls checked: 1,234; failing (< 44x44): 0. Review screenshots saved in `.local/ui-checks`. All 83 test files (670 tests) pass.
+- **V-08 Bulk actions used is_archived**: `20261201000300_v32_bulk_actions.sql` used `is_archived` instead of `archived_at` on customers. Caught and corrected by executing the consolidated SQL tests against a scratch database.
+- **V-09 Viewer bulk actions silently no-opped instead of raising 42501**: `bulk_set_customers_archived` and `bulk_set_transactions_voided` updated zero rows for viewers instead of raising 42501 due to missing `v_count <> v_expected` checks, and the transaction unvoid path called undefined `is_member_with_role` instead of `has_role(..., 'editor')`. Fixed with explicit row counts and correct helper functions.
+- **V-10 Ownership transfers select policy was unscoped and not re-runnable**: `20261201000200_v32_ownership_transfer.sql` created policy without `to authenticated` (violating Section 01 policy scope contract) and lacked `drop policy if exists`, failing idempotency re-runs. Fixed with drop-before-create and `to authenticated`.
+- **V-11 record_transaction_revision remained executable by public**: Trigger function `record_transaction_revision()` in `20261201000000_v32_transaction_revisions.sql` was not revoked from `public`, `anon`, and `authenticated`. Added explicit revoke statements.
+- **V-12 Consolidated SQL suite sections 20-23 were drafted without execution**: Sections 20-23 contained references to non-existent `memberships` table, invalid UUID literals, missing column inserts for deletion_log fixtures, and unhandled JSON object comparison ordering. Suite repaired and 100% passing.
 
 ## U-01 scenarios (checklist)
 

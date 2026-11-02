@@ -46,11 +46,44 @@ changed `delete_customer_permanently()`'s return type.
 - *SQL Dashboard:* open the SQL Editor, paste the file contents, run.
 - *CLI:* `supabase db push` (after `supabase link --project-ref <ref>`).
 
+**Idempotency proof (S-77):**
+All four new v3.2 migrations (`20261201000000` through `20261201000300`) were verified for idempotency by applying them sequentially twice against a clean scratch database (PostgreSQL 17.11) with zero errors (`psql` exited with code 0 on both runs).
+
+**Post-rollout verification queries (v3.2 overall):**
+After applying all 4 migrations, run these queries to assert overall database state:
+```sql
+-- 1. Verify policy count across public schema (asserts 22 policies)
+select count(*) from pg_policies where schemaname = 'public';
+
+-- 2. Verify all 3 new v3.2 tables exist (asserts 3)
+select count(*) from information_schema.tables
+ where table_schema = 'public'
+   and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
+
+-- 3. Verify all 8 new v3.2 functions exist (asserts 8)
+select count(*) from information_schema.routines
+ where routine_schema = 'public'
+   and routine_name in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_restore_deleted',
+     'bulk_delete_customers',
+     'purge_deletion_log',
+     'export_deletion_log',
+     'transfer_ownership'
+   );
+```
+
 **Warning - never apply migrations to production without a backup**
 (see the backup step in the "v3 database rollout" section). The full
-rollout runbook with per-step verification queries is that same
-section; the SQL tests run with `npm run test:sql` against a scratch
+rollout runbook with per-step verification queries is in the "v3.2 database rollout runbook"
+section below; the SQL tests run with `npm run test:sql` against a scratch
 Postgres only.
+
+> [!CAUTION]
+> **CRITICAL SAFETY WARNING — NEVER RUN THE SQL TEST SUITE AGAINST PRODUCTION:**
+> `supabase/tests/bahikhata_consolidated_tests.sql` must **NEVER** be executed against a production or shared Supabase database. The suite creates and alters test fixtures in `auth.users`, replaces existing roles, and defines temporary helper routines. It is strictly designed for throwaway scratch PostgreSQL instances via `scripts/run-sql-tests.sh`.
 
 ---
 
@@ -1313,3 +1346,41 @@ select proname, prosecdef from pg_proc
 -- bulk_set_customers_archived    | f
 -- bulk_set_transactions_voided   | f
 ```
+
+---
+
+## v3.2 post-rollout overall verification & idempotency
+
+### Idempotency proof
+All four new v3.2 migrations (`20261201000000_v32_transaction_revisions.sql`, `20261201000100_v32_deletion_log_purge.sql`, `20261201000200_v32_ownership_transfer.sql`, and `20261201000300_v32_bulk_actions.sql`) were proved idempotent by executing the migration chain twice in sequence against a clean scratch PostgreSQL 17 database with zero errors (`psql` return code 0 on both passes).
+
+### Overall verification queries
+Run after applying all 4 migrations to confirm whole-schema health:
+
+```sql
+-- 1. Verify policy count across public schema (asserts 22 policies)
+select count(*) from pg_policies where schemaname = 'public';
+
+-- 2. Verify all 3 new v3.2 tables exist (asserts 3)
+select count(*) from information_schema.tables
+ where table_schema = 'public'
+   and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
+
+-- 3. Verify all 8 new v3.2 functions exist (asserts 8)
+select count(*) from information_schema.routines
+ where routine_schema = 'public'
+   and routine_name in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_restore_deleted',
+     'bulk_delete_customers',
+     'purge_deletion_log',
+     'export_deletion_log',
+     'transfer_ownership'
+   );
+```
+
+> [!CAUTION]
+> **CRITICAL SAFETY WARNING — NEVER RUN THE SQL TEST SUITE AGAINST PRODUCTION:**
+> `supabase/tests/bahikhata_consolidated_tests.sql` must **NEVER** be executed against a production or shared Supabase database. The suite creates and alters test fixtures in `auth.users`, replaces existing roles, and defines temporary helper routines. It is strictly designed for throwaway scratch PostgreSQL instances via `scripts/run-sql-tests.sh`.
