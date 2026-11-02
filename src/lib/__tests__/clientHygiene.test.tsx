@@ -224,6 +224,27 @@ describe("S-42 client hygiene", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("unit tests never import @/lib/supabase without mocking it", () => {
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      const rel = relative(SRC, file).replace(/\\/g, "/");
+      if (!rel.includes("__tests__") && !rel.endsWith(".test.ts") && !rel.endsWith(".test.tsx")) {
+        continue;
+      }
+      const content = readIfExists(file) ?? "";
+      const importsClient =
+        content.includes('from "@/lib/supabase"') ||
+        content.includes("from '@/lib/supabase'");
+      const mocksClient =
+        content.includes('vi.mock("@/lib/supabase"') ||
+        content.includes("vi.mock('@/lib/supabase'");
+      if (importsClient && !mocksClient) {
+        offenders.push(`src/${rel}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("user text never meets an HTML sink (no dangerouslySetInnerHTML etc.)", () => {
     const forbidden =
       /dangerouslySetInnerHTML|\.innerHTML\s*=|insertAdjacentHTML|document\.write\s*\(/;

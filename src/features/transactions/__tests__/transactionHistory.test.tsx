@@ -10,6 +10,17 @@ import { setHistoryStartDate } from "../historyStart";
 import * as api from "../api";
 import type { TransactionRevision, TransactionDetail } from "../api";
 
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  },
+}));
+
 const mockTransaction: TransactionDetail = {
   id: "tx-123",
   customer_id: "cust-1",

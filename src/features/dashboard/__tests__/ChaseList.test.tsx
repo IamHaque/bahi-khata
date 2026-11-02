@@ -8,6 +8,12 @@ import { formatLastPaymentSub } from "../chase";
 import { getLastPayments } from "../api";
 import { supabase } from "@/lib/supabase";
 
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}));
+
 describe("formatLastPaymentSub", () => {
   const fixedNow = new Date("2026-11-01T12:00:00Z").getTime();
 
