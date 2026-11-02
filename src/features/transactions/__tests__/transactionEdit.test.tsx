@@ -409,8 +409,8 @@ describe("S-33 edit transaction", () => {
 
   it("shows who edited and when, with the Former member fallback", async () => {
     server.transactions = [
-      { ...server.transactions[0]!, amount: 450, status: "edited", updated_by: "u-eli", updated_at: "2026-10-12T08:35:00.000Z" },
-      { ...server.transactions[1]!, status: "edited", updated_by: "u-gone", updated_at: "2026-10-10T09:00:00.000Z" },
+      { ...server.transactions[0]!, amount: 450, status: "edited", updated_by: "u-eli", updated_at: "2026-11-12T08:35:00.000Z" },
+      { ...server.transactions[1]!, status: "edited", updated_by: "u-gone", updated_at: "2026-11-10T09:00:00.000Z" },
     ];
 
     await openLedger();
@@ -421,7 +421,7 @@ describe("S-33 edit transaction", () => {
       .getByText("Edited")
       .closest("span[title]");
     if (!eliBadge) throw new Error("badge wrapper with title not found");
-    const expected = `Edited by Eli on ${formatDate("2026-10-12T08:35:00.000Z")}, ${formatTime("2026-10-12T08:35:00.000Z")}`;
+    const expected = `Edited by Eli on ${formatDate("2026-11-12T08:35:00.000Z")}, ${formatTime("2026-11-12T08:35:00.000Z")}`;
     expect(eliBadge.getAttribute("title")).toBe(expected);
     // Focusable, and screen readers get the same sentence.
     expect(eliBadge.getAttribute("tabindex")).toBe("0");

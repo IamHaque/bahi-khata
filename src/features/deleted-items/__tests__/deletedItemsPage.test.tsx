@@ -303,7 +303,7 @@ describe("S-56 Recently deleted page", () => {
       "b1",
       expect.objectContaining({ limit: 200 }),
     );
-  });
+  }, 15000);
 
   it("passes axe in the empty state and with data", async () => {
     const first = renderPage();

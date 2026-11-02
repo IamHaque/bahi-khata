@@ -1268,7 +1268,7 @@ select prosecdef from pg_proc
 ```
 
 ### Post-rollout constant
-After applying `20261201000000_v32_transaction_revisions.sql`, set `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` to the rollout ISO timestamp (default text: "History is recorded from the day v3.2 was installed").
+`HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` is configured with the deployment ISO timestamp (`"2026-11-02T16:21:21.000Z"`). Edits made before this timestamp display "Edited (earlier changes were not recorded)" in tooltips per S-72.
 
 ---
 
