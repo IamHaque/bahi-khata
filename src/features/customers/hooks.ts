@@ -7,6 +7,8 @@ import {
 } from "@/lib/queryKeys";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  bulkDeleteCustomers,
+  bulkSetCustomersArchived,
   countCustomerTransactions,
   createCustomer,
   deleteCustomerPermanently,
@@ -143,6 +145,42 @@ export function useDeleteCustomerPermanently(businessId: string) {
     onSuccess: () => {
       invalidate();
       // The Recently deleted page must show the new entry at once.
+      queryClient.invalidateQueries({
+        queryKey: deletionLogKeys.all(businessId),
+      });
+    },
+  });
+}
+
+/**
+ * S-75: Bulk archive/unarchive customers. Max 100 per call.
+ */
+export function useBulkSetCustomersArchived(businessId: string) {
+  const invalidate = useCustomerInvalidation(businessId);
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ ids, archived }: { ids: string[]; archived: boolean }) => {
+      assertCan("archiveCustomers");
+      return bulkSetCustomersArchived(businessId, ids, archived);
+    },
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * S-75: Bulk delete customers permanently. Owner only. Returns array of deletion_log UUIDs.
+ */
+export function useBulkDeleteCustomers(businessId: string) {
+  const invalidate = useCustomerInvalidation(businessId);
+  const queryClient = useQueryClient();
+  const { assertCan } = usePermissions();
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: string[]; reason?: string }) => {
+      assertCan("deleteCustomer");
+      return bulkDeleteCustomers(businessId, ids, reason);
+    },
+    onSuccess: () => {
+      invalidate();
       queryClient.invalidateQueries({
         queryKey: deletionLogKeys.all(businessId),
       });

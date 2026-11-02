@@ -232,7 +232,7 @@ function expectNoBareFractionalTracks(container: HTMLElement) {
 }
 
 describe("L-14 F1 grid-guard (no bare fixed tracks that widen the page)", () => {
-  it("DashboardPage row-2 grid uses minmax(0, …) tracks with min-w-0 children", async () => {
+  it("DashboardPage grids use safe tracks and no bare fractional tracks", async () => {
     const { container } = renderApp(
       <Routes>
         <Route path={routePatterns.business} element={<DashboardPage />} />
@@ -243,13 +243,11 @@ describe("L-14 F1 grid-guard (no bare fixed tracks that widen the page)", () => 
     await screen.findByRole("heading", { name: "Where you stand" });
     expectNoBareFractionalTracks(container as HTMLElement);
 
-    // The 1.5fr/1fr row is explicitly minmax(0, …) on both tracks.
-    const row2 = container.querySelector<HTMLElement>(
-      "[class*='lg:grid-cols-[minmax(0,1.5fr)']",
-    );
-    expect(row2, "dashboard row-2 grid not found").toBeTruthy();
-    expect(row2?.className).toContain("minmax(0,1.5fr)");
-    expect(row2?.className).toContain("minmax(0,1fr)");
+    // U-06: row 1 is 2 columns, Activity and Day book are full-width cards
+    const row1 = container.querySelector<HTMLElement>("[class*='lg:grid-cols-2']");
+    expect(row1, "dashboard row-1 grid not found").toBeTruthy();
+    expect(await screen.findByRole("region", { name: "Activity" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Day book" })).toBeTruthy();
   });
 
   it("SettingsPage section grids use minmax(0, …) second tracks", async () => {

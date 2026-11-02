@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { createAppQueryClient } from "@/lib/queryClient";
 
 const mockState = vi.hoisted(() => ({ session: null as Session | null }));
@@ -37,9 +38,11 @@ export function renderApp(ui: React.ReactNode, options: RenderAppOptions = {}): 
   return render(
     <ThemeProvider>
       <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
-        </QueryClientProvider>
+        <TooltipProvider delay={400} closeDelay={0}>
+          <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
+          </QueryClientProvider>
+        </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>,
   );

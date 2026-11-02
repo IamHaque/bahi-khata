@@ -24,3 +24,8 @@ export const inviteRoleOptions = [
   { value: "viewer", label: "Viewer" },
   { value: "editor", label: "Editor" },
 ] as const;
+
+/** Display name: full name when the profile has one, else the email. */
+export function displayName(member: { fullName: string | null; email: string }): string {
+  return member.fullName || member.email;
+}

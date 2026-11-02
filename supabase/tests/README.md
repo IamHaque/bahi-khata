@@ -12,7 +12,7 @@ needs no extra tooling.
 npm run test:sql          # = bash scripts/run-sql-tests.sh
 ```
 
-`DATABASE_URL` must point at a **scratch** database with all three
+`DATABASE_URL` must point at a **scratch** database with all seven
 migrations applied in filename order — never a real Supabase project: the
 runner installs a stub `auth` schema and the `anon`/`authenticated` roles
 first (see `ci/supabase_stub.sql`). CI runs exactly this in the `sql` job
@@ -32,7 +32,7 @@ section and ends with `==> SQL tests passed`.
   and can reuse the same fixture UUIDs without colliding.
 - Any failure raises `TEST FAILED: <what> — expected X, got Y` and stops.
 
-## Sections (19)
+## Sections (23)
 
 | # | Section | Origin |
 | --- | --- | --- |
@@ -55,6 +55,10 @@ section and ends with `==> SQL tests passed`.
 | 17 | Actor stamping (audit integrity) | new (v3) |
 | 18 | `last_activity_at` + timezone-aware dashboard | new (v3) |
 | 19 | `last_payment_at` (Who to chase) | new (v3.1) |
+| 20 | Transaction revision history (S-72) | new (v3.2) |
+| 21 | Deletion log export and purge (S-73) | new (v3.2) |
+| 22 | Ownership transfer (S-74) | new (v3.2) |
+| 23 | Bulk select and act (S-75) | new (v3.2) |
 
 The ten per-migration files these replaced are archived in
 `supabase/tests_archive/` (the migrations themselves live in

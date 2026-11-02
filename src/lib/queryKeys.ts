@@ -55,6 +55,11 @@ export const transactionKeys = {
     ...transactionKeys.all(businessId),
     "summary",
   ],
+  history: (transactionId: string, businessId?: string) => [
+    ...transactionKeys.all(businessId),
+    "history",
+    transactionId,
+  ],
 };
 
 // User-level (not business-scoped): how the app discovers businesses.
@@ -82,6 +87,8 @@ export const dashboardKeys = {
     [...dashboardKeys.all(businessId), "daily", days] as const,
   feed: (businessId: string) =>
     [...dashboardKeys.all(businessId), "feed"] as const,
+  lastPayments: (businessId: string, ids: string[]) =>
+    [...dashboardKeys.all(businessId), "lastPayments", [...ids].sort()] as const,
 };
 
 // S-38: the CSV import page's read — the customers the preview matches
@@ -100,5 +107,15 @@ export const deletionLogKeys = {
     ...deletionLogKeys.all(businessId),
     "list",
     filter ?? "all",
+  ],
+  lastPurge: (businessId?: string) => [
+    ...deletionLogKeys.all(businessId),
+    "last-purge",
+  ],
+  dryRun: (businessId?: string, before?: string, scopeVal?: string) => [
+    ...deletionLogKeys.all(businessId),
+    "dry-run",
+    before ?? "",
+    scopeVal ?? "",
   ],
 };

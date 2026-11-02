@@ -1,14 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Moon, Plus, Sun } from "lucide-react";
+import { Ban, Eye, Loader2, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/app/IconButton";
 import { Avatar } from "@/components/app/Avatar";
 import { BalanceBadge } from "@/components/app/BalanceBadge";
 import { AgeFlag } from "@/components/app/AgeFlag";
-import { DataTable, RowActionsMenu, type Column } from "@/components/app/DataTable";
+import { DataTable, type Column } from "@/components/app/DataTable";
+import { RowActions } from "@/components/app/RowActions";
 import { ConfirmDialog } from "@/components/app/ConfirmDialog";
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { DeleteTransactionDialog } from "@/features/transactions/components/DeleteTransactionDialog";
@@ -89,6 +91,12 @@ function ButtonsSection() {
         <Button variant="outline" size="sm">
           Small
         </Button>
+        <div className="flex items-center gap-2 border-l border-border pl-3">
+          <IconButton icon={<Pencil className="size-4" />} label="Edit" />
+          <IconButton icon={<Ban className="size-4" />} label="Void" />
+          <IconButton icon={<Trash2 className="size-4" />} label="Delete" tone="destructive" />
+          <IconButton icon={<Pencil className="size-4" />} label="Disabled" disabled />
+        </div>
       </div>
     </Section>
   );
@@ -244,6 +252,7 @@ const demoColumns: Column<DemoRow>[] = [
     key: "name",
     header: "Customer",
     sortable: true,
+    width: "fill",
     render: (row) => row.name,
     sortValue: (row) => row.name,
   },
@@ -252,6 +261,7 @@ const demoColumns: Column<DemoRow>[] = [
     header: "Balance",
     align: "right",
     sortable: true,
+    width: "fit",
     render: (row) => <BalanceBadge balance={row.balance} />,
     sortValue: (row) => row.balance,
   },
@@ -312,9 +322,10 @@ function TableSection() {
           />
         </div>
         <div>
-          <p className="mb-2 text-xs text-muted-foreground">Data + sort, paging, row actions</p>
+          <p className="mb-2 text-xs text-muted-foreground">Data + sort, paging, row actions (comfortable density)</p>
           <DataTable<DemoRow>
             {...shared}
+            density="comfortable"
             rows={demoRows}
             sortBy="name"
             sortDir="asc"
@@ -325,25 +336,61 @@ function TableSection() {
             onPageChange={noop}
             onPageSizeChange={noop}
             renderRowActions={(row) => (
-              <RowActionsMenu
+              <RowActions
                 triggerLabel={`Actions for ${row.name}`}
-                items={[
-                  { label: "View", onSelect: noop },
-                  { label: "Edit", onSelect: noop },
+                actions={[
+                  { id: "view", label: "View", icon: Eye, onSelect: noop },
+                  { id: "edit", label: "Edit", icon: Pencil, onSelect: noop },
                   {
+                    id: "archive",
                     label: "Archive",
+                    icon: Trash2,
                     onSelect: noop,
-                    variant: "destructive",
+                    destructive: true,
                   },
                 ]}
               />
             )}
-            renderMobileCard={(row) => (
-              <div className="flex items-center justify-between">
-                <span>{row.name}</span>
-                <BalanceBadge balance={row.balance} />
-              </div>
+            mobile={(row) => ({
+              title: row.name,
+              trailing: <BalanceBadge balance={row.balance} />,
+            })}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs text-muted-foreground">Compact density (Day book, embedded tables)</p>
+          <DataTable<DemoRow>
+            {...shared}
+            density="compact"
+            rows={demoRows}
+            sortBy="name"
+            sortDir="asc"
+            onSortChange={noop}
+            page={1}
+            pageSize={10}
+            totalCount={42}
+            onPageChange={noop}
+            onPageSizeChange={noop}
+            renderRowActions={(row) => (
+              <RowActions
+                triggerLabel={`Actions for ${row.name}`}
+                actions={[
+                  { id: "view", label: "View", icon: Eye, onSelect: noop },
+                  { id: "edit", label: "Edit", icon: Pencil, onSelect: noop },
+                  {
+                    id: "archive",
+                    label: "Archive",
+                    icon: Trash2,
+                    onSelect: noop,
+                    destructive: true,
+                  },
+                ]}
+              />
             )}
+            mobile={(row) => ({
+              title: row.name,
+              trailing: <BalanceBadge balance={row.balance} />,
+            })}
           />
         </div>
       </div>

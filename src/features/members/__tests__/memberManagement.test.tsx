@@ -24,6 +24,7 @@ const membersApi = vi.hoisted(() => ({
 }));
 const businessApi = vi.hoisted(() => ({
   getMemberships: vi.fn(),
+  getBusiness: vi.fn(),
 }));
 const toastState = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 
@@ -44,7 +45,7 @@ vi.mock("@/features/business/api", () => ({
   getMemberships: businessApi.getMemberships,
   createBusiness: vi.fn(),
   deleteBusiness: vi.fn(),
-  getBusiness: vi.fn(),
+  getBusiness: businessApi.getBusiness,
   getBusinessImpact: vi.fn(),
   updateBusiness: vi.fn(),
 }));
@@ -136,6 +137,13 @@ beforeEach(() => {
   server.members = freshMembers();
   Object.values(membersApi).forEach((fn) => fn.mockReset());
   businessApi.getMemberships.mockReset();
+  businessApi.getBusiness.mockReset();
+  businessApi.getBusiness.mockImplementation(async () => ({
+    id: "b1",
+    name: "Bahi Khata",
+    business_type: null,
+    owner_id: "u-owner",
+  }));
   toastState.success.mockClear();
   toastState.error.mockClear();
   membersApi.getMembers.mockImplementation(async () => server.members);
@@ -177,9 +185,8 @@ describe("S-25 owner changes a role", () => {
   it("changes Eli from Editor to Viewer from the row menu and confirms with a toast", async () => {
     renderMembers();
 
-    await openRowMenu("Eli the Editor");
     await userEvent.click(
-      await screen.findByRole("menuitem", { name: "Change to Viewer" }),
+      await screen.findByRole("button", { name: "Change to Viewer" }),
     );
 
     await waitFor(() =>
@@ -202,13 +209,13 @@ describe("S-25 owner changes a role", () => {
   it("offers the opposite role on a Viewer row", async () => {
     renderMembers();
 
-    await openRowMenu("Vic");
-
+    await screen.findByText("Vic");
+    const row = screen.getByText("Vic").closest("tr")!;
     expect(
-      await screen.findByRole("menuitem", { name: "Change to Editor" }),
+      within(row).getByRole("button", { name: "Change to Editor" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("menuitem", { name: "Change to Viewer" }),
+      within(row).queryByRole("button", { name: "Change to Viewer" }),
     ).toBeNull();
   });
 
@@ -308,7 +315,7 @@ describe("S-25 owners cannot leave", () => {
 
     expect(
       await screen.findByText(
-        "Owners cannot leave. Delete the business instead.",
+        "Owners cannot leave. Transfer ownership first, or delete the business.",
       ),
     ).toBeTruthy();
     expect(

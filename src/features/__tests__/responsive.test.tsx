@@ -269,9 +269,9 @@ describe("S-41 responsive pass", () => {
       // LeaderRow inside the card's own button — and no table headers
       // exist (L-08 dropped the badge for a tone amount).
       const phone = await screen.findByText("01711 111111");
-      const cardButton = phone.closest("button");
-      expect(cardButton).toBeTruthy();
-      const card = within(cardButton as HTMLElement);
+      const cardEl = phone.closest("[role='listitem']");
+      expect(cardEl).toBeTruthy();
+      const card = within(cardEl as HTMLElement);
       expect(card.getByText("Asha")).toBeTruthy();
       expect(card.getByText("₹500.00").className).toContain("text-receivable");
 

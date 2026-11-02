@@ -42,6 +42,9 @@ const prdSection3: Record<PermissionAction, Record<PermissionRole, boolean>> = {
   viewDeletedItems: { owner: true, editor: false, viewer: false },
   // S-51: bring a deleted item back — owner only.
   restoreDeleted: { owner: true, editor: false, viewer: false },
+  exportDeletionLog: { owner: true, editor: false, viewer: false },
+  purgeDeletionLog: { owner: true, editor: false, viewer: false },
+  transferOwnership: { owner: true, editor: false, viewer: false },
 };
 
 const roles: PermissionRole[] = ["owner", "editor", "viewer"];

@@ -4,8 +4,9 @@ import { Mail, MapPin, Phone } from "lucide-react";
 import { Monogram } from "@/components/app/Monogram";
 import { Money } from "@/components/app/Money";
 import { TotalsRule } from "@/components/app/TotalsRule";
-import { RowActionsMenu, type RowActionItem } from "@/components/app/DataTable";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatRelative } from "@/lib/format";
 import type { Customer } from "@/types";
 
@@ -20,7 +21,8 @@ interface CustomerHeaderProps {
   canEdit: boolean;
   /** The hero's two primary actions: manageTransactions and not archived. */
   canWrite: boolean;
-  menuItems: RowActionItem[];
+  actions?: RowAction[];
+  menuItems?: RowAction[];
   onBack: () => void;
   onEdit: () => void;
   onAddCharge: () => void;
@@ -43,6 +45,7 @@ export function CustomerHeader({
   statementHref,
   canEdit,
   canWrite,
+  actions = [],
   menuItems,
   onBack,
   onEdit,
@@ -69,6 +72,7 @@ export function CustomerHeader({
         : "text-muted-foreground";
   const direction =
     balance > 0 ? "Owes you" : balance < 0 ? "You owe" : "Settled";
+  const isMobile = useMediaQuery("(max-width: 639px)");
 
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
@@ -149,13 +153,29 @@ export function CustomerHeader({
                 Edit
               </Button>
             )}
-            {menuItems.length > 0 && (
-              <RowActionsMenu
+            {(actions.length > 0 || (menuItems && menuItems.length > 0)) && (
+              <RowActions
                 triggerLabel="Customer actions"
-                items={menuItems}
+                actions={actions.length > 0 ? actions : (menuItems ?? [])}
               />
             )}
           </div>
+
+          {/* U-05 / D-31: on a phone, Add charge and Add payment sit on one row under the customer name, each flex-1, 44px high */}
+          {canWrite && isMobile && (
+            <div className="mt-3 flex w-full gap-2">
+              <Button onClick={onAddCharge} className="h-11 flex-1">
+                Add charge
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onAddPayment}
+                className="h-11 flex-1"
+              >
+                Add payment
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -174,9 +194,9 @@ export function CustomerHeader({
           </p>
         </TotalsRule>
 
-        {/* S-31: the two primary actions. Viewers and archived
+        {/* S-31 / U-05: the two primary actions on desktop. Viewers and archived
             customers see none. */}
-        {canWrite && (
+        {canWrite && !isMobile && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={onAddCharge}>Add charge</Button>
             <Button variant="outline" onClick={onAddPayment}>

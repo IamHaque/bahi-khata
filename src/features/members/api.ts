@@ -338,10 +338,34 @@ export async function leaveBusiness(businessId: string): Promise<void> {
       if (/Owners cannot leave/i.test(error.message ?? "")) {
         throw new AppError(
           "forbidden",
-          "Owners cannot leave. Delete the business instead.",
+          "Owners cannot leave. Transfer ownership first, or delete the business.",
         );
       }
       throw error;
+    }
+  });
+}
+
+/**
+ * Transfers business ownership to another member (S-74, B-14).
+ * Owner-only; immediate and atomic. Demotes caller to Editor,
+ * promotes target to Owner, updates businesses.owner_id, and
+ * records audit row in ownership_transfers.
+ */
+export async function transferOwnership(
+  businessId: string,
+  newOwnerId: string,
+): Promise<void> {
+  return guard(async () => {
+    const { error } = await supabase.rpc("transfer_ownership", {
+      p_business_id: businessId,
+      p_new_owner: newOwnerId,
+    });
+    if (error) {
+      throw new AppError(
+        error.code === "42501" ? "forbidden" : "validation",
+        error.message,
+      );
     }
   });
 }

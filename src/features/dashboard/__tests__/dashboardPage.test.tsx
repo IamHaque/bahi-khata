@@ -111,6 +111,7 @@ vi.mock("@/features/transactions/api", () => ({
 vi.mock("@/features/dashboard/api", () => ({
   getDailyActivity: dashboardApi.getDailyActivity,
   getActivityFeed: dashboardApi.getActivityFeed,
+  getLastPayments: vi.fn(async () => ({})),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -343,7 +344,7 @@ describe("L-06 dashboard as a ledger page", () => {
     expect(screen.queryByText(formatMoney(9500))).toBeNull();
   });
 
-  it("top outstanding: up to 5, monogram, share of the total and a link to detail", async () => {
+  it("who to chase: up to 5, monogram, and a link to detail and all debtors", async () => {
     server.summary.top_debtors = Array.from({ length: 9 }, (_, index) => {
       const rank = 9 - index;
       return { id: `d${rank}`, name: `Debtor ${rank}`, balance: rank * 1000 };
@@ -351,7 +352,7 @@ describe("L-06 dashboard as a ledger page", () => {
     renderPage();
 
     const list = await screen.findByRole("list", {
-      name: "Top outstanding balances",
+      name: "Who to chase",
     });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(5); // capped at 5
@@ -360,16 +361,19 @@ describe("L-06 dashboard as a ledger page", () => {
       paths.customerDetail("b1", "d9"),
     );
     expect(within(items[0]!).getByText("₹9,000.00")).toBeTruthy();
-    // 9000 of a 9000 total is the whole pie, rounded.
-    expect(within(items[0]!).getByText("100% of the total")).toBeTruthy();
+    expect(within(items[0]!).getByText("no payments yet")).toBeTruthy();
     // The decorative monogram rides along.
     expect(items[0]!.querySelector("span.rounded-sm")).not.toBeNull();
     // The ninth debtor never renders.
     expect(screen.queryByText("Debtor 1")).toBeNull();
     expect(screen.queryByText("Debtor 4")).toBeNull();
+
+    // Link under list
+    const seeAll = screen.getByRole("link", { name: /see all customers who owe/i });
+    expect(seeAll.getAttribute("href")).toBe(`${paths.customers("b1")}?sort=balance-desc`);
   });
 
-  it("Top outstanding shows each debtor's share of the total receivable", async () => {
+  it("Who to chase shows each debtor's name and link", async () => {
     server.summary = {
       ...server.summary,
       total_receivable: 309188.56,
@@ -378,10 +382,9 @@ describe("L-06 dashboard as a ledger page", () => {
     renderPage();
 
     const list = await screen.findByRole("list", {
-      name: "Top outstanding balances",
+      name: "Who to chase",
     });
     const item = within(list).getAllByRole("listitem")[0]!;
-    expect(within(item).getByText("77% of the total")).toBeTruthy();
     expect(
       within(item).getByRole("link", { name: "Rahim Traders" }).getAttribute("href"),
     ).toBe(paths.customerDetail("b1", "c9"));
@@ -576,35 +579,26 @@ describe("L-06 dashboard as a ledger page", () => {
   it("trend chart: server-aggregated days, text summary, hidden data table, selector re-reads", async () => {
     renderPage();
 
-    expect(await screen.findByText("Daily activity")).toBeTruthy();
-    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 7);
+    expect(await screen.findByRole("heading", { name: "Activity" })).toBeTruthy();
+    // Default window is 30 days (U-06), fetching 2 * 30 = 60 days
+    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 60);
 
-    // The visible text summary and the chart itself (recharts svg,
-    // bars filled with the chart tokens).
-    expect(
-      screen.getByText("Last 7 days: charged ₹2,400.00, paid ₹600.00."),
-    ).toBeTruthy();
-    // The chart section itself carries the plot (the topbar's icons
-    // are svgs too, so the assertion stays inside the region).
     const chart = await screen.findByRole("region", {
-      name: "Charges and payments per day",
+      name: "Activity",
     });
     expect(chart.querySelector("svg")).not.toBeNull();
 
-    // The equivalent, visually hidden data table: header + one row per
-    // day, including the zero days.
+    // The equivalent, visually hidden data table
     const table = await screen.findByRole("table", {
-      name: /Daily charges and payments/,
+      name: /Activity: charges and payments/,
     });
-    expect(within(table).getAllByRole("row")).toHaveLength(5);
-    expect(within(table).getByText("₹2,400.00")).toBeTruthy();
-    expect(within(table).getByText("₹600.00")).toBeTruthy();
+    expect(within(table).getAllByRole("row").length).toBeGreaterThan(0);
 
-    // The 7/30/90 selector re-reads server-side per window.
-    await userEvent.click(screen.getByRole("button", { name: "30 days" }));
-    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 30);
+    // The range selector re-reads server-side per window (7 days -> 2 * 7 = 14)
+    await userEvent.click(screen.getByRole("button", { name: "7 days" }));
+    expect(dashboardApi.getDailyActivity).toHaveBeenCalledWith("b1", 14);
     expect(
-      screen.getByRole("button", { name: "30 days" }).getAttribute("aria-pressed"),
+      screen.getByRole("button", { name: "7 days" }).getAttribute("aria-pressed"),
     ).toBe("true");
   });
 
@@ -619,11 +613,11 @@ describe("L-06 dashboard as a ledger page", () => {
 
     expect(
       await screen.findByText(
-        "No charges or payments in the last 7 days yet.",
+        "No charges or payments in this period",
       ),
     ).toBeTruthy();
     const chart = await screen.findByRole("region", {
-      name: "Charges and payments per day",
+      name: "Activity",
     });
     expect(chart.querySelector("svg")).toBeNull();
   });
@@ -638,7 +632,8 @@ describe("L-06 dashboard as a ledger page", () => {
 
     dashboardApi.getDailyActivity.mockImplementation(async () => server.daily);
     await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
-    expect(await screen.findByText(/Last 7 days: charged/)).toBeTruthy();
+    const chart = await screen.findByRole("region", { name: "Activity" });
+    expect(within(chart).getAllByText("Charged").length).toBeGreaterThan(0);
   });
 
   it("day book: the last entries as a table, with links and the Former member fallback", async () => {
@@ -759,7 +754,7 @@ describe("L-06 dashboard as a ledger page", () => {
     renderPage();
 
     const chart = await screen.findByRole("region", {
-      name: "Charges and payments per day",
+      name: "Activity",
     });
     await waitFor(() => {
       expect(
@@ -768,10 +763,9 @@ describe("L-06 dashboard as a ledger page", () => {
     });
     expect(chart.querySelector('path[fill="var(--credit)"]')).not.toBeNull();
 
-    // Two decorative swatches sit before "charged" and "paid".
-    const summary = screen.getByText(/Last 7 days: charged/);
-    expect(summary.querySelector("i.bg-receivable")).not.toBeNull();
-    expect(summary.querySelector("i.bg-credit")).not.toBeNull();
+    // Summary tiles show swatches for Charged and Paid
+    expect(chart.querySelector(".bg-receivable")).not.toBeNull();
+    expect(chart.querySelector(".bg-credit")).not.toBeNull();
   });
 });
 

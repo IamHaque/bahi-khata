@@ -18,7 +18,7 @@ row-level security. Internal operational tool — no marketing site.
 | Data | TanStack Query 5 over `@supabase/supabase-js` 2 (API calls only from `src/**/api.ts`) |
 | Forms | react-hook-form 7 + zod 4 (`@hookform/resolvers`) |
 | Styling | Tailwind CSS 4 (semantic OKLCH tokens in `src/index.css`), shadcn-style components on `@base-ui/react`, lucide icons, sonner toasts, recharts, next-themes (light/dark/system); two fonts — Public Sans (text and money) and Bricolage Grotesque (headings and figures) |
-| Database | Supabase (Postgres) — three migrations in `supabase/migrations/` (v3.1 chain), SQL tests in `supabase/tests/` |
+| Database | Supabase (Postgres) — seven migrations in `supabase/migrations/` (v3.2 chain), SQL tests in `supabase/tests/` (23 sections) |
 | Quality | ESLint 9 (flat config), `tsc -b`, Vitest 5 + Testing Library + jsdom, axe-core, CI via GitHub Actions |
 
 ## Environment variables
@@ -87,7 +87,7 @@ See `docs/SECURITY.md`.
 | `npm run audit:contrast` | WCAG AA contrast audit of every semantic token pair, both themes (S-40) |
 | `npm run audit:tokens` | Design-token sync check (`design/` ↔ `src/index.css`) |
 | `npm run audit:bundle` | Bundle-size budget guard over the built chunks |
-| `npm run test:sql` | Runs every migration + the 19-section SQL suite against a scratch Postgres (`DATABASE_URL` required — **never** a real Supabase project) |
+| `npm run test:sql` | Runs every migration + the 23-section SQL suite against a scratch Postgres (`DATABASE_URL` required — **never** a real Supabase project) |
 | `node scripts/responsive-audit.cjs` | Headless-Chrome audit: every route at 360/768/1024/1440 px, needs the dev server running (S-41) |
 
 ## Running the tests
@@ -145,6 +145,7 @@ business is the `/b/:businessId` in the URL.
 - `docs/UI-CONTRACT.md` — the visual/interaction rules every screen follows
 - `docs/SECURITY.md` — threats, controls, how to re-run the proofs
 - `docs/RLS.md` — the row-level-security picture per table and role
+- `docs/RELEASE-NOTES-v3.2.md` — what changed for users in v3.2 + rollout and rollback guide
 - `docs/RELEASE-NOTES-v3.md` — what changed for users in v3.1 + pre-deploy checklist
 - `docs/RESEARCH-DECISIONS.md` — the research gates (G-A1/G-A2/G-A3) and their statuses; **edited only by a human**
 - `docs/PROGRESS.md` — build status story by story

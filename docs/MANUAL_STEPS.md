@@ -5,31 +5,36 @@ file is the ordered, copy-paste procedure for everything that needs a human
 with dashboard or CLI access. Each entry names the exact files, the order,
 and how to verify success.
 
-**Current state (v3.1, 2026-10-29, branch `feat/v3`):** the database
-schema is the **three-file v3.1 chain** described in section 0 below
-(consolidated baseline + two v3 migrations). The pre-v3 chain (v1
-baselines + `0001`-`0010`) is **archived** in
+**Current state (v3.2, 2026-11-02, branch `feat/v3.2`):** the database
+schema is the **seven-file v3.2 chain** described in section 0 below
+(consolidated baseline + two v3/v3.1 migrations + four v3.2 migrations).
+The pre-v3 chain (v1 baselines + `0001`-`0010`) is **archived** in
 `supabase/migrations_archive/` - those files were consolidated into
 `20261017000000_bahikhata_consolidated_schema.sql` and must not be
-replayed. For a **new** project: apply the three files in filename
-order (the "v3 database rollout" section near the end of this file has
+replayed. For an upgrade from v3.1: apply the four v3.2 migrations in
+filename order. For a **new** project: apply all seven files in filename
+order (the "v3.2 database rollout" section near the end of this file has
 the full runbook, post-deploy checklist and rollback). Everything
 earlier in this document (the SYNC runbook and the per-story S-xx
-sections) is **history** - the record of how the v2 build was applied
+sections) is **history** - the record of how earlier builds were applied
 - kept for reference, not a current procedure.
 
 ---
 
-## 0. How to apply migrations (v3.1 chain - current)
+## 0. How to apply migrations (v3.2 chain - current)
 
 Migrations live in `supabase/migrations/` and are applied in filename
-order (all three are idempotent, safe to re-run after themselves):
+order (all seven are idempotent, safe to re-run after themselves):
 
 | File | Story | Purpose |
 | --- | --- | --- |
 | `20261017000000_bahikhata_consolidated_schema.sql` | S-50 | consolidated multi-business schema: tables, membership RLS, RPCs, views (the whole pre-v3 chain in one file) |
 | `20261101000000_v3_deletion_log_and_integrity.sql` | S-50 | `deletion_log`, `delete_transaction()`, snapshotting `delete_customer_permanently()`, `restore_deleted()`, actor-stamp triggers, `dashboard_summary` timezone, EXECUTE revocations |
 | `20261108000000_v31_last_payment_at.sql` | S-53 | `last_payment_at` on the `customer_balances` view |
+| `20261201000000_v32_transaction_revisions.sql` | S-72 | `transaction_revisions` table, audit trigger `tr_record_transaction_revision`, `transaction_history` RPC |
+| `20261201000100_v32_deletion_log_purge.sql` | S-73 | `deletion_log_purges` audit table, `purge_deletion_log` RPC (30-day floor), `export_deletion_log` RPC |
+| `20261201000200_v32_ownership_transfer.sql` | S-74 | `ownership_transfers` audit table, atomic `transfer_ownership` RPC, updated `leave_business` |
+| `20261201000300_v32_bulk_actions.sql` | S-75 | 5 atomic bulk RPCs capped at 100 items (archive, void, delete txs/customers, restore deleted) |
 
 The archived pre-v3 files (`supabase/migrations_archive/`) are kept as
 history only - see the warning in the "v3 database rollout" section:
@@ -41,11 +46,51 @@ changed `delete_customer_permanently()`'s return type.
 - *SQL Dashboard:* open the SQL Editor, paste the file contents, run.
 - *CLI:* `supabase db push` (after `supabase link --project-ref <ref>`).
 
+**Idempotency proof (S-77):**
+All four new v3.2 migrations (`20261201000000` through `20261201000300`) were verified for idempotency by applying them sequentially twice against a clean scratch database (PostgreSQL 17.11) with zero errors (`psql` exited with code 0 on both runs).
+
+**Post-rollout verification queries (v3.2 overall):**
+After applying all 4 migrations, run these queries to assert overall database state:
+```sql
+-- 1. Verify policy count across public schema (asserts 22 policies)
+select count(*) from pg_policies where schemaname = 'public';
+
+-- 2. Verify all 3 new v3.2 tables exist (asserts 3)
+select count(*) from information_schema.tables
+ where table_schema = 'public'
+   and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
+
+-- 3. Verify all 8 new v3.2 functions exist (asserts 8)
+select count(*) from information_schema.routines
+ where routine_schema = 'public'
+   and routine_name in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_restore_deleted',
+     'bulk_delete_customers',
+     'purge_deletion_log',
+     'export_deletion_log',
+     'transfer_ownership'
+   );
+
+-- 4. Verify anon cannot execute any public function (asserts 0 rows)
+select p.proname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and has_function_privilege('anon', p.oid, 'execute');
+```
+
 **Warning - never apply migrations to production without a backup**
 (see the backup step in the "v3 database rollout" section). The full
-rollout runbook with per-step verification queries is that same
-section; the SQL tests run with `npm run test:sql` against a scratch
+rollout runbook with per-step verification queries is in the "v3.2 database rollout runbook"
+section below; the SQL tests run with `npm run test:sql` against a scratch
 Postgres only.
+
+> [!CAUTION]
+> **CRITICAL SAFETY WARNING — NEVER RUN THE SQL TEST SUITE AGAINST PRODUCTION:**
+> `supabase/tests/bahikhata_consolidated_tests.sql` must **NEVER** be executed against a production or shared Supabase database. The suite creates and alters test fixtures in `auth.users`, replaces existing roles, and defines temporary helper routines. It is strictly designed for throwaway scratch PostgreSQL instances via `scripts/run-sql-tests.sh`.
 
 ---
 
@@ -1140,3 +1185,216 @@ Owner, Editor and Viewer where it applies) and record the result in
 `docs/PROGRESS.md` next to S-68. Rollback: §9.5 — client rollback is a
 redeploy of the previous Vercel build; database rollback is the backup
 from step (a).
+
+
+---
+
+## v3.2 database rollout runbook (S-76)
+
+### Prerequisites & Safety Rules
+1. **Backups first:** Perform a full database backup via Supabase Dashboard (Database -> Backups) or CLI (`pg_dump`) before executing any migrations.
+2. **Order of execution:** Apply the 4 migration files in exact filename order:
+   1. `20261201000000_v32_transaction_revisions.sql` (S-72)
+   2. `20261201000100_v32_deletion_log_purge.sql` (S-73)
+   3. `20261201000200_v32_ownership_transfer.sql` (S-74)
+   4. `20261201000300_v32_bulk_actions.sql` (S-75)
+3. **Failure procedure:** If any migration file fails:
+   - **STOP IMMEDIATELY.** Do not run subsequent files.
+   - Investigate the error message.
+   - If data or schema was partially altered, restore from the backup taken in Step 1.
+   - All migrations are additive and backwards-compatible with v3.1 clients.
+4. **Deploy client after:** Client build and deployment should take place after migrations are confirmed via verification queries.
+
+---
+
+## v3.2 analysis query (S-71)
+
+Read-only query for the Supabase SQL editor to determine the "who to chase" threshold (`CHASE_AFTER_DAYS`).
+
+Run as a business owner or postgres user on production data:
+
+```sql
+-- days since last payment, for customers who owe money (read-only)
+select width_bucket(extract(day from now() - last_payment_at)::int,
+                    array[7,14,30,60,90]) as bucket,
+       count(*)                                           as customers,
+       round(sum(balance), 2)                             as outstanding
+  from public.customer_balances
+ where balance > 0 and archived_at is null
+ group by 1 order by 1;
+-- plus: how many owe money and never paid
+select count(*) filter (where last_payment_at is null) as never_paid,
+       count(*) as owing
+  from public.customer_balances
+ where balance > 0 and archived_at is null;
+```
+
+**Owner action:** Paste the result of the query above into `docs/PROGRESS.md` under S-71.
+
+**Decision rule:**
+- Keep `CHASE_AFTER_DAYS = 30` if at least 20% of the outstanding amount is older than 30 days and fewer than half of owing customers are flagged.
+- If more than half would be flagged, choose `60`.
+- If fewer than 5% of the amount would be flagged, choose `14`.
+- If the owner has not pasted a result when U-07 starts, use `30` as default.
+
+---
+
+## v3.2 database rollout: S-72 (`20261201000000_v32_transaction_revisions.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'transaction_revisions';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'transaction_revisions' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'transaction_revisions';
+-- [1] (transaction_revisions_select)
+
+-- 3. Trigger exists on transactions
+select count(*) from pg_trigger
+ where tgname = 'tr_record_transaction_revision';
+-- [1]
+
+-- 4. transaction_history function exists with security invoker
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'transaction_history';
+-- [false] (security invoker)
+```
+
+### Post-rollout constant
+After applying `20261201000000_v32_transaction_revisions.sql`, set `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` to the rollout ISO timestamp (default text: "History is recorded from the day v3.2 was installed").
+
+---
+
+## v3.2 database rollout: S-73 (`20261201000100_v32_deletion_log_purge.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'deletion_log_purges';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'deletion_log_purges' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'deletion_log_purges';
+-- [1] (deletion_log_purges_select)
+
+-- 3. purge_deletion_log function exists with security definer
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'purge_deletion_log';
+-- [true] (security definer)
+
+-- 4. export_deletion_log function exists with security invoker
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'export_deletion_log';
+-- [false] (security invoker)
+```
+
+---
+
+## v3.2 database rollout: S-74 (`20261201000200_v32_ownership_transfer.sql`)
+
+### Verification queries
+```sql
+-- 1. Table exists
+select count(*) from information_schema.tables
+ where table_schema = 'public' and table_name = 'ownership_transfers';
+-- [1]
+
+-- 2. RLS enabled and select policy exists
+select count(*) from pg_tables
+ where schemaname = 'public' and tablename = 'ownership_transfers' and rowsecurity = true;
+-- [1]
+select count(*) from pg_policies
+ where schemaname = 'public' and tablename = 'ownership_transfers';
+-- [1] (ownership_transfers_select)
+
+-- 3. transfer_ownership function exists with security definer
+select prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'transfer_ownership';
+-- [true] (security definer)
+
+-- 4. leave_business function updated
+select count(*) from pg_proc
+ where pronamespace = 'public'::regnamespace and proname = 'leave_business';
+-- [1]
+```
+
+---
+
+## v3.2 database rollout: S-75 (`20261201000300_v32_bulk_actions.sql`)
+
+### Verification queries
+```sql
+-- 1. All 5 bulk functions exist
+select proname, prosecdef from pg_proc
+ where pronamespace = 'public'::regnamespace
+   and proname in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_delete_customers',
+     'bulk_restore_deleted'
+   )
+ order by proname;
+-- bulk_delete_customers          | t
+-- bulk_delete_transactions       | t
+-- bulk_restore_deleted           | t
+-- bulk_set_customers_archived    | f
+-- bulk_set_transactions_voided   | f
+```
+
+---
+
+## v3.2 post-rollout overall verification & idempotency
+
+### Idempotency proof
+All four new v3.2 migrations (`20261201000000_v32_transaction_revisions.sql`, `20261201000100_v32_deletion_log_purge.sql`, `20261201000200_v32_ownership_transfer.sql`, and `20261201000300_v32_bulk_actions.sql`) were proved idempotent by executing the migration chain twice in sequence against a clean scratch PostgreSQL 17 database with zero errors (`psql` return code 0 on both passes).
+
+### Overall verification queries
+Run after applying all 4 migrations to confirm whole-schema health:
+
+```sql
+-- 1. Verify policy count across public schema (asserts 22 policies)
+select count(*) from pg_policies where schemaname = 'public';
+
+-- 2. Verify all 3 new v3.2 tables exist (asserts 3)
+select count(*) from information_schema.tables
+ where table_schema = 'public'
+   and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
+
+-- 3. Verify all 8 new v3.2 functions exist (asserts 8)
+select count(*) from information_schema.routines
+ where routine_schema = 'public'
+   and routine_name in (
+     'bulk_set_customers_archived',
+     'bulk_set_transactions_voided',
+     'bulk_delete_transactions',
+     'bulk_restore_deleted',
+     'bulk_delete_customers',
+     'purge_deletion_log',
+     'export_deletion_log',
+     'transfer_ownership'
+   );
+
+-- 4. Verify anon cannot execute any public function (asserts 0 rows)
+select p.proname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and has_function_privilege('anon', p.oid, 'execute');
+```
+
+> [!CAUTION]
+> **CRITICAL SAFETY WARNING — NEVER RUN THE SQL TEST SUITE AGAINST PRODUCTION:**
+> `supabase/tests/bahikhata_consolidated_tests.sql` must **NEVER** be executed against a production or shared Supabase database. The suite creates and alters test fixtures in `auth.users`, replaces existing roles, and defines temporary helper routines. It is strictly designed for throwaway scratch PostgreSQL instances via `scripts/run-sql-tests.sh`.

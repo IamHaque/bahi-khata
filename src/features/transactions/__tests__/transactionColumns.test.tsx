@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -84,7 +86,7 @@ describe("L-09 buildDetailColumns", () => {
     expect(paid.sortKey).toBe("amount");
   });
 
-  it("Delete appears only with can('deleteTransaction'), after the divider", () => {
+  it("Delete appears only with can('deleteTransaction'), after the divider", async () => {
     const editor = build(["manageTransactions"]);
     const { unmount } = render(
       <MemoryRouter>{editor.renderRowActions(seedRow())}</MemoryRouter>,
@@ -96,14 +98,18 @@ describe("L-09 buildDetailColumns", () => {
       screen.getByRole("button", { name: "Void charge of ₹249.50" }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: "Delete charge of ₹249.50" }),
+      screen.queryByRole("button", { name: "Transaction actions" }),
     ).toBeNull();
     unmount();
 
     const owner = build(["manageTransactions", "deleteTransaction"]);
     render(<MemoryRouter>{owner.renderRowActions(seedRow())}</MemoryRouter>);
+    const menuBtn = screen.getByRole("button", { name: "Transaction actions" });
+    expect(menuBtn).toBeTruthy();
+    await userEvent.click(menuBtn);
+    const menu = await screen.findByRole("menu");
     expect(
-      screen.getByRole("button", { name: "Delete charge of ₹249.50" }),
+      within(menu).getByRole("menuitem", { name: /Delete/ }),
     ).toBeTruthy();
   });
 

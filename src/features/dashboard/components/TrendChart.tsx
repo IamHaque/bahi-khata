@@ -1,250 +1,488 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { ErrorState } from "@/components/app/ErrorState";
 import { Card } from "@/components/ui/card";
+import { Money } from "@/components/app/Money";
+import { ErrorState } from "@/components/app/ErrorState";
+import { formatMoney } from "@/lib/format";
+import { transactionsPath } from "@/lib/paths";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
-import { formatDayMonth, formatMoney } from "@/lib/format";
 import { useDailyActivity } from "../hooks";
+import {
+  bucketActivity,
+  calculateNiceMax,
+  formatCompactInr,
+  resolveBucket,
+  splitActivityPeriods,
+  type ActivityBucket,
+  type BucketType,
+} from "../activity";
 
-const WINDOWS = [7, 30, 90] as const;
-type Window = (typeof WINDOWS)[number];
+interface RangeOption {
+  id: string;
+  days: number;
+  label: string;
+  periodLabel: string;
+  bucket: BucketType;
+}
+
+const RANGE_OPTIONS: RangeOption[] = [
+  { id: "7", days: 7, label: "7 days", periodLabel: "7 days", bucket: "daily" },
+  { id: "30", days: 30, label: "30 days", periodLabel: "30 days", bucket: "daily" },
+  { id: "90", days: 90, label: "90 days", periodLabel: "90 days", bucket: "weekly" },
+  { id: "12m", days: 365, label: "12 months", periodLabel: "12 months", bucket: "monthly" },
+];
 
 /**
- * The date-only strings arrive as "YYYY-MM-DD" wall-clock days (cut in
- * the caller's timezone by the RPC); parse them as LOCAL dates so the
- * axis never shifts a day in a negative-offset zone.
- */
-function toLocalDate(day: string): Date {
-  const [y, m, d] = day.split("-").map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-}
-
-interface TooltipPayloadItem {
-  dataKey?: string;
-  value?: number;
-  payload?: {
-    activity_date: string;
-    charges: number;
-    payments: number;
-  };
-}
-
-function TrendTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string;
-}) {
-  if (!active || !payload || payload.length === 0 || !label) {
-    return null;
-  }
-  const date = toLocalDate(label);
-  const row = payload[0]?.payload;
-  const charges =
-    row?.charges ?? (payload.find((p) => p.dataKey === "charges")?.value ?? 0);
-  const payments =
-    row?.payments ?? (payload.find((p) => p.dataKey === "payments")?.value ?? 0);
-
-  return (
-    <div className="rounded border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground">
-      <p className="font-semibold text-foreground">{formatDayMonth(date)}</p>
-      <div className="mt-1 space-y-0.5">
-        <div className="flex items-center gap-1.5">
-          <i aria-hidden className="inline-block size-2 shrink-0 bg-receivable" />
-          <span className="text-muted-foreground">Charged:</span>
-          <span className="font-medium tabular-nums text-foreground">
-            {formatMoney(charges)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <i aria-hidden className="inline-block size-2 shrink-0 bg-credit" />
-          <span className="text-muted-foreground">Paid:</span>
-          <span className="font-medium tabular-nums text-foreground">
-            {formatMoney(payments)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * S-37 / L-06 / V-HV1 — the trend chart: charges and payments per day,
- * aggregated SERVER-side by migration 0007's daily_activity RPC
- * (zero-filled, voided out, archived customers out, days cut in the
- * caller's own timezone). L-06: the bars are filled with the ledger
- * tones (receivable / credit), the tops are square, the baseline is a
- * ruled foreground line and the gridlines are dashed. The chart
- * carries a visible text summary and an equivalent visually hidden
- * data table, and the 7/30/90 selector re-reads per window. Empty and
- * failing states are this section's own.
- * V-HV1: fills its container via ResponsiveContainer without horizontal
- * scroll, has custom token-styled hover and keyboard tooltip.
+ * U-06 / D-34: Rebuilt Dashboard Activity chart.
+ * Diverging bars: charges above zero (--receivable), payments below (--credit).
+ * Symmetric Y axis, 3 summary comparison tiles, URL-synced range selector,
+ * interactive readout with "View entries" date link, full keyboard navigation.
  */
 export function TrendChart({ businessId }: { businessId: string }) {
-  const [days, setDays] = useState<Window>(7);
-  const query = useDailyActivity(businessId, days);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  // Range from URL (?activity=30 default)
+  const activityParam = searchParams.get("activity");
+  const selectedRange = useMemo(() => {
+    if (!activityParam) return RANGE_OPTIONS[1]!; // 30 days default
+    if (activityParam === "365") return RANGE_OPTIONS[3]!;
+    const found = RANGE_OPTIONS.find((r) => r.id === activityParam);
+    return found ?? RANGE_OPTIONS[1]!;
+  }, [activityParam]);
+
+  const setRange = useCallback(
+    (option: RangeOption) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (option.id === "30") {
+          next.delete("activity");
+        } else {
+          next.set("activity", option.id);
+        }
+        return next;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  // Read 2 * days to compute current and previous comparison periods
+  const query = useDailyActivity(businessId, 2 * selectedRange.days);
   const rows = query.data;
 
-  const totalCharged = (rows ?? []).reduce((sum, row) => sum + row.charges, 0);
-  const totalPaid = (rows ?? []).reduce((sum, row) => sum + row.payments, 0);
+  const { currentRows, summary } = useMemo(() => {
+    if (!rows || rows.length === 0) {
+      return {
+        currentRows: [],
+        summary: {
+          currentCharged: 0,
+          previousCharged: 0,
+          chargedChange: "—",
+          currentPaid: 0,
+          previousPaid: 0,
+          paidChange: "—",
+          currentNet: 0,
+          previousNet: 0,
+          netChange: "—",
+        },
+      };
+    }
+    return splitActivityPeriods(rows, selectedRange.days, selectedRange.periodLabel);
+  }, [rows, selectedRange.days, selectedRange.periodLabel]);
+
+  // Coarsen bucket if bars would be narrower than 6px
+  const bucketType = useMemo(() => {
+    const estimatedWidth = isDesktop ? 1000 : 350;
+    return resolveBucket(selectedRange.bucket, currentRows.length, estimatedWidth);
+  }, [selectedRange.bucket, currentRows.length, isDesktop]);
+
+  const buckets: ActivityBucket[] = useMemo(() => {
+    return bucketActivity(currentRows, bucketType);
+  }, [currentRows, bucketType]);
+
   const isEmpty =
-    rows !== undefined &&
-    rows.every((row) => row.charges === 0 && row.payments === 0);
+    buckets.length === 0 ||
+    buckets.every((b) => b.charges === 0 && b.payments === 0);
+
+  // Symmetric nice maximum for diverging Y-axis
+  const niceMax = useMemo(() => {
+    const maxVal = Math.max(
+      ...buckets.map((b) => Math.max(b.charges, b.payments)),
+      0,
+    );
+    return calculateNiceMax(maxVal);
+  }, [buckets]);
+
+  // Selected bucket for the readout line
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const activeBucket = useMemo(() => {
+    if (activeIndex === null || activeIndex < 0 || activeIndex >= buckets.length) {
+      return null;
+    }
+    return buckets[activeIndex] ?? null;
+  }, [activeIndex, buckets]);
+
+  // Keyboard navigation on chart container
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (buckets.length === 0) return;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setActiveIndex((prev) =>
+          prev === null ? 0 : Math.min(buckets.length - 1, prev + 1),
+        );
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setActiveIndex((prev) =>
+          prev === null ? buckets.length - 1 : Math.max(0, prev - 1),
+        );
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        setActiveIndex(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        setActiveIndex(buckets.length - 1);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setActiveIndex(null);
+      }
+    },
+    [buckets.length],
+  );
+
+  const chartHeight = isDesktop ? 280 : 220;
 
   return (
-    <Card className="p-6 min-w-0" role="region" aria-label="Charges and payments per day">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-heading text-sm font-medium text-foreground">Daily activity</h3>
-        {/* L-06: the 7/30/90 control as text tabs (L-04 style); labels
-            and aria-pressed unchanged. */}
-        <div role="group" aria-label="Chart range" className="flex gap-1">
-          {WINDOWS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={days === option}
-              onClick={() => setDays(option)}
-              className={cn(
-                "border-b-2 px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11",
-                days === option
-                  ? "border-foreground text-foreground font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option} days
-            </button>
-          ))}
+    <Card
+      className="p-6 min-w-0"
+      role="region"
+      aria-label="Activity"
+    >
+      {/* Header with title and segmented range control */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-heading text-lg font-semibold text-foreground">
+          Activity
+        </h3>
+
+        {/* Range control: 7 days · 30 days · 90 days · 12 months */}
+        <div
+          role="group"
+          aria-label="Chart range"
+          className="inline-flex rounded-lg border border-input p-0.5"
+        >
+          {RANGE_OPTIONS.map((option) => {
+            const isSelected = selectedRange.id === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => {
+                  setRange(option);
+                  setActiveIndex(null);
+                }}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors pointer-coarse:min-h-11 pointer-coarse:px-3",
+                  isSelected
+                    ? "bg-foreground text-background font-semibold"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {query.isPending && (
         <div
           role="status"
-          aria-label="Loading daily activity"
-          className="mt-3 h-56 animate-pulse rounded bg-muted"
+          aria-label="Loading activity"
+          className="mt-6 h-72 animate-pulse rounded bg-muted"
         />
       )}
 
       {query.isError && (
-        <div className="mt-3">
+        <div className="mt-4">
           <ErrorState
             message={
               query.error instanceof Error
                 ? query.error.message
-                : "The daily activity could not be loaded."
+                : "The activity could not be loaded."
             }
             onRetry={() => void query.refetch()}
           />
         </div>
       )}
 
-      {rows !== undefined && isEmpty && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          No charges or payments in the last {days} days yet.
-        </p>
-      )}
-
-      {rows !== undefined && !isEmpty && (
+      {rows !== undefined && !query.isError && (
         <>
-          {/* The text summary the accessibility scenario asks for, with
-              decorative swatches before "charged" and "paid". */}
-          <p className="mt-3 text-sm text-muted-foreground">
-            Last {days} days:{" "}
-            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-receivable align-middle" />
-            charged {formatMoney(totalCharged)},{" "}
-            <i aria-hidden className="mr-1.5 inline-block size-2.5 bg-credit align-middle" />
-            paid {formatMoney(totalPaid)}.
-          </p>
-          <div className="mt-2 min-w-0">
-            <ResponsiveContainer
-              width="100%"
-              height={240}
-              initialDimension={{ width: 720, height: 240 }}
-            >
-              <BarChart
-                data={rows}
-                margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-                barCategoryGap={days > 30 ? 1 : days > 7 ? "10%" : "20%"}
-                barGap={days > 30 ? 0 : 2}
-                maxBarSize={days === 7 ? 24 : days === 30 ? 8 : 4}
-              >
-                <CartesianGrid
-                  vertical={false}
-                  stroke="var(--border)"
-                  strokeDasharray="2 5"
+          {/* Summary tiles (three: Charged, Paid, Net; stacked on phone) */}
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Charged */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-sm bg-receivable shrink-0"
+                  aria-hidden="true"
                 />
-                <XAxis
-                  dataKey="activity_date"
-                  tickFormatter={(day: string) => formatDayMonth(toLocalDate(day))}
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.5 }}
-                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-                  interval="preserveStartEnd"
-                  minTickGap={days > 30 ? 28 : days > 7 ? 18 : 8}
+                <span className="text-xs font-medium text-muted-foreground">
+                  Charged
+                </span>
+              </div>
+              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
+                <Money amount={summary.currentCharged} />
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {summary.chargedChange}
+              </p>
+            </div>
+
+            {/* Paid */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-sm bg-credit shrink-0"
+                  aria-hidden="true"
                 />
-                <YAxis
-                  width={56}
-                  tickFormatter={(value: number) =>
-                    value >= 1000 ? `${Math.round(value / 1000)}k` : String(value)
-                  }
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                <span className="text-xs font-medium text-muted-foreground">
+                  Paid
+                </span>
+              </div>
+              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
+                <Money amount={summary.currentPaid} />
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {summary.paidChange}
+              </p>
+            </div>
+
+            {/* Net */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-sm bg-foreground shrink-0"
+                  aria-hidden="true"
                 />
-                <Tooltip
-                  content={<TrendTooltip />}
-                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                  isAnimationActive={false}
-                />
-                <Bar
-                  dataKey="charges"
-                  name="Charges"
-                  fill="var(--receivable)"
-                  radius={0}
-                  // The bars render their final geometry immediately: no
-                  // entrance animation on a ledger figure (and the fills
-                  // are assertable without waiting on rAF timing).
-                  isAnimationActive={false}
-                />
-                <Bar
-                  dataKey="payments"
-                  name="Payments"
-                  fill="var(--credit)"
-                  radius={0}
-                  isAnimationActive={false}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Net
+                </span>
+              </div>
+              <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">
+                <Money amount={summary.currentNet} />
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {summary.netChange}
+              </p>
+            </div>
           </div>
-          {/* The same numbers, every day, for screen readers. */}
+
+          {isEmpty ? (
+            <div className="my-10 text-center text-sm text-muted-foreground">
+              No charges or payments in this period
+            </div>
+          ) : (
+            <>
+              {/* Focusable chart area for keyboard + touch navigation */}
+              <div
+                role="group"
+                tabIndex={0}
+                aria-label="Activity chart, use left and right arrow keys"
+                onKeyDown={handleKeyDown}
+                className="mt-6 min-w-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+              >
+                <ResponsiveContainer
+                  width="100%"
+                  height={chartHeight}
+                  initialDimension={{ width: 800, height: chartHeight }}
+                >
+                  <BarChart
+                    data={buckets}
+                    margin={{ top: 12, right: 8, bottom: 0, left: -10 }}
+                    stackOffset="sign"
+                    onClick={(state) => {
+                      if (state && state.activeTooltipIndex !== undefined) {
+                        setActiveIndex(Number(state.activeTooltipIndex));
+                      }
+                    }}
+                    onMouseMove={(state) => {
+                      if (state && state.activeTooltipIndex !== undefined) {
+                        setActiveIndex(Number(state.activeTooltipIndex));
+                      }
+                    }}
+                  >
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="var(--border)"
+                      strokeDasharray="2 5"
+                    />
+                    <XAxis
+                      dataKey="key"
+                      tickFormatter={(_, idx) => buckets[idx]?.label ?? ""}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                      interval="preserveStartEnd"
+                      minTickGap={20}
+                    />
+                    <YAxis
+                      domain={[-niceMax, niceMax]}
+                      ticks={[-niceMax, -niceMax / 2, 0, niceMax / 2, niceMax]}
+                      tickFormatter={(val: number) => formatCompactInr(Math.abs(val))}
+                      tickLine={false}
+                      axisLine={false}
+                      width={52}
+                      tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                    />
+                    {/* Heavier zero baseline */}
+                    <ReferenceLine
+                      y={0}
+                      stroke="var(--foreground)"
+                      strokeWidth={1.5}
+                    />
+                    {/* Highlighted active band */}
+                    {activeBucket && (
+                      <ReferenceArea
+                        x1={activeBucket.key}
+                        x2={activeBucket.key}
+                        fill="var(--muted)"
+                        fillOpacity={0.4}
+                      />
+                    )}
+                    {/* Charges above zero */}
+                    <Bar
+                      dataKey="charges"
+                      name="Charges"
+                      fill="var(--receivable)"
+                      radius={0}
+                      isAnimationActive={false}
+                    >
+                      {buckets.map((b) => (
+                        <Cell
+                          key={`charges-${b.key}`}
+                          fill="var(--receivable)"
+                          fillOpacity={b.partial ? 0.6 : 1}
+                        />
+                      ))}
+                    </Bar>
+                    {/* Payments below zero */}
+                    <Bar
+                      dataKey="paymentsNegative"
+                      name="Payments"
+                      fill="var(--credit)"
+                      radius={0}
+                      isAnimationActive={false}
+                    >
+                      {buckets.map((b) => (
+                        <Cell
+                          key={`payments-${b.key}`}
+                          fill="var(--credit)"
+                          fillOpacity={b.partial ? 0.6 : 1}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Readout line under the chart */}
+              <div
+                className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-sm"
+                aria-live="polite"
+              >
+                {activeBucket ? (
+                  <>
+                    <p className="text-foreground">
+                      <span className="font-semibold">{activeBucket.fullDateLabel}</span>
+                      {" · "}
+                      <span className="text-muted-foreground">Charged </span>
+                      <span className="tabular-nums font-medium text-receivable">
+                        {formatMoney(activeBucket.charges)}
+                      </span>
+                      {" · "}
+                      <span className="text-muted-foreground">Paid </span>
+                      <span className="tabular-nums font-medium text-credit">
+                        {formatMoney(activeBucket.payments)}
+                      </span>
+                      {" · "}
+                      <span className="text-muted-foreground">Net </span>
+                      <span className="tabular-nums font-medium text-foreground">
+                        {formatMoney(activeBucket.net)}
+                      </span>
+                    </p>
+                    <Link
+                      to={transactionsPath(businessId, {
+                        from: activeBucket.startDate,
+                        to: activeBucket.endDate,
+                      })}
+                      className="font-medium text-primary hover:underline text-xs"
+                    >
+                      View entries
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Hover, tap or use arrow keys on the chart to read values
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Small muted line under chart */}
+          <p className="mt-2 text-xs text-muted-foreground">
+            Archived customers are not included.
+          </p>
+
+          {/* role="img" summary sentence */}
+          <p
+            role="img"
+            aria-label={`Activity summary for last ${selectedRange.periodLabel}: charged ${formatMoney(summary.currentCharged)}, paid ${formatMoney(summary.currentPaid)}, net ${formatMoney(summary.currentNet)}.`}
+            className="sr-only"
+          >
+            Activity summary for last {selectedRange.periodLabel}: charged{" "}
+            {formatMoney(summary.currentCharged)}, paid{" "}
+            {formatMoney(summary.currentPaid)}, net{" "}
+            {formatMoney(summary.currentNet)}.
+          </p>
+
+          {/* Screen reader table */}
           <div className="sr-only">
             <table>
-              <caption>Daily charges and payments, last {days} days</caption>
+              <caption>
+                Activity: charges and payments for last {selectedRange.periodLabel}
+              </caption>
               <thead>
                 <tr>
-                  <th scope="col">Day</th>
-                  <th scope="col">Charges</th>
-                  <th scope="col">Payments</th>
+                  <th scope="col">Period</th>
+                  <th scope="col">Charged</th>
+                  <th scope="col">Paid</th>
+                  <th scope="col">Net</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.activity_date}>
-                    <th scope="row">{row.activity_date}</th>
-                    <td>{formatMoney(row.charges)}</td>
-                    <td>{formatMoney(row.payments)}</td>
+                {buckets.map((b) => (
+                  <tr key={b.key}>
+                    <th scope="row">
+                      {b.partial ? b.fullDateLabel : b.label}
+                    </th>
+                    <td>{formatMoney(b.charges)}</td>
+                    <td>{formatMoney(b.payments)}</td>
+                    <td>{formatMoney(b.net)}</td>
                   </tr>
                 ))}
               </tbody>

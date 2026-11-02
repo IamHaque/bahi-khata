@@ -343,6 +343,7 @@ beforeEach(() => {
 
 describe("S-32 transaction sheet", () => {
   it("adds a charge from the ledger: focused amount, live preview, row on top, balance flashes", async () => {
+    const before = Date.now();
     const dialog = await openLedgerSheet();
 
     // Amount is focused on open, with Charged selected and the footer
@@ -399,7 +400,7 @@ describe("S-32 transaction sheet", () => {
     // of the moment the sheet opened.
     const when = new Date(input.occurred_at);
     expect(localDay(when)).toBe(isoDay(0));
-    expect(Math.abs(when.getTime() - Date.now())).toBeLessThan(60_000);
+    expect(Math.abs(when.getTime() - before)).toBeLessThan(60_000);
 
     // The sheet closed, the balance recalculated and highlights…
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -429,11 +430,7 @@ describe("S-32 transaction sheet", () => {
     renderWithTopbar(paths.customers("b1"));
     const asha = await findRowScope("Asha Verma");
     await userEvent.click(
-      asha.getByRole("button", { name: "Actions for Asha Verma" }),
-    );
-    const menu = await screen.findByRole("menu");
-    await userEvent.click(
-      within(menu).getByRole("menuitem", { name: "Add transaction" }),
+      asha.getByRole("button", { name: "Add transaction" }),
     );
 
     const dialog = await screen.findByRole("dialog");

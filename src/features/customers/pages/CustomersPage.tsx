@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { Download, Plus, Upload } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Archive, Download, Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
+import { actionLabels } from "@/lib/actionLabels";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
 import { formatDate, formatRelative } from "@/lib/format";
@@ -9,9 +11,14 @@ import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { usePermissions } from "@/features/business/hooks";
 import {
+  useBulkDeleteCustomers,
+  useBulkSetCustomersArchived,
   useCustomerList,
   useSetCustomerArchived,
 } from "@/features/customers/hooks";
+import { useBulkRestoreDeleted } from "@/features/deleted-items/hooks";
+import { BulkActionBar } from "@/components/app/BulkActionBar";
+import { BulkConfirmDialog } from "@/components/app/BulkConfirmDialog";
 import { useAllCustomerBalances } from "@/features/transactions/hooks";
 import { openTransactionSheet } from "@/features/transactions/sheetStore";
 import { exportCustomersCsv } from "@/features/import-export/exports";
@@ -29,9 +36,7 @@ import { SearchInput } from "@/components/app/SearchInput";
 import { FilterBar, type FilterChip } from "@/components/app/FilterBar";
 import {
   DataTable,
-  RowActionsMenu,
   type Column,
-  type RowActionItem,
 } from "@/components/app/DataTable";
 import { EmptyState } from "@/components/app/EmptyState";
 import { LeaderRow } from "@/components/app/LeaderRow";
@@ -98,91 +103,97 @@ function balanceWords(balance: number): string {
   return balance > 0 ? "owes you" : balance < 0 ? "you owe" : "Settled";
 }
 
-const columns: Array<Column<CustomerListRow>> = [
-  {
-    key: "name",
-    header: "Customer",
-    sortable: true,
-    render: (row) => (
-      <div className="flex items-center gap-3">
-        <Monogram name={row.name} tone={balanceTone(row.balance)} />
-        <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{row.name}</p>
-          {row.phone && (
-            <p className="truncate text-xs text-muted-foreground">{row.phone}</p>
-          )}
-          {row.archived_at ? (
-            /* Archived rows say so where the tags usually sit, so the
-               name cell's text (and tests that find rows by name) stay
-               untouched. */
-            <p className="truncate text-xs text-muted-foreground">Archived</p>
-          ) : (
-            row.tags &&
-            row.tags.length > 0 && (
-              <p className="truncate text-xs text-muted-foreground">
-                {row.tags.join(", ")}
-              </p>
-            )
-          )}
+function buildColumns(businessId: string): Array<Column<CustomerListRow>> {
+  return [
+    {
+      key: "name",
+      header: "Customer",
+      width: "fill",
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <Monogram name={row.name} tone={balanceTone(row.balance)} />
+          <div className="min-w-0">
+            <Link
+              to={paths.customerDetail(businessId, row.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate font-medium text-foreground hover:underline"
+            >
+              {row.name}
+            </Link>
+            {row.archived_at ? (
+              <p className="truncate text-xs text-muted-foreground">Archived</p>
+            ) : (
+              row.tags &&
+              row.tags.length > 0 && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {row.tags.join(", ")}
+                </p>
+              )
+            )}
+          </div>
         </div>
-      </div>
-    ),
-  },
-  {
-    key: "phone",
-    header: "Phone",
-    // L-08: the phone rides under the name; the column keeps the
-    // comparison view at md and up and steps aside below it.
-    className: "hidden md:table-cell",
-    render: (row) =>
-      row.phone ?? <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: "balance",
-    header: "Balance",
-    align: "right",
-    sortable: true,
-    render: (row) => (
-      <div className="flex flex-col items-end">
-        <Money
-          amount={Math.abs(row.balance)}
-          className={toneClass[balanceTone(row.balance)]}
-        />
-        <span className="text-xs text-muted-foreground">
-          {balanceWords(row.balance)}
-        </span>
-      </div>
-    ),
-  },
-  {
-    key: "lastActivity",
-    header: "Last activity",
-    render: (row) =>
-      row.last_activity ? (
-        formatRelative(row.last_activity)
-      ) : (
-        <span className="text-muted-foreground">—</span>
       ),
-  },
-  {
-    key: "created",
-    header: "Added",
-    sortable: true,
-    // L-08: hidden below lg; and when Added lands on Last activity's
-    // day the row has already said it — the cell stays empty.
-    className: "hidden lg:table-cell",
-    render: (row) =>
-      row.last_activity &&
-      formatDate(row.last_activity) === formatDate(row.created_at) ? null : (
-        formatDate(row.created_at)
+    },
+    {
+      key: "phone",
+      header: "Phone",
+      width: "fit",
+      priority: 2,
+      fold: (row) => row.phone,
+      render: (row) =>
+        row.phone ?? <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "balance",
+      header: "Balance",
+      align: "right",
+      width: "fit",
+      sortable: true,
+      render: (row) => (
+        <div className="flex flex-col items-end">
+          <Money
+            amount={Math.abs(row.balance)}
+            className={toneClass[balanceTone(row.balance)]}
+          />
+          <span className="text-xs text-muted-foreground">
+            {balanceWords(row.balance)}
+          </span>
+        </div>
       ),
-  },
-];
+    },
+    {
+      key: "lastActivity",
+      header: "Last activity",
+      width: "fit",
+      priority: 2,
+      render: (row) =>
+        row.last_activity ? (
+          formatRelative(row.last_activity)
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "created",
+      header: "Added",
+      width: "fit",
+      priority: 3,
+      sortable: true,
+      render: (row) =>
+        row.last_activity &&
+        formatDate(row.last_activity) === formatDate(row.created_at) ? null : (
+          formatDate(row.created_at)
+        ),
+    },
+  ];
+}
 
 export function CustomersPage() {
   const navigate = useNavigate();
   const businessId = useScopedBusinessId() ?? "";
   const { can } = usePermissions();
+  const columns = useMemo(() => buildColumns(businessId), [businessId]);
   // S-39: exporting is every member's right — no role gate here.
   const { progress, run } = useExportRunner((message) =>
     toast.error(message),
@@ -203,6 +214,16 @@ export function CustomersPage() {
   const pageParam = Number(searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam >= 1 ? pageParam : 1;
   const [pageSize, setPageSize] = useState(10);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [q, status, sort, dir, page, pageSize]);
+
+  const bulkArchive = useBulkSetCustomersArchived(businessId);
+  const bulkDelete = useBulkDeleteCustomers(businessId);
+  const bulkRestore = useBulkRestoreDeleted(businessId);
 
   const updateParams = useCallback(
     (
@@ -250,6 +271,62 @@ export function CustomersPage() {
   };
 
   const rows = data?.items ?? [];
+  const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
+  const hasArchivedSelected = selectedRows.some((r) => r.archived_at != null);
+  const hasUnarchivedSelected = selectedRows.some((r) => r.archived_at == null);
+  const canArchive = can("archiveCustomers");
+  const canDelete = can("deleteCustomer");
+  const canSelect = canArchive || canDelete;
+
+  const handleBulkArchive = async () => {
+    try {
+      const idsToArchive = selectedRows.filter((r) => !r.archived_at).map((r) => r.id);
+      const count = await bulkArchive.mutateAsync({ ids: idsToArchive, archived: true });
+      setSelectedIds([]);
+      toast.success(`Archived ${count} ${count === 1 ? "customer" : "customers"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleBulkUnarchive = async () => {
+    try {
+      const idsToRestore = selectedRows.filter((r) => r.archived_at).map((r) => r.id);
+      const count = await bulkArchive.mutateAsync({ ids: idsToRestore, archived: false });
+      setSelectedIds([]);
+      toast.success(`Restored ${count} ${count === 1 ? "customer" : "customers"}`);
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    try {
+      const result = await bulkDelete.mutateAsync({ ids: selectedIds });
+      setBulkDeleteDialogOpen(false);
+      const deletedCount = result.count;
+      const logIds = result.log_ids;
+      setSelectedIds([]);
+      toast.success(`Deleted ${deletedCount} ${deletedCount === 1 ? "customer" : "customers"}`, {
+        duration: 10000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            bulkRestore.mutate(logIds, {
+              onSuccess: (cnt) => {
+                toast.success(`Restored ${cnt} items`);
+              },
+              onError: (err) => {
+                toast.error(toAppError(err).message);
+              },
+            });
+          },
+        },
+      });
+    } catch (err) {
+      toast.error(toAppError(err).message);
+    }
+  };
   const owesYou = Object.values(balances ?? {}).reduce(
     (sum, balance) => (balance > 0 ? sum + balance : sum),
     0,
@@ -273,37 +350,34 @@ export function CustomersPage() {
     }
   }, [data, rows.length, page, pageSize, updateParams]);
 
-  const rowMenuItems = (row: CustomerListRow): RowActionItem[] => {
-    // Archived rows keep history but leave the working set: no edit, no
-    // add-transaction — restore first. v3 (S-55): Delete is no longer
-    // archived-only — every row offers it, last and behind a divider,
-    // and only for the owner (the matrix, S-21).
+  const renderRowActions = (row: CustomerListRow) => {
     const archived = row.archived_at != null;
-    const items: RowActionItem[] = [
-      {
-        label: "View",
-        onSelect: () => navigate(paths.customerDetail(businessId, row.id)),
-      },
-    ];
+    const actions: RowAction[] = [];
+
     if (!archived && can("manageCustomers")) {
-      items.push({
-        label: "Edit",
+      actions.push({
+        id: "edit",
+        label: actionLabels.edit,
+        icon: Pencil,
         onSelect: () => setDialog({ kind: "form", mode: "edit", customer: row }),
       });
     }
+
     if (!archived && can("manageTransactions")) {
-      // Live since S-32: opens the shared sheet with this row's
-      // customer preselected.
-      items.push({
-        label: "Add transaction",
-        onSelect: () =>
-          openTransactionSheet({ id: row.id, name: row.name }),
+      actions.push({
+        id: "add-transaction",
+        label: actionLabels.addTransaction,
+        icon: Plus,
+        onSelect: () => openTransactionSheet({ id: row.id, name: row.name }),
       });
     }
+
     if (can("archiveCustomers")) {
       if (archived) {
-        items.push({
-          label: "Restore",
+        actions.push({
+          id: "restore",
+          label: actionLabels.restore,
+          icon: RotateCcw,
           onSelect: () => {
             void restoreCustomer
               .mutateAsync({ id: row.id, archived: false })
@@ -313,61 +387,34 @@ export function CustomersPage() {
           },
         });
       } else {
-        items.push({
-          label: "Archive",
+        actions.push({
+          id: "archive",
+          label: actionLabels.archive,
+          icon: Archive,
           onSelect: () => setDialog({ kind: "archive", customer: row }),
-          variant: "destructive",
         });
       }
     }
+
     if (can("deleteCustomer")) {
-      items.push({
-        label: "Delete",
+      actions.push({
+        id: "delete",
+        label: actionLabels.delete,
+        icon: Trash2,
+        destructive: true,
         onSelect: () => setDialog({ kind: "delete", customer: row }),
-        variant: "destructive",
-        separator: true,
       });
     }
-    return items;
+
+    if (actions.length === 0) return null;
+
+    return (
+      <RowActions
+        actions={actions}
+        triggerLabel={`Actions for ${row.name}`}
+      />
+    );
   };
-
-  const renderRowActions = (row: CustomerListRow) => (
-    <RowActionsMenu
-      triggerLabel={`Actions for ${row.name}`}
-      items={rowMenuItems(row)}
-    />
-  );
-
-  const renderMobileCard = (row: CustomerListRow) => (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-      <button
-        type="button"
-        className="min-w-0 flex-1 text-left pointer-coarse:min-h-11"
-        onClick={() => navigate(paths.customerDetail(businessId, row.id))}
-      >
-        {/* L-08: each customer is a LeaderRow — the list keeps its
-            listitem role legal inside the button that carries the
-            row's navigation. */}
-        <div role="list" className="w-full">
-          <LeaderRow
-            leading={<Monogram name={row.name} tone={balanceTone(row.balance)} />}
-            label={row.name}
-            sub={
-              row.archived_at
-                ? row.phone
-                  ? `${row.phone} · Archived`
-                  : "Archived"
-                : row.phone ?? undefined
-            }
-            amount={row.balance}
-            tone={balanceTone(row.balance)}
-            className="py-0"
-          />
-        </div>
-      </button>
-      <div onClick={(event) => event.stopPropagation()}>{renderRowActions(row)}</div>
-    </div>
-  );
 
   const hasFilters = q !== "" || status !== "all";
   // A stale URL page beyond the count (before the clamp effect above
@@ -484,7 +531,58 @@ export function CustomersPage() {
         </div>
       </FilterBar>
 
+      {canSelect && (
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+        >
+          {canArchive && hasUnarchivedSelected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkArchive}
+              disabled={bulkArchive.isPending}
+            >
+              <Archive className="size-4" />
+              Archive ({selectedRows.filter((r) => !r.archived_at).length})
+            </Button>
+          )}
+          {canArchive && hasArchivedSelected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkUnarchive}
+              disabled={bulkArchive.isPending}
+            >
+              <RotateCcw className="size-4" />
+              Restore ({selectedRows.filter((r) => r.archived_at).length})
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              disabled={bulkDelete.isPending}
+            >
+              <Trash2 className="size-4" />
+              Delete ({selectedIds.length})
+            </Button>
+          )}
+        </BulkActionBar>
+      )}
+
       <DataTable
+        selectable={
+          canSelect
+            ? {
+                getId: (row) => row.id,
+                selected: selectedIds,
+                onChange: setSelectedIds,
+                getRowLabel: (row) => row.name,
+              }
+            : undefined
+        }
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
@@ -527,7 +625,18 @@ export function CustomersPage() {
         }}
         onRowClick={(row) => navigate(paths.customerDetail(businessId, row.id))}
         renderRowActions={renderRowActions}
-        renderMobileCard={renderMobileCard}
+        mobile={(row) => ({
+          lead: <Monogram name={row.name} tone={balanceTone(row.balance)} />,
+          title: row.name,
+          subtitle: row.phone ?? undefined,
+          meta: row.archived_at ? "Archived" : undefined,
+          trailing: (
+            <Money
+              amount={Math.abs(row.balance)}
+              className={toneClass[balanceTone(row.balance)]}
+            />
+          ),
+        })}
       />
 
       <CustomerFormDialog
@@ -548,6 +657,20 @@ export function CustomersPage() {
         onOpenChange={closeDialog}
         businessId={businessId}
         customer={dialog?.kind === "delete" ? dialog.customer : null}
+      />
+      <BulkConfirmDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "customer" : "customers"} permanently?`}
+        description="This will delete the selected customers and all their transaction history."
+        items={selectedRows.map((r) => r.name)}
+        recoveryNotice="They go to Recently deleted. You can restore them from there within 30 days."
+        confirmLabel={`Delete ${selectedIds.length} ${selectedIds.length === 1 ? "customer" : "customers"}`}
+        tone="destructive"
+        requireTypedConfirmation={true}
+        expectedConfirmation={`DELETE ${selectedIds.length}`}
+        isPending={bulkDelete.isPending}
+        onConfirm={handleConfirmBulkDelete}
       />
     </div>
   );

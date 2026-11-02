@@ -823,15 +823,11 @@ describe("S-40 keyboard-only journeys", () => {
     );
     await user.keyboard("{Enter}");
     const menu = await screen.findByRole("menu");
-    // The menu focuses its first item (View) once open.
+    // In v3.2 RowActions: Archive is the first item in the menu
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        within(menu).getByRole("menuitem", { name: "View" }),
+        within(menu).getByRole("menuitem", { name: "Archive" }),
       ),
-    );
-    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
-    expect(document.activeElement).toBe(
-      within(menu).getByRole("menuitem", { name: "Archive" }),
     );
     await user.keyboard("{Enter}");
     const archiveDialog = await screen.findByRole("dialog");
@@ -857,23 +853,12 @@ describe("S-40 keyboard-only journeys", () => {
     // --- Restore from the archived filter (status=archived URL) ---
     renderCustomers(`${paths.customers("b1")}?status=archived`);
     await screen.findByText("Asha Verma");
+    // On the archived row, Restore is an inline IconButton
+    const restoreBtn = await screen.findByRole("button", { name: "Restore" });
     await tabUntil(
       user,
-      (element) =>
-        element ===
-        screen.getByRole("button", { name: "Actions for Asha Verma" }),
-      "the archived row's actions",
-    );
-    await user.keyboard("{Enter}");
-    const archivedMenu = await screen.findByRole("menu");
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        within(archivedMenu).getByRole("menuitem", { name: "View" }),
-      ),
-    );
-    await user.keyboard("{ArrowDown}");
-    expect(document.activeElement).toBe(
-      within(archivedMenu).getByRole("menuitem", { name: "Restore" }),
+      (element) => element === restoreBtn,
+      "the archived row's restore button",
     );
     await user.keyboard("{Enter}");
 

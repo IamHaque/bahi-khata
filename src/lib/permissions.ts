@@ -27,6 +27,11 @@ export const permissionActions = [
   "deleteTransaction",
   "viewDeletedItems",
   "restoreDeleted",
+  // S-73 (v3.2 deletion log purge and export): owner-only
+  "exportDeletionLog",
+  "purgeDeletionLog",
+  // S-74 (v3.2 ownership transfer): owner-only
+  "transferOwnership",
 ] as const;
 
 export type PermissionAction = (typeof permissionActions)[number];
@@ -63,6 +68,12 @@ export const permissionMatrix: Record<
   viewDeletedItems: { owner: true, editor: false, viewer: false },
   // Bring a deleted item back — owner only.
   restoreDeleted: { owner: true, editor: false, viewer: false },
+  // S-73: export CSV of deletion log — owner only.
+  exportDeletionLog: { owner: true, editor: false, viewer: false },
+  // S-73: clean up deletion log — owner only.
+  purgeDeletionLog: { owner: true, editor: false, viewer: false },
+  // S-74: transfer business ownership — owner only.
+  transferOwnership: { owner: true, editor: false, viewer: false },
 };
 
 /** Pure check: may `role` perform `action`? No role → no. */

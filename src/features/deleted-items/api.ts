@@ -145,3 +145,131 @@ export async function restoreDeleted(logId: string): Promise<{
     return data as { status: string; restored: number; message?: string };
   });
 }
+export interface PurgeDeletionLogParams {
+  businessId: string;
+  before: string;
+  scope: "restored" | "all";
+  dryRun?: boolean;
+}
+
+export interface PurgeDeletionLogResult {
+  entries_removed: number;
+  customers_removed: number;
+  transactions_removed: number;
+  revisions_removed: number;
+  unrestored: number;
+}
+
+export interface DeletionLogExportRow {
+  id: string;
+  entity_type: string;
+  label: string;
+  reason: string | null;
+  deleted_at: string;
+  deleted_by: string | null;
+  deleter_name: string | null;
+  restored_at: string | null;
+  restored_by: string | null;
+  restorer_name: string | null;
+  amount: number | null;
+}
+
+export interface LastPurgeInfo {
+  id: string;
+  purged_at: string;
+  purger_name: string;
+  entries_removed: number;
+}
+
+/**
+ * S-73 — purge or dry-run preview for cleaning up the deletion log.
+ */
+export async function purgeDeletionLog(
+  params: PurgeDeletionLogParams,
+): Promise<PurgeDeletionLogResult> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("purge_deletion_log", {
+      p_business_id: params.businessId,
+      p_before: params.before,
+      p_scope: params.scope,
+      p_dry_run: params.dryRun ?? false,
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      entries_removed: Number(row?.entries_removed ?? 0),
+      customers_removed: Number(row?.customers_removed ?? 0),
+      transactions_removed: Number(row?.transactions_removed ?? 0),
+      revisions_removed: Number(row?.revisions_removed ?? 0),
+      unrestored: Number(row?.unrestored ?? 0),
+    };
+  });
+}
+
+/**
+ * S-73 — exports up to 5000 deletion log entries without heavy snapshot.
+ */
+export async function exportDeletionLog(
+  businessId: string,
+): Promise<DeletionLogExportRow[]> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("export_deletion_log", {
+      p_business_id: businessId,
+    });
+    if (error) throw error;
+    return (data ?? []) as DeletionLogExportRow[];
+  });
+}
+
+/**
+ * S-73 — gets the most recent purge audit record for a business.
+ */
+export async function getLastPurge(
+  businessId: string,
+): Promise<LastPurgeInfo | null> {
+  return guard(async () => {
+    const { data, error } = await supabase
+      .from("deletion_log_purges")
+      .select("id, purged_at, purged_by, entries_removed")
+      .eq("business_id", businessId)
+      .order("purged_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    const purge = data?.[0];
+    if (!purge) return null;
+    let purgerName = "Former member";
+    if (purge.purged_by) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", purge.purged_by)
+        .maybeSingle();
+      if (profile) {
+        purgerName = profile.full_name ?? profile.email ?? "Former member";
+      }
+    }
+
+    return {
+      id: purge.id,
+      purged_at: purge.purged_at,
+      purger_name: purgerName,
+      entries_removed: purge.entries_removed,
+    };
+  });
+}
+
+
+/**
+ * S-75: Bulk restore deleted items. Owner only. Max 100 per call.
+ */
+export async function bulkRestoreDeleted(logIds: string[]): Promise<number> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_restore_deleted", {
+      p_log_ids: logIds,
+    });
+    if (error) throw error;
+    const res = data as { count?: number } | number;
+    return typeof res === "object" ? Number(res?.count ?? 0) : Number(res ?? 0);
+  });
+}

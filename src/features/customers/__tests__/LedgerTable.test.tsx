@@ -157,8 +157,8 @@ describe("LedgerTable (L-07)", () => {
       />,
     );
 
-    // The newest 50 rows plus the paging button's own row.
-    expect(bodyRows()).toHaveLength(51);
+    // The newest 50 rows (the paging button is in the TableFooter).
+    expect(bodyRows()).toHaveLength(50);
     // Totals cover every entry, shown or not.
     within(totalsRow()).getByText("₹11,900.00"); // 119 × 100 charged
     within(totalsRow()).getByText("₹300.00"); // the one payment
@@ -168,7 +168,7 @@ describe("LedgerTable (L-07)", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Show earlier entries (70)" }),
     );
-    expect(bodyRows()).toHaveLength(101);
+    expect(bodyRows()).toHaveLength(100);
     screen.getByRole("button", { name: "Show earlier entries (20)" });
     // …and the totals do not move.
     within(totalsRow()).getByText("₹11,900.00");

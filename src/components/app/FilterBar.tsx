@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { IconButton } from "@/components/app/IconButton";
 
 export interface FilterChip {
   label: string;
@@ -21,17 +22,17 @@ export function FilterBar({ chips, onClearAll, children }: FilterBarProps) {
       {chips.map((chip) => (
         <span
           key={chip.label}
-          className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
+          className="inline-flex items-center gap-1 rounded-full bg-secondary pl-2.5 pr-1 py-0.5 text-xs font-medium text-secondary-foreground"
         >
           {chip.label}
-          <button
-            type="button"
+          <IconButton
+            icon={<X className="size-3" />}
+            label="Remove filter"
+            ariaLabel={`Remove filter ${chip.label}`}
+            size="icon-xs"
             onClick={chip.onRemove}
-            aria-label={`Remove filter ${chip.label}`}
-            className="touch-target rounded-full p-0.5 transition-colors hover:bg-muted"
-          >
-            <X className="size-3" />
-          </button>
+            className="rounded-full p-0.5"
+          />
         </span>
       ))}
       {chips.length > 0 && (

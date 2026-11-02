@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserPlus } from "lucide-react";
+import { Crown, ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import {
   DataTable,
-  RowActionsMenu,
   type Column,
 } from "@/components/app/DataTable";
+import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Avatar } from "@/components/app/Avatar";
@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { toastSuccess } from "@/lib/toast";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
-import { usePermissions } from "@/features/business/hooks";
+import { useBusiness, usePermissions } from "@/features/business/hooks";
 import {
   useMembers,
   useBusinessInvitations,
@@ -27,6 +27,7 @@ import {
   useLeaveBusiness,
 } from "../hooks";
 import { InviteMemberDialog } from "../components/InviteMemberDialog";
+import { TransferOwnershipDialog } from "../components/TransferOwnershipDialog";
 import type {
   BusinessInvitation,
   BusinessMember,
@@ -59,6 +60,7 @@ export function MembersPage() {
   const businessId = useScopedBusinessId() ?? "";
   const navigate = useNavigate();
   const { isOwner } = usePermissions();
+  const { data: business } = useBusiness(businessId);
   const {
     data: members,
     isLoading,
@@ -74,6 +76,7 @@ export function MembersPage() {
   const [revoking, setRevoking] = useState<BusinessInvitation | null>(null);
   const [removing, setRemoving] = useState<BusinessMember | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<BusinessMember | null>(null);
 
   // Owner first, then everyone else by joined date (stable, matches the
   // PRD's "Owner is listed first").
@@ -90,6 +93,7 @@ export function MembersPage() {
     {
       key: "member",
       header: "Member",
+      width: "fill",
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar name={displayName(row)} src={row.avatarUrl} size="sm" />
@@ -102,6 +106,11 @@ export function MembersPage() {
     {
       key: "email",
       header: "Email",
+      width: "fit",
+      priority: 2,
+      fold: (row) => (
+        <span className="text-xs text-muted-foreground">{row.email}</span>
+      ),
       render: (row) => (
         <span className="text-muted-foreground">{row.email}</span>
       ),
@@ -109,6 +118,7 @@ export function MembersPage() {
     {
       key: "role",
       header: "Role",
+      width: "fit",
       render: (row) => (
         <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
       ),
@@ -116,6 +126,8 @@ export function MembersPage() {
     {
       key: "joined",
       header: "Joined",
+      width: "fit",
+      priority: 2,
       render: (row) => (
         <span className="text-muted-foreground">
           {formatDate(row.joinedAt)}
@@ -128,6 +140,7 @@ export function MembersPage() {
     {
       key: "email",
       header: "Email",
+      width: "fill",
       render: (row) => (
         <span className="font-medium text-foreground">{row.email}</span>
       ),
@@ -135,6 +148,7 @@ export function MembersPage() {
     {
       key: "role",
       header: "Role",
+      width: "fit",
       render: (row) => (
         <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
       ),
@@ -142,6 +156,8 @@ export function MembersPage() {
     {
       key: "invited",
       header: "Invited",
+      width: "fit",
+      priority: 2,
       render: (row) => (
         <span className="text-muted-foreground">
           {formatDate(row.createdAt)}
@@ -238,38 +254,67 @@ export function MembersPage() {
           loading={isLoading}
           error={error ? "Could not load members. Try again." : null}
           onRetry={() => void refetch()}
+          mobile={(row) => ({
+            title: (
+              <div className="flex items-center gap-2">
+                <Avatar name={displayName(row)} src={row.avatarUrl} size="sm" />
+                <span className="font-medium text-foreground">{displayName(row)}</span>
+              </div>
+            ),
+            subtitle: row.email,
+            trailing: (
+              <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
+            ),
+            meta: `Joined ${formatDate(row.joinedAt)}`,
+          })}
           renderRowActions={
             // S-25: management actions are the owner's alone, and the
             // owner row itself is protected (no role change, no remove).
             isOwner
-              ? (row) =>
-                  row.role === "owner" ? null : (
-                    <RowActionsMenu
-                      items={[
-                        ...(row.role === "editor"
-                          ? [
-                              {
-                                label: "Change to Viewer",
-                                onSelect: () =>
-                                  void handleChangeRole(row, "viewer"),
-                              },
-                            ]
-                          : [
-                              {
-                                label: "Change to Editor",
-                                onSelect: () =>
-                                  void handleChangeRole(row, "editor"),
-                              },
-                            ]),
-                        {
-                          label: "Remove",
-                          variant: "destructive",
-                          onSelect: () => setRemoving(row),
-                        },
-                      ]}
+              ? (row) => {
+                  if (row.role === "owner") return null;
+                  const actions: RowAction[] = [
+                    ...(row.role === "editor"
+                      ? [
+                          {
+                            id: "change-role",
+                            label: "Change to Viewer",
+                            icon: ShieldCheck,
+                            onSelect: () =>
+                              void handleChangeRole(row, "viewer"),
+                          },
+                        ]
+                      : [
+                          {
+                            id: "change-role",
+                            label: "Change to Editor",
+                            icon: ShieldCheck,
+                            onSelect: () =>
+                              void handleChangeRole(row, "editor"),
+                          },
+                        ]),
+                    {
+                      id: "make-owner",
+                      label: "Make owner…",
+                      icon: Crown,
+                      menuOnly: true,
+                      onSelect: () => setTransferTarget(row),
+                    },
+                    {
+                      id: "remove",
+                      label: "Remove",
+                      destructive: true,
+                      icon: UserX,
+                      onSelect: () => setRemoving(row),
+                    },
+                  ];
+                  return (
+                    <RowActions
+                      actions={actions}
                       triggerLabel={`Actions for ${displayName(row)}`}
                     />
-                  )
+                  );
+                }
               : undefined
           }
         />
@@ -279,7 +324,7 @@ export function MembersPage() {
           note for owners — who must delete the business instead. */}
       {isOwner ? (
         <p className="text-sm text-muted-foreground">
-          Owners cannot leave. Delete the business instead.
+          Owners cannot leave. Transfer ownership first, or delete the business.
         </p>
       ) : (
         <div>
@@ -307,12 +352,21 @@ export function MembersPage() {
             columns={inviteColumns}
             rows={invitations ?? []}
             getRowKey={(row) => row.id}
+            mobile={(row) => ({
+              title: row.email,
+              trailing: (
+                <StatusBadge label={roleLabel(row.role)} tone={roleTone[row.role]} />
+              ),
+              meta: `Invited ${formatDate(row.createdAt)}`,
+            })}
             renderRowActions={(row) => (
-              <RowActionsMenu
-                items={[
+              <RowActions
+                actions={[
                   {
+                    id: "revoke",
                     label: "Revoke",
-                    variant: "destructive",
+                    destructive: true,
+                    icon: UserX,
                     onSelect: () => setRevoking(row),
                   },
                 ]}
@@ -362,6 +416,16 @@ export function MembersPage() {
         description="You will lose access to this business's customers and transactions. You can be invited again later."
         confirmLabel="Leave business"
         onConfirm={() => void handleLeave()}
+      />
+
+      <TransferOwnershipDialog
+        open={transferTarget !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setTransferTarget(null);
+        }}
+        businessId={businessId}
+        businessName={business?.name ?? ""}
+        target={transferTarget}
       />
     </div>
   );

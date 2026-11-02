@@ -6,7 +6,7 @@ supersedes the v1 single-business notes that used to live in
 `supabase/RLS.md`; those policies were dropped by S-20's contract phase.
 
 Prose here is a map, not the proof. Every claim below is asserted by the
-SQL suite (`supabase/tests/bahikhata_consolidated_tests.sql`, 19 sections;
+SQL suite (`supabase/tests/bahikhata_consolidated_tests.sql`, 23 sections, 22 policies;
 plus the ten archived v2 files), which runs via `npm run test:sql`
 against a scratch Postgres. The database is the source of truth; the UI
 permission matrix (`src/lib/permissions.ts`) only shapes what is shown.
@@ -28,6 +28,8 @@ member).
 | `customer_balances` (view, security invoker) | read (own business) | same | same | zero rows |
 | `deletion_log` | — | — | **read only** (see below) | zero rows |
 | `daily_activity` / rollups (RPCs) | read (own business) | same | same | refused / zero rows |
+| `transaction_revisions` | read | read | read | zero rows |
+| `deletion_log_purges` | — | — | read only | zero rows |
 
 ## v3.1 additions (S-50…S-56)
 
@@ -79,6 +81,38 @@ The security-invoker view gained two computed relationship columns:
   payments of any type (v3.1 migration; feeds "Who to chase" when gate
   G-A1 is approved).
 
+## v3.2 additions (S-72)
+
+### `transaction_revisions`
+
+One row per transaction edit, void, or restore. Records what changed, by whom, and when.
+
+- **Read:** Business members can read (`transaction_revisions_select` policy using `is_member(business_id)`), Viewers included.
+- **Write:** Revoked for all client roles; rows are written exclusively by the `record_transaction_revision()` SECURITY DEFINER trigger.
+- **Restore suppression:** When `bahikhata.restoring = 'on'`, the trigger skips revision creation.
+- **RPC:** `transaction_history(uuid)` (SECURITY INVOKER) returns up to 200 revision rows with actor names resolved from `profiles`.
+
+### `deletion_log_purges` and clean-up (S-73)
+
+- **Audit table:** `deletion_log_purges` records every purge (scope, before timestamp, counts of entries/customers/transactions/revisions removed). Owners can select; client writes revoked.
+- **RPC `purge_deletion_log`:** SECURITY DEFINER, Owner only (`has_role(..., 'owner')`, `42501` otherwise). Enforces 30-day minimum (`22023`), supports dry-run preview and scope ('restored' vs 'all'). Removes orphaned revisions of purged, non-existent transactions.
+- **RPC `export_deletion_log`:** SECURITY INVOKER, Owner only, returns up to 5000 rows without heavy snapshot for safe CSV export.
+
+### `ownership_transfers` and transfer (S-74)
+
+- **Audit table:** `ownership_transfers` records every ownership handover (`id`, `business_id`, `from_user`, `to_user`, `transferred_at`). Members can select; client writes revoked.
+- **RPC `transfer_ownership`:** SECURITY DEFINER, Owner only (`errcode 42501`). Target must be a member of the business and must not already own a business (`55000`). Caller cannot transfer to self (`55000`). Atomically demotes caller to editor, promotes target to owner, updates `businesses.owner_id`, and writes the audit log.
+- **Updated `leave_business`:** Mentions "Owners cannot leave. Transfer ownership first, or delete the business." (42501).
+
+### Bulk actions (S-75)
+
+Batch operations capped at 100 items per call. Atomic: all or nothing.
+- `bulk_set_customers_archived(business_id, ids, archived)`: SECURITY INVOKER (Editors/Owners can update; Viewers refused).
+- `bulk_set_transactions_voided(business_id, ids, voided, reason)`: SECURITY INVOKER (Editors/Owners can void/restore; Viewers refused; transactions of archived customers refused).
+- `bulk_delete_transactions(business_id, ids, reason)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count, log_ids}`.
+- `bulk_delete_customers(business_id, ids, reason)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count, transactions, log_ids}`.
+- `bulk_restore_deleted(log_ids)`: SECURITY DEFINER, Owner only (`42501`). Returns `{count}`.
+
 ## Permission matrix ↔ SQL agreement
 
 The three v3 actions are Owner-only and each has a suite section:
@@ -89,6 +123,7 @@ The three v3 actions are Owner-only and each has a suite section:
 | `viewDeletedItems` | ✅ | ❌ | ❌ | §15/§16 (deletion_log reads: Owner rows only; editor/outsider zero rows) |
 | `restoreDeleted` | ✅ | ❌ | ❌ | §16 (restore_deleted: editor/viewer/outsider refused) |
 | `deleteCustomer` (entry points widened, D-15) | ✅ | ❌ | ❌ | §15/§16 + archived v2 `0004` §8 |
+| `transferOwnership` | ✅ | ❌ | ❌ | §22 (transfer_ownership: editor/viewer/outsider refused `42501`) |
 
 The v2 rows (`view`, `export`, `manageCustomers`, `archiveCustomers`,
 `manageTransactions`, `importTransactions`, `manageBusiness`,
@@ -103,6 +138,6 @@ DATABASE_URL=postgresql://…/scratch npm run test:sql
 ```
 
 The runner installs a Supabase stub (auth schema + roles), applies the
-three migrations in filename order, then runs the 19-section suite. It
+seven migrations in filename order, then runs the 23-section suite. It
 **must never** be pointed at a real Supabase project (the stub replaces
 roles and the `auth` schema). See `supabase/tests/README.md`.

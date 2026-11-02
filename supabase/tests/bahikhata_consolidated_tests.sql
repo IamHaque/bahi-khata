@@ -255,7 +255,7 @@ $$;
 --   Source: NEW — no original file (covers the end state of migrations 0001-0010)
 --
 --   Pins the shape of the schema the app and PostgREST rely on: RLS on every table,
---   exactly the 19 intended policies (all TO authenticated), v1 policies and v1 balance
+--   exactly the 22 intended policies (all TO authenticated), v1 policies and v1 balance
 --   RPCs gone, NOT NULL tenancy, the columns later migrations depend on, enum labels,
 --   rule-enforcing indexes, and search_path pinned on every SECURITY DEFINER function.
 -- ============================================================================
@@ -289,10 +289,10 @@ begin
                         'Authenticated users can manage transactions');
   perform pg_temp.expect_eq('v1 broad policies are gone', v, 0);
 
-  -- Exactly the 19 intended policies exist, and every one is scoped to the
+  -- Exactly the 22 intended policies exist, and every one is scoped to the
   -- `authenticated` role only — no stray anon/public policy.
   select count(*) into v from pg_policies where schemaname = 'public';
-  perform pg_temp.expect_eq('exactly 19 policies exist', v, 19);
+  perform pg_temp.expect_eq('exactly 22 policies exist', v, 22);
 
   select count(*) into v from pg_policies
    where schemaname = 'public' and roles <> '{authenticated}'::name[];
@@ -3624,10 +3624,419 @@ rollback to savepoint s19;   -- discard this section's fixtures
 release savepoint s19;
 
 -- ============================================================================
+-- SECTION 20 — Transaction revision history (S-72)
+--   Source: NEW in v3.2 — migration 20261201000000_v32_transaction_revisions.sql
+-- ============================================================================
+savepoint s20;
+select pg_temp.section('20 Transaction revision history (S-72)');
+
+select pg_temp.as_admin();
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vicki@example.com',  '{"full_name":"Vicki Viewer"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', '44444444-4444-4444-4444-444444444444', 'Beta');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer');
+
+insert into public.customers (id, business_id, name, created_by) values
+  ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 1', '11111111-1111-1111-1111-111111111111');
+
+insert into public.transactions (id, business_id, customer_id, type, amount, status, occurred_at, created_by) values
+  ('dddddddd-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 1000, 'active', now(), '11111111-1111-1111-1111-111111111111');
+
+-- 20.1 Edit creates revision row
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+update public.transactions set amount = 1200, updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+
+select pg_temp.expect_eq('edit creates one revision row',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_text('edit action is edit',
+  (select action from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and changes ? 'amount' and not (changes ? 'note')), 'edit');
+
+select pg_temp.expect_text('changes json records amount from 1000 to 1200',
+  (select (changes->'amount'->>'to') from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and changes ? 'amount' and not (changes ? 'note')), '1200');
+
+-- 20.2 Edit of two fields creates one row with both
+update public.transactions set amount = 1500, note = 'Updated note', updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('revision count is now 2',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 2);
+
+select pg_temp.expect_text('two field changes recorded in single revision',
+  (select (changes->'note'->>'to') from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and changes ? 'note'), 'Updated note');
+
+-- 20.3 No-op update creates none
+update public.transactions set amount = 1500, updated_at = now() where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('no-op update inserts nothing',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 2);
+
+-- 20.4 Void creates revision with reason and actor
+update public.transactions set status = 'voided', void_reason = 'duplicate entry', voided_at = now(), voided_by = '11111111-1111-1111-1111-111111111111' where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('void creates revision',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'void'), 1);
+select pg_temp.expect_text('void reason recorded',
+  (select reason from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'void'), 'duplicate entry');
+
+-- 20.5 Restore creates revision
+update public.transactions set status = 'active', void_reason = null where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('restore creates revision',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001' and action = 'restore'), 1);
+
+-- 20.6 RPC transaction_history readable by Viewer, hidden from outsider
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vicki@example.com');
+select pg_temp.expect_eq('viewer can read transaction_history RPC',
+  (select count(*) from public.transaction_history('dddddddd-0000-0000-0000-000000000001')), 4);
+
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444', 'zed@example.com');
+select pg_temp.expect_eq('outsider cannot read transaction_history RPC',
+  (select count(*) from public.transaction_history('dddddddd-0000-0000-0000-000000000001')), 0);
+
+-- 20.7 Direct client insert/update/delete denied
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_sqlstate('direct insert denied',
+  $$insert into public.transaction_revisions (business_id, transaction_id, action) values ('aaaaaaaa-0000-0000-0000-000000000001', 'dddddddd-0000-0000-0000-000000000001', 'edit')$$,
+  '42501');
+
+-- 20.8 Restoring deleted transaction preserves history and adds no new revision
+select pg_temp.as_admin();
+set local "bahikhata.restoring" = 'on';
+update public.transactions set amount = 9999 where id = 'dddddddd-0000-0000-0000-000000000001';
+select pg_temp.expect_eq('restoring flag suppresses revision creation',
+  (select count(*) from public.transaction_revisions where transaction_id = 'dddddddd-0000-0000-0000-000000000001'), 4);
+
+select pg_temp.as_admin();
+rollback to savepoint s20;
+release savepoint s20;
+
+-- ============================================================================
 -- RESULT
 -- ============================================================================
 -- Reached only if every assertion above passed (any failure aborts the script).
-do $$ begin raise notice 'ALL 19 TEST SECTIONS PASSED'; end $$;
-select 'ALL 19 TEST SECTIONS PASSED' as result;
+-- ============================================================================
+-- SECTION 21 — Deletion log export and purge (S-73)
+-- ============================================================================
+savepoint s21;
+select pg_temp.section('21 Deletion log export and purge (S-73)');
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vicki@example.com',  '{"full_name":"Vicki"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor');
+
+-- Fixtures: deletion_log entries (older than 40 days)
+insert into public.deletion_log (id, business_id, entity_type, entity_id, label, summary, snapshot, deleted_at, restored_at, restored_by) values
+  ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'customer', 'cccccccc-0000-0000-0000-000000000001', 'Cust 1', '{"balance": 100}'::jsonb, '{"customer":{"id":"cccccccc-0000-0000-0000-000000000001"},"transactions":[]}'::jsonb, now() - interval '45 days', now() - interval '40 days', '11111111-1111-1111-1111-111111111111'),
+  ('eeeeeeee-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000001', 'Tx 1', '{"amount": 500}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000001"}'::jsonb, now() - interval '45 days', now() - interval '40 days', '11111111-1111-1111-1111-111111111111'),
+  ('eeeeeeee-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000002', 'Tx 2', '{"amount": 300}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000002"}'::jsonb, now() - interval '45 days', null, null),
+  ('eeeeeeee-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'transaction', 'dddddddd-0000-0000-0000-000000000003', 'Tx 3', '{"amount": 200}'::jsonb, '{"id":"dddddddd-0000-0000-0000-000000000003"}'::jsonb, now() - interval '10 days', null, null);
+
+insert into public.transaction_revisions (id, business_id, transaction_id, action, changes) values
+  ('f1111111-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'dddddddd-0000-0000-0000-000000000002', 'edit', '{"amount":{"from":200,"to":300}}'::jsonb);
+
+-- 21.1 Non-owner cannot call purge_deletion_log (refused 42501)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_sqlstate('editor cannot purge deletion log',
+  $$select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', true)$$,
+  '42501');
+
+-- 21.2 30-day minimum enforced (raising 22023)
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+do $$
+begin
+  perform public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '15 days', 'restored', true);
+  raise exception 'failed: should have raised 22023 for <30 days';
+exception when sqlstate '22023' then
+  -- expected
+end $$;
+
+-- 21.3 Dry run changes nothing
+select pg_temp.expect_eq('dry run returns correct entries count',
+  (select entries_removed from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', true)), 2);
+
+select pg_temp.expect_eq('dry run changes nothing in deletion_log',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 4);
+
+-- 21.4 Restored scope never removes unrestored entry
+select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'restored', false);
+
+select pg_temp.expect_eq('unrestored entries preserved',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and restored_at is null), 2);
+
+select pg_temp.expect_eq('restored entries removed',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and restored_at is not null), 0);
+
+select pg_temp.expect_eq('one audit row created in deletion_log_purges',
+  (select count(*) from public.deletion_log_purges where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+-- 21.5 Real run with scope all removes unrestored entry older than 30 days and its orphaned revisions
+select * from public.purge_deletion_log('aaaaaaaa-0000-0000-0000-000000000001', now() - interval '35 days', 'all', false);
+
+select pg_temp.expect_eq('recent entry (<30 days) remains',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_eq('orphaned revision was deleted',
+  (select count(*) from public.transaction_revisions where id = 'f1111111-0000-0000-0000-000000000001'), 0);
+
+-- 21.6 export_deletion_log returns rows for owner
+select pg_temp.expect_eq('owner can export deletion log',
+  (select count(*) from public.export_deletion_log('aaaaaaaa-0000-0000-0000-000000000001')), 1);
+
+select pg_temp.as_admin();
+rollback to savepoint s21;
+release savepoint s21;
+
+
+-- ============================================================
+-- 22. Ownership transfer (S-74, B-14)
+-- ============================================================
+savepoint s22;
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vic@example.com',    '{"full_name":"Vic"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}'),
+  ('55555555-5555-5555-5555-555555555555', 'bob@example.com',    '{"full_name":"Bob"}');
+
+-- Olivia owns Acme; Bob owns Beta
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', '55555555-5555-5555-5555-555555555555', 'Beta');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555', 'editor');
+
+-- 22.1 Non-owner refused (Editor Eli, Viewer Vic, outsider Zed)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_sqlstate('editor cannot transfer ownership',
+  $$select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222')$$,
+  '42501');
+
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+select pg_temp.expect_sqlstate('viewer cannot transfer ownership',
+  $$select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$$,
+  '42501');
+
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444', 'zed@example.com');
+select pg_temp.expect_sqlstate('outsider cannot transfer ownership',
+  $$select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333')$$,
+  '42501');
+
+-- 22.2 Target not a member refused (55000: 'Choose a member of this business.')
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+do $$
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444');
+  raise exception 'failed: non-member target should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $$;
+
+-- 22.3 Target who already owns another business refused (Bob owns Beta)
+do $$
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555');
+  raise exception 'failed: target who owns another business should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $$;
+
+-- 22.4 Self-transfer refused ('You are already the owner.')
+do $$
+begin
+  perform public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111');
+  raise exception 'failed: self-transfer should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $$;
+
+-- 22.5 Success swaps roles, businesses.owner_id and logs to ownership_transfers
+select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333');
+
+select pg_temp.expect_text('businesses.owner_id updated to Eli',
+  (select owner_id::text from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '33333333-3333-3333-3333-333333333333');
+
+select pg_temp.expect_text('Eli is now owner in business_members',
+  (select role::text from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and user_id = '33333333-3333-3333-3333-333333333333'), 'owner');
+
+select pg_temp.expect_text('Olivia is demoted to editor in business_members',
+  (select role::text from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and user_id = '11111111-1111-1111-1111-111111111111'), 'editor');
+
+select pg_temp.expect_eq('exactly one owner in business_members',
+  (select count(*) from public.business_members where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and role = 'owner'), 1);
+
+select pg_temp.expect_eq('one transfer logged in ownership_transfers',
+  (select count(*) from public.ownership_transfers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+-- 22.6 Old owner can no longer call owner-only functions (transfer, etc.)
+select pg_temp.expect_sqlstate('old owner (now editor) cannot transfer ownership',
+  $$select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222')$$,
+  '42501');
+
+-- 22.7 New owner Eli can call owner-only functions (e.g. transfer to Vic)
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select public.transfer_ownership('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222');
+
+select pg_temp.expect_text('Vic is now owner',
+  (select owner_id::text from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '22222222-2222-2222-2222-222222222222');
+
+-- 22.8 Cascade delete removes ownership_transfers
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+delete from public.businesses where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+select pg_temp.expect_eq('ownership_transfers cascaded on delete',
+  (select count(*) from public.ownership_transfers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 0);
+
+select pg_temp.as_admin();
+rollback to savepoint s22;
+release savepoint s22;
+
+
+-- ============================================================
+-- 23. Bulk select and act (S-75, B-13)
+-- ============================================================
+savepoint s23;
+
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('11111111-1111-1111-1111-111111111111', 'olivia@example.com', '{"full_name":"Olivia"}'),
+  ('22222222-2222-2222-2222-222222222222', 'vic@example.com',    '{"full_name":"Vic"}'),
+  ('33333333-3333-3333-3333-333333333333', 'eli@example.com',    '{"full_name":"Eli"}'),
+  ('44444444-4444-4444-4444-444444444444', 'zed@example.com',    '{"full_name":"Zed"}');
+
+insert into public.businesses (id, owner_id, name) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Acme');
+
+insert into public.business_members (business_id, user_id, role) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'viewer'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'editor');
+
+insert into public.customers (id, business_id, name, archived_at, created_by) values
+  ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 1', null, '11111111-1111-1111-1111-111111111111'),
+  ('cccccccc-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 2', null, '11111111-1111-1111-1111-111111111111'),
+  ('cccccccc-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Cust 3', now(), '11111111-1111-1111-1111-111111111111');
+
+insert into public.transactions (id, business_id, customer_id, type, amount, status, occurred_at, created_by) values
+  ('dddddddd-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 100, 'active', now(), '11111111-1111-1111-1111-111111111111'),
+  ('dddddddd-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'payment', 50, 'active', now(), '11111111-1111-1111-1111-111111111111'),
+  ('dddddddd-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000003', 'charge', 200, 'active', now(), '11111111-1111-1111-1111-111111111111');
+
+-- 23.1 bulk_set_customers_archived: Eli (editor) can archive; Vic (viewer) cannot; cap 100 enforced; foreign id refused
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222', 'vic@example.com');
+select pg_temp.expect_sqlstate('viewer cannot archive customers',
+  $$select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], true)$$,
+  '42501');
+
+select pg_temp.expect_sqlstate('viewer cannot bulk void transactions',
+  $$select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001'::uuid, array['dddddddd-0000-0000-0000-000000000001'::uuid], true, 'test')$$,
+  '42501');
+
+select pg_temp.expect_sqlstate('viewer cannot bulk restore voided transactions',
+  $$select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001'::uuid, array['dddddddd-0000-0000-0000-000000000001'::uuid], false)$$,
+  '42501');
+
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_eq('editor archives 2 customers',
+  (select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-0000-0000-0000-000000000002'::uuid], true)), 2);
+
+select pg_temp.expect_eq('customers are now archived',
+  (select count(*) from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and archived_at is not null), 3);
+
+-- Unarchive
+select public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], false);
+select pg_temp.expect_bool('customer 1 is unarchived',
+  (select (archived_at is not null) from public.customers where id = 'cccccccc-0000-0000-0000-000000000001'), false);
+
+-- Foreign id refused (all or nothing)
+do $$
+begin
+  perform public.bulk_set_customers_archived('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-9999-9999-9999-999999999999'::uuid], true);
+  raise exception 'failed: foreign id should raise P0002';
+exception when sqlstate 'P0002' then
+  -- expected
+end $$;
+
+select pg_temp.expect_bool('all or nothing preserved customer 1 status on error',
+  (select (archived_at is not null) from public.customers where id = 'cccccccc-0000-0000-0000-000000000001'), false);
+
+-- 23.2 bulk_set_transactions_voided: Editor can void/restore; archived customer transaction cannot be voided
+select pg_temp.expect_eq('editor voids 2 transactions',
+  (select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], true, 'test void')), 2);
+
+select pg_temp.expect_eq('transactions are voided',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'voided'), 2);
+
+-- Archived customer transaction cannot be voided
+do $$
+begin
+  perform public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000003'::uuid], true, 'void archived');
+  raise exception 'failed: voiding transaction of archived customer should raise 55000';
+exception when sqlstate '55000' then
+  -- expected
+end $$;
+
+-- Bulk restore voided transactions
+select pg_temp.expect_eq('editor restores 2 transactions',
+  (select public.bulk_set_transactions_voided('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], false)), 2);
+
+select pg_temp.expect_eq('transactions restored to active',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'active'), 3);
+
+-- 23.3 bulk_delete_transactions: Owner only; editor refused 42501; returns {count, log_ids}
+select pg_temp.expect_sqlstate('editor cannot bulk delete transactions',
+  $$select public.bulk_delete_transactions('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid], 'del')$$,
+  '42501');
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_eq('owner bulk deletes 2 transactions',
+  (select (public.bulk_delete_transactions('aaaaaaaa-0000-0000-0000-000000000001', array['dddddddd-0000-0000-0000-000000000001'::uuid, 'dddddddd-0000-0000-0000-000000000002'::uuid], 'bulk del')->>'count')::int), 2);
+
+select pg_temp.expect_eq('transactions removed from ledger',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.expect_eq('deletion_log entries created',
+  (select count(*) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and entity_type = 'transaction'), 2);
+
+-- 23.4 bulk_restore_deleted: Owner restores deleted items using log_ids
+select pg_temp.expect_eq('owner bulk restores 2 deleted transactions',
+  (select (public.bulk_restore_deleted((select array_agg(id) from public.deletion_log where business_id = 'aaaaaaaa-0000-0000-0000-000000000001' and entity_type = 'transaction'))->>'count')::int), 2);
+
+select pg_temp.expect_eq('transactions restored to ledger',
+  (select count(*) from public.transactions where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 3);
+
+-- 23.5 bulk_delete_customers: Owner only; editor refused; deletes customer and their transactions
+select pg_temp.as_user('33333333-3333-3333-3333-333333333333', 'eli@example.com');
+select pg_temp.expect_sqlstate('editor cannot bulk delete customers',
+  $$select public.bulk_delete_customers('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid], 'del')$$,
+  '42501');
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_eq('owner bulk deletes 2 customers',
+  (select (public.bulk_delete_customers('aaaaaaaa-0000-0000-0000-000000000001', array['cccccccc-0000-0000-0000-000000000001'::uuid, 'cccccccc-0000-0000-0000-000000000002'::uuid], 'cust del')->>'count')::int), 2);
+
+select pg_temp.expect_eq('customers removed',
+  (select count(*) from public.customers where business_id = 'aaaaaaaa-0000-0000-0000-000000000001'), 1);
+
+select pg_temp.as_admin();
+rollback to savepoint s23;
+release savepoint s23;
+
+do $$ begin raise notice 'ALL 23 TEST SECTIONS PASSED'; end $$;
+select 'ALL 23 TEST SECTIONS PASSED' as result;
 
 rollback;   -- nothing was ever committed

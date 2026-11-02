@@ -78,8 +78,17 @@ const path = require("node:path");
 // Configuration
 // ---------------------------------------------------------------------------
 
-const DEV_ORIGIN = "http://localhost:5173";
+let DEV_ORIGIN = process.env.AUDIT_DEV_ORIGIN || "http://localhost:5173";
 const DEBUG_PORT = 9333;
+const VERBOSE = process.env.AUDIT_VERBOSE === "1";
+const SCENARIO_TIMEOUT = Number(process.env.AUDIT_TIMEOUT || 60000);
+
+function logVerbose(step, detail = "") {
+  if (VERBOSE) {
+    const ts = new Date().toISOString().slice(11, 19);
+    console.log(`[CDP ${ts}] ${step} ${detail}`);
+  }
+}
 // Debug subset support (used during development of this script):
 // AUDIT_ROUTES="/businesses" AUDIT_WIDTHS=360 AUDIT_THEMES=light narrows the
 // matrix; AUDIT_IDS="dashboard-data,dashboard-empty" picks scenarios by id.
@@ -129,18 +138,30 @@ const SCENARIOS = [
   { id: "onboarding", path: "/onboarding/business", marker: "Create your business" },
 
   // Dashboard: with data, empty (first-run) and loading (skeleton) states.
-  { id: "dashboard-data", path: "/b/b1", marker: "Top outstanding balances", focus: true },
+  { id: "dashboard-data", path: "/b/b1", marker: "Where you stand", focus: true },
+  {
+    id: "dashboard-chart-7",
+    path: "/b/b1",
+    marker: "Where you stand",
+    open: [{ role: "button", name: /^7 days$/ }],
+  },
   {
     id: "dashboard-chart-30",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^30 days$/ }],
   },
   {
     id: "dashboard-chart-90",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^90 days$/ }],
+  },
+  {
+    id: "dashboard-chart-12m",
+    path: "/b/b1",
+    marker: "Where you stand",
+    open: [{ role: "button", name: /^12 months$/ }],
   },
   { id: "dashboard-empty", path: "/b/b1", marker: "Getting started", mode: "empty" },
   {
@@ -188,7 +209,7 @@ const SCENARIOS = [
   {
     id: "sheet-add-transaction",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^Add transaction$/ }],
     dialog: true,
     focus: true,
@@ -196,7 +217,7 @@ const SCENARIOS = [
   {
     id: "dialog-add-customer",
     path: "/b/b1",
-    marker: "Top outstanding balances",
+    marker: "Where you stand",
     open: [{ role: "button", name: /^Add customer$/ }],
     dialog: true,
   },
@@ -587,6 +608,53 @@ const LEDGER_C1 = [
     updated_at: "2026-10-12T10:05:00.000Z",
     balance_after: 124000.5,
   },
+  {
+    id: "t11",
+    customer_id: "c1",
+    occurred_at: "2026-10-13T10:00:00.000Z",
+    type: "charge",
+    amount: 1500,
+    note: "Typo in quantity — voided and re-entered",
+    status: "voided",
+    source: "manual",
+    created_by: "u1",
+    created_at: "2026-10-13T10:05:00.000Z",
+    updated_by: "u1",
+    updated_at: "2026-10-13T10:08:00.000Z",
+    void_reason: "Typo in quantity",
+    voided_at: "2026-10-13T10:08:00.000Z",
+    voided_by: "u1",
+    balance_after: 124000.5,
+  },
+];
+
+const DELETION_LOG = [
+  {
+    id: "log-1",
+    business_id: "b1",
+    entity_type: "transaction",
+    entity_id: "t99",
+    label: "Payment ₹4,500.00",
+    summary: "Mistyped duplicate payment",
+    reason: "Duplicate entry",
+    deleted_by: "u1",
+    deleted_at: "2026-10-14T10:00:00.000Z",
+    restored_at: null,
+    restored_by: null,
+  },
+  {
+    id: "log-2",
+    business_id: "b1",
+    entity_type: "customer",
+    entity_id: "c99",
+    label: "Kashem Stores",
+    summary: "Old inactive customer with zero balance",
+    reason: "Closed business",
+    deleted_by: "u1",
+    deleted_at: "2026-10-15T12:00:00.000Z",
+    restored_at: null,
+    restored_by: null,
+  },
 ];
 
 // Real PostgREST returns a `returns table (...)` function's rows as a
@@ -823,6 +891,12 @@ function routeRest(urlObj, method, headers, postData) {
       return jsonResult(MEMBERSHIPS_INVITATIONS);
     }
 
+    case "/business_deletion_log": {
+      if (fixtureMode === "empty") return isCountHead ? headCount(0) : jsonResult([]);
+      if (isCountHead) return headCount(DELETION_LOG.length);
+      return jsonResult(DELETION_LOG);
+    }
+
     case "/businesses": {
       const idEq = q.get("id");
       if (idEq && wantsObject) return single(BUSINESSES[idEq.replace("eq.", "")] ?? null);
@@ -869,6 +943,15 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customer_balances": {
+      if (select.includes("last_payment_at")) {
+        if (fixtureMode === "empty") return jsonResult([]);
+        return jsonResult(
+          CUSTOMERS.map((c) => ({
+            id: c.id,
+            last_payment_at: c.id === "c1" ? "2026-09-15T10:00:00.000Z" : null,
+          })),
+        );
+      }
       if (select.includes("customer_id")) {
         if (fixtureMode === "empty") return jsonResult([]);
         return jsonResult(
@@ -1050,6 +1133,7 @@ class CdpClient {
 
   send(method, params = {}) {
     const id = this.nextId++;
+    logVerbose(`-> ${method}`, JSON.stringify(params).slice(0, 100));
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));
@@ -1063,6 +1147,7 @@ class CdpClient {
   }
 
   waitEvent(method, timeoutMs = 30000) {
+    logVerbose(`waiting for event: ${method}`);
     return new Promise((resolve, reject) => {
       const list = this.eventWaiters.get(method) || [];
       const timer = setTimeout(() => {
@@ -1072,6 +1157,7 @@ class CdpClient {
       }, timeoutMs);
       const handler = (params) => {
         clearTimeout(timer);
+        logVerbose(`received event: ${method}`);
         resolve(params);
       };
       list.push(handler);
@@ -1100,12 +1186,17 @@ function findChrome() {
 }
 
 async function devServerUp() {
-  try {
-    const res = await fetch(DEV_ORIGIN, { redirect: "manual" });
-    return res.status < 500;
-  } catch {
-    return false;
+  const candidates = [DEV_ORIGIN, "http://localhost:5173", "http://localhost:5175", "http://localhost:5174"];
+  for (const origin of new Set(candidates)) {
+    try {
+      const res = await fetch(origin, { redirect: "manual" });
+      if (res.status < 500) {
+        DEV_ORIGIN = origin;
+        return true;
+      }
+    } catch {}
   }
+  return false;
 }
 
 async function pollForTarget(timeoutMs) {
@@ -1144,6 +1235,7 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
   for (const el of all) {
     const cs = getComputedStyle(el);
     if (cs.display === "none" || cs.visibility === "hidden" || cs.position === "fixed") continue;
+    if (el.classList.contains("sr-only") || el.closest(".sr-only")) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
     const ownText = Array.from(el.childNodes)
@@ -1298,7 +1390,16 @@ const HITTEST_SOURCE = `(() => {
       const insideOwn =
         x > rect.left && x < rect.right && y > rect.top && y < rect.bottom;
       if (hit && insideOwn && hit.contains(el)) continue;
-      if (hit && insideOwn === false && getComputedStyle(hit).position === "fixed") {
+      const isStickyOrFixed = (node) => {
+        let cur = node;
+        while (cur && cur !== document.body && cur !== document.documentElement) {
+          const pos = getComputedStyle(cur).position;
+          if (pos === "fixed" || pos === "sticky") return true;
+          cur = cur.parentElement;
+        }
+        return false;
+      };
+      if (hit && !hit.contains(el) && isStickyOrFixed(hit)) {
         covered++; // sticky/fixed chrome overlaying it
         continue;
       }
@@ -1397,6 +1498,195 @@ const MOTION_SOURCE = `(() => {
     animationDuration: dur,
   };
 })()`;
+
+/** PRD U-02: Table audit source — evaluated in page context. */
+const AUDIT_TABLES_SOURCE = (width, isTouch) => `(() => {
+  const width = ${width};
+  const isTouch = ${isTouch ? "true" : "false"};
+  const failures = [];
+
+  function getCellContentWidth(cell) {
+    if (!cell) return 0;
+    const visibleChildren = Array.from(cell.children).filter((el) => {
+      return !el.classList.contains("sr-only") && getComputedStyle(el).display !== "none";
+    });
+    if (visibleChildren.length === 1) {
+      return visibleChildren[0].getBoundingClientRect().width;
+    }
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(cell);
+      const r = range.getBoundingClientRect();
+      if (r.width > 0) return r.width;
+    } catch {}
+    return cell.getBoundingClientRect().width;
+  }
+
+  // 1. Horizontal scroll of the page
+  if (document.documentElement.scrollWidth > window.innerWidth + 1) {
+    failures.push(
+      "Page scrolls horizontally: scrollWidth " +
+        document.documentElement.scrollWidth +
+        " > innerWidth " +
+        window.innerWidth
+    );
+  }
+
+  if (isTouch) {
+    // Touch emulation (360 and 390):
+    // A row or card with actions must have exactly 1 More button and 0 inline icons
+    const isMoreButton = (b) => {
+      if (b.querySelector('.lucide-more-horizontal, .lucide-ellipsis')) return true;
+      const label = (b.getAttribute("aria-label") || b.textContent || "").trim();
+      return !/transaction/i.test(label) && (/\bmore\b/i.test(label) || /\bactions?\b/i.test(label));
+    };
+
+    const cards = Array.from(document.querySelectorAll('[role="listitem"]'));
+    for (const card of cards) {
+      const buttons = Array.from(card.querySelectorAll('button:not([role="checkbox"]):not([type="checkbox"])'));
+      const moreButtons = buttons.filter(isMoreButton);
+      const inlineIcons = buttons.filter((b) => !isMoreButton(b) && b.querySelector("svg"));
+      if (moreButtons.length > 0 || inlineIcons.length > 0) {
+        if (moreButtons.length !== 1 || inlineIcons.length !== 0) {
+          failures.push(
+            "Touch card action violation: expected 1 More button and 0 inline icons, found " +
+              moreButtons.length + " More and " + inlineIcons.length + " inline icon(s)"
+          );
+        }
+      }
+    }
+    const tableRows = Array.from(document.querySelectorAll('table tbody tr:not([data-slot="table-row-skeleton"])'));
+    for (const row of tableRows) {
+      const buttons = Array.from(row.querySelectorAll('button:not([role="checkbox"]):not([type="checkbox"])'));
+      const moreButtons = buttons.filter(isMoreButton);
+      const inlineIcons = buttons.filter((b) => !isMoreButton(b) && b.querySelector("svg"));
+      if (moreButtons.length > 0 || inlineIcons.length > 0) {
+        if (moreButtons.length !== 1 || inlineIcons.length !== 0) {
+          failures.push(
+            "Touch row action violation: expected 1 More button and 0 inline icons, found " +
+              moreButtons.length + " More and " + inlineIcons.length + " inline icon(s)"
+          );
+        }
+      }
+    }
+    return { ok: failures.length === 0, failures };
+  }
+
+  // Desktop / Tablet (768, 1024, 1440 px):
+  const isMoreButton = (b) => {
+    if (b.querySelector('.lucide-more-horizontal, .lucide-ellipsis')) return true;
+    const label = (b.getAttribute("aria-label") || b.textContent || "").trim();
+    return !/transaction/i.test(label) && (/\bmore\b/i.test(label) || /\bactions?\b/i.test(label));
+  };
+  const tables = Array.from(document.querySelectorAll('table')).filter((t) => {
+    return !t.classList.contains("sr-only") && !t.closest(".sr-only");
+  });
+  for (const table of tables) {
+    const container = table.closest('[data-slot="table-container"]') || table.parentElement;
+    const headerThs = Array.from(table.querySelectorAll('thead tr th'));
+
+    // Table scrolls horizontally at 1024 px and wider
+    if (width >= 1024 && container) {
+      if (container.scrollWidth > container.clientWidth + 1) {
+        const colDetails = headerThs.map(th => (th.textContent || "").trim() + ": " + Math.round(th.getBoundingClientRect().width) + "px").join(", ");
+        failures.push(
+          "Table scrolls horizontally at " +
+            width +
+            "px (scrollWidth " +
+            container.scrollWidth +
+            " > clientWidth " +
+            container.clientWidth +
+            "; cols: " + colDetails + ")"
+        );
+      }
+    }
+
+    // Exactly one fill column
+    if (headerThs.length > 0) {
+      const fillCols = headerThs.filter((th) => th.getAttribute("data-width") === "fill");
+      if (fillCols.length !== 1) {
+        failures.push("Table does not have exactly one fill column (found " + fillCols.length + ")");
+      }
+
+      // No wasted space: for every fit column, header cell width <= widest cell content + 32 px
+      const bodyRows = Array.from(table.querySelectorAll('tbody tr:not([data-slot="table-row-skeleton"])'));
+      if (bodyRows.length > 0) {
+        headerThs.forEach((th, colIdx) => {
+          if (th.getAttribute("data-width") === "fit") {
+            const headerWidth = th.getBoundingClientRect().width;
+            let maxCellContent = getCellContentWidth(th);
+            for (const row of bodyRows) {
+              const cell = row.children[colIdx];
+              if (!cell) continue;
+              const w = getCellContentWidth(cell);
+              if (w > maxCellContent) maxCellContent = w;
+            }
+            const limit = maxCellContent + 32;
+            if (headerWidth > limit + 1) {
+              const label = (th.textContent || "").trim() || "[actions]";
+              failures.push(
+                "Fit column '" + label + "' wasted space: header cell width " +
+                  Math.round(headerWidth) + "px > widest cell content " +
+                  Math.round(maxCellContent) + "px + 32px (limit " + Math.round(limit) + "px)"
+              );
+            }
+          }
+        });
+      }
+    }
+
+    // Action cell structure on fine pointer (>= 768 px):
+    // at most two inline icon buttons plus one More button
+    const bodyRows = Array.from(table.querySelectorAll('tbody tr:not([data-slot="table-row-skeleton"])'));
+    for (const row of bodyRows) {
+      const actionCells = Array.from(row.querySelectorAll('td')).filter((td) => td.querySelector('button'));
+      for (const td of actionCells) {
+        const buttons = Array.from(td.querySelectorAll('button:not([role="checkbox"]):not([type="checkbox"])'));
+        const moreButtons = buttons.filter(isMoreButton);
+        const inlineIconButtons = buttons.filter((b) => !isMoreButton(b) && b.querySelector("svg"));
+        if (inlineIconButtons.length > 2) {
+          failures.push("Action cell has " + inlineIconButtons.length + " inline icon buttons (max 2 allowed)");
+        }
+        if (moreButtons.length > 1) {
+          failures.push("Action cell has " + moreButtons.length + " More buttons (max 1 allowed)");
+        }
+      }
+    }
+  }
+
+  return { ok: failures.length === 0, failures };
+})()`;
+
+/** Chart audit: Activity card no horizontal overflow at 360 and 390. */
+const AUDIT_CHART_SOURCE = (width) => `(() => {
+  const failures = [];
+  const chartGroup = document.querySelector('[aria-label="Activity chart, use left and right arrow keys"]');
+  if (chartGroup) {
+    const card = chartGroup.closest('[data-slot="card"], .rounded-xl, .rounded-lg');
+    if (card && card.scrollWidth > card.clientWidth + 1) {
+      failures.push("Activity card has horizontal overflow: scrollWidth " + card.scrollWidth + " > clientWidth " + card.clientWidth);
+    }
+  }
+  return { ok: failures.length === 0, failures };
+})()`;
+
+/** Chart audit: click a bar and assert readout text updates. */
+async function auditChartBarClick(cdp) {
+  const result = await evaluate(cdp, `(() => {
+    const chart = document.querySelector('[aria-label="Activity chart, use left and right arrow keys"]');
+    if (!chart) return { skip: true };
+    const readout = document.querySelector('[aria-live="polite"]');
+    const initialText = readout ? readout.textContent.trim() : "";
+    const rects = Array.from(document.querySelectorAll('.recharts-bar-rectangles rect.recharts-rectangle, .recharts-rectangle'));
+    if (rects.length === 0) return { skip: true };
+    const bar = rects.find((r) => parseFloat(r.getAttribute("height") || "0") > 0) || rects[0];
+    bar.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+    bar.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const updatedText = readout ? readout.textContent.trim() : "";
+    return { skip: false, initialText, updatedText, barCount: rects.length };
+  })()`);
+  return result;
+}
 
 /** Press a real Tab key through CDP and read back the focused element. */
 async function tabOnce(cdp) {
@@ -1625,7 +1915,7 @@ async function main() {
           /* about:blank */
         }
       }
-      const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 90000 : 45000);
+      const loadWait = cdp.waitEvent("Page.loadEventFired", firstLoad ? 45000 : 25000);
       await cdp.send("Page.navigate", { url: DEV_ORIGIN + scenario.path });
       let ok = true;
       try {
@@ -1639,8 +1929,19 @@ async function main() {
       const markerWait = scenario.markerSelector
         ? SELECTOR_SOURCE(scenario.markerSelector)
         : MARKER_SOURCE(scenario.marker);
-      let found = await waitFor(cdp, markerWait, 30000);
+      let found = await waitFor(cdp, markerWait, 10000);
       await sleep(700); // settle transitions (S-41: no animation waits)
+
+      let transientOverflow = null;
+      if (scenario.id === "dashboard-data" && (width === 360 || width === 390)) {
+        for (const targetMs of [100, 300, 600, 1000]) {
+          await sleep(targetMs === 100 ? 100 : targetMs === 300 ? 200 : targetMs === 600 ? 300 : 400);
+          const sw = await evaluate(cdp, "document.documentElement.scrollWidth");
+          if (sw > width + 1 && !transientOverflow) {
+            transientOverflow = `transient overflow at ${targetMs}ms (scrollWidth ${sw} > ${width}px)`;
+          }
+        }
+      }
 
       // Colour theme: next-themes follows the emulated prefers-color-scheme;
       // record honestly and force the class only as a fallback.
@@ -1660,11 +1961,11 @@ async function main() {
           await evaluate(cdp, CLICK_SOURCE(step));
           await sleep(500);
         }
-        if (!found) found = await waitFor(cdp, markerWait, 8000);
+        if (!found) found = await waitFor(cdp, markerWait, 5000);
         await sleep(400);
       }
-      if (!found) found = await waitFor(cdp, markerWait, 8000);
-      return { ok: true, found, themeApplied };
+      if (!found) found = await waitFor(cdp, markerWait, 5000);
+      return { ok: true, found, themeApplied, transientOverflow };
     };
 
     for (const scenario of ACTIVE_SCENARIOS) {
@@ -1695,8 +1996,52 @@ async function main() {
           });
 
           const cellKey = `${width}/${theme}`;
-          const nav = await navigateAndSettle(scenario, width, theme);
+          const cellStart = Date.now();
+          const startIso = new Date().toISOString().slice(11, 19);
+          process.stdout.write(`[${startIso}] [${scenario.id}] [${width}px] [${theme}] starting...\n`);
+
+          let nav = false;
+          let timer = null;
+          try {
+            const timeoutPromise = new Promise((_, reject) => {
+              timer = setTimeout(
+                () =>
+                  reject(
+                    new Error(
+                      `timed out waiting for ${scenario.marker || scenario.markerSelector || "settle"}`,
+                    ),
+                  ),
+                SCENARIO_TIMEOUT,
+              );
+            });
+            nav = await Promise.race([
+              navigateAndSettle(scenario, width, theme),
+              timeoutPromise,
+            ]);
+          } catch (err) {
+            nav = false;
+            const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+            process.stdout.write(
+              `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] FAILED: ${err.message} (${elapsed}s)\n`,
+            );
+            row.cells[cellKey] = {
+              status: "FAIL",
+              detail: `FAILED: ${err.message}`,
+              theme,
+              innerWidth: width,
+              scrollWidth: width,
+              pathname: scenario.path,
+            };
+            continue;
+          } finally {
+            if (timer) clearTimeout(timer);
+          }
+
           if (nav === false) {
+            const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+            process.stdout.write(
+              `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] NOT VERIFIED (navigation failed) (${elapsed}s)\n`,
+            );
             row.cells[cellKey] = { status: "NOT VERIFIED", detail: "navigation failed" };
             continue;
           }
@@ -1763,6 +2108,76 @@ async function main() {
             }
           }
 
+          // ---- Transient overflow check ----
+          if (nav.transientOverflow) {
+            if (status === "PASS") status = "FAIL";
+            detail = (detail ? detail + "; " : "") + nav.transientOverflow;
+          }
+
+          // ---- Table audit (PRD U-02) ----
+          const TABLE_SCENARIO_IDS = new Set([
+            "customers",
+            "customer-detail",
+            "transactions-detailed",
+            "transactions-summarized",
+            "dashboard-data",
+            "members",
+            "deleted-items",
+            "ui-gallery",
+          ]);
+          if (TABLE_SCENARIO_IDS.has(scenario.id)) {
+            const tableAudit = await evaluate(cdp, AUDIT_TABLES_SOURCE(width, touch));
+            if (tableAudit && !tableAudit.ok && tableAudit.failures.length > 0) {
+              if (status === "PASS") status = "FAIL";
+              detail = (detail ? detail + "; " : "") + tableAudit.failures.join("; ");
+            }
+          }
+
+          // ---- Chart audit (PRD U-06) ----
+          if (scenario.id.startsWith("dashboard-chart") || scenario.id === "dashboard-data") {
+            const chartAudit = await evaluate(cdp, AUDIT_CHART_SOURCE(width));
+            if (chartAudit && !chartAudit.ok && chartAudit.failures.length > 0) {
+              if (status === "PASS") status = "FAIL";
+              detail = (detail ? detail + "; " : "") + chartAudit.failures.join("; ");
+            }
+            const barClickResult = await auditChartBarClick(cdp);
+            if (barClickResult && !barClickResult.skip && !barClickResult.updatedText) {
+              if (status === "PASS") status = "FAIL";
+              detail = (detail ? detail + "; " : "") + "chart bar click did not update readout";
+            }
+          }
+
+          // ---- Touch tooltips audit (PRD U-01) ----
+          if (touch) {
+            const tapTarget = await evaluate(cdp, `(() => {
+              const btn = document.querySelector('button.touch-target, [data-slot="tooltip-trigger"]');
+              if (!btn || btn.disabled || btn.getAttribute("aria-disabled") === "true") return null;
+              const r = btn.getBoundingClientRect();
+              if (r.width < 1 || r.height < 1) return null;
+              return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+            })()`);
+            if (tapTarget) {
+              await cdp.send("Input.dispatchTouchEvent", {
+                type: "touchStart",
+                touchPoints: [{ x: tapTarget.x, y: tapTarget.y, id: 0 }],
+              });
+              await sleep(50);
+              await cdp.send("Input.dispatchTouchEvent", {
+                type: "touchEnd",
+                touchPoints: [],
+              });
+              await sleep(800);
+              const tooltipOpen = await evaluate(cdp, `(() => {
+                const popup = document.querySelector('[data-slot="tooltip-popup"]');
+                return popup ? (popup.offsetParent !== null || getComputedStyle(popup).display !== "none") : false;
+              })()`);
+              if (tooltipOpen) {
+                if (status === "PASS") status = "FAIL";
+                detail = (detail ? detail + "; " : "") + "tooltip opened on touch after 800ms";
+              }
+            }
+          }
+
           // ---- Screenshot (390 + 1440 both themes for the owner, plus any FAIL) ----
           let shotFile = null;
           const wantShot = (width === 390 || width === 1440) || status !== "PASS";
@@ -1795,6 +2210,10 @@ async function main() {
             pathname: measurement.pathname,
             screenshot: shotFile,
           };
+          const elapsed = ((Date.now() - cellStart) / 1000).toFixed(1);
+          process.stdout.write(
+            `[${new Date().toISOString().slice(11, 19)}] [${scenario.id}] [${width}px] [${theme}] ${status} (${elapsed}s)\n`,
+          );
         }
       }
       results.push(row);
@@ -1866,7 +2285,7 @@ async function main() {
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: VIEWPORT_HEIGHT, deviceScaleFactor: 1, mobile: false });
     fixtureMode = "normal";
     roleOverride = null;
-    await navigateAndSettle({ path: "/b/b1", marker: "Top outstanding balances" }, 1440, "light");
+    await navigateAndSettle({ path: "/b/b1", marker: "Where you stand" }, 1440, "light");
     await cdp.send("Emulation.setEmulatedMedia", {
       features: [
         { name: "prefers-color-scheme", value: "light" },

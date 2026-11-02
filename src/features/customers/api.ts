@@ -341,3 +341,55 @@ export async function deleteCustomerPermanently(
     return data as string;
   });
 }
+
+
+export interface BulkDeleteResult {
+  count: number;
+  transactions?: number;
+  log_ids: string[];
+}
+
+/**
+ * S-75: Bulk archive/unarchive customers. Max 100 per call.
+ */
+export async function bulkSetCustomersArchived(
+  businessId: string,
+  ids: string[],
+  archived: boolean,
+): Promise<number> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_set_customers_archived", {
+      p_business_id: businessId,
+      p_ids: ids,
+      p_archived: archived,
+    });
+
+    if (error) throw error;
+    return (data as number) ?? 0;
+  });
+}
+
+/**
+ * S-75: Bulk delete customers permanently. Owner only. Returns log_ids.
+ */
+export async function bulkDeleteCustomers(
+  businessId: string,
+  ids: string[],
+  reason?: string,
+): Promise<BulkDeleteResult> {
+  return guard(async () => {
+    const { data, error } = await supabase.rpc("bulk_delete_customers", {
+      p_business_id: businessId,
+      p_ids: ids,
+      p_reason: reason ?? null,
+    });
+
+    if (error) throw error;
+    const res = data as { count?: number; transactions?: number; log_ids?: string[] };
+    return {
+      count: Number(res?.count ?? 0),
+      transactions: Number(res?.transactions ?? 0),
+      log_ids: (res?.log_ids ?? []) as string[],
+    };
+  });
+}

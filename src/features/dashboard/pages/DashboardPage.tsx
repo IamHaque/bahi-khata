@@ -12,19 +12,16 @@ import { transactionsPath } from "@/lib/paths";
 import { DayBook } from "../components/DayBook";
 import { FirstRunCard } from "../components/FirstRunCard";
 import { PositionSheet } from "../components/PositionSheet";
-import { TopOutstanding } from "../components/TopOutstanding";
+import { ChaseList } from "../components/ChaseList";
 import { TrendChart } from "../components/TrendChart";
 
 /**
- * S-36 / L-06 — the dashboard as a ledger page: every figure from the
+ * S-36 / L-06 / U-07 — the dashboard as a ledger page: every figure from the
  * dashboard_summary RPC (one scoped read: receivables, credit, open
  * accounts, today's count/net — voided transactions and archived
- * customers excluded at the source). The four stat tiles are gone
- * (F-16: the text-4xl total clipped); the page is now two sheets —
- * Where you stand and Top outstanding balances — over a row with the
- * day book and the week chart, each of the latter two an independent
- * read with its own states. The Today line opens Transactions filtered
- * to today with identical figures.
+ * customers excluded at the source). Row 1 is PositionSheet ("Where you stand")
+ * and ChaseList ("Who to chase", replacing TopOutstanding).
+ * Row 2 is TrendChart (Activity), and Row 3 is DayBook.
  */
 export function DashboardPage() {
   const { user } = useAuth();
@@ -75,10 +72,8 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-            <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
-            <div className="h-56 animate-pulse rounded-lg border border-border bg-card" />
-          </div>
+          <div className="h-72 animate-pulse rounded-lg border border-border bg-card" />
+          <div className="h-64 animate-pulse rounded-lg border border-border bg-card" />
         </div>
       )}
 
@@ -106,9 +101,7 @@ export function DashboardPage() {
             />
           )}
 
-          {/* L-06 row 1: where you stand, then the second sheet. Gate
-              G-A1 is pending, so Top outstanding balances is this
-              slot's final content. */}
+          {/* U-07 (L-13) row 1: Where you stand, then Who to chase */}
           <div className="grid gap-6 lg:grid-cols-2">
             <PositionSheet
               openAccounts={data.open_accounts}
@@ -118,25 +111,19 @@ export function DashboardPage() {
               todayNet={data.today_net}
               todayHref={todayHref}
             />
-            <TopOutstanding
+            <ChaseList
               businessId={businessId}
               customers={data.top_debtors}
-              total={data.total_receivable}
             />
           </div>
         </>
       )}
 
-      {/* L-06 row 2: the day book and the week chart — two independent
-          reads, each with its own states; they render even when the
-          summary above failed. L-14 (F1): the track is minmax(0,…) and
-          each Card carries min-w-0 so the 720px chart / wide day-book
-          table scroll inside their own overflow-x-auto container instead
-          of widening the track and the page. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <DayBook businessId={businessId} />
-        <TrendChart businessId={businessId} />
-      </div>
+      {/* U-06 (D-34): Row 2 is Activity, full width */}
+      <TrendChart businessId={businessId} />
+
+      {/* U-06 (D-34): Row 3 is Day book, full width */}
+      <DayBook businessId={businessId} />
 
       <CustomerFormDialog
         open={customerFormOpen}

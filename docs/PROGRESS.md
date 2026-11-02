@@ -1150,7 +1150,7 @@ correction the dialog reads 0 failing controls.
   version of this note wrongly called the parameter mandatory (inherited
   from V-07d); the migration text is the truth and PRD §9.5 agrees
   (client rollback = redeploy the previous build).
-- Every `(this commit)` placeholder in the story board is replaced with the
+- Every `c83578c` placeholder in the story board is replaced with the
   real short hash of the story's commit (this docs commit records them).
 
 ### One more browser find, fixed with the rest
@@ -1224,3 +1224,335 @@ Following the owner's human visual pass on candidate `dca675f`, four issues were
    - Replaced green dark neutrals (hues 171-173, text hue 137) with slate blue-grey (hue 263, Option A).
    - Neutral tokens: `--background: oklch(0.15 0.018 263)`, `--foreground: oklch(0.93 0.01 263)`, `--card: oklch(0.19 0.017 263)`, `--muted: oklch(0.25 0.015 263)`, `--muted-foreground: oklch(0.68 0.018 263)`, `--sidebar: oklch(0.12 0.014 263)`, `--input: oklch(0.648 0.018 263)`, `--border: oklch(0.93 0.01 263 / 0.14)`. Semantic colours (receivable green 153, credit orange 36, warning 82, primary/ring/accent-wash indigo 271) preserved.
    - Measured result: 41/41 contrast checks pass WCAG AA in dark (82/82 total across themes); 58/58 tokens in sync; 104 review screenshots captured in `.local/ui-checks/`. Commit `6e3ae71`.
+
+
+# BahiKhata v3.2 — Build Progress
+
+Branch: `feat/v3.2` (created from `feat/v3` @ `8a0d3b2`; PR base must be retargeted to `master` after v3.1 merges)
+Spec: `docs/PRD-v3.2.md`
+Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
+
+## v3.2 Story board
+
+| Story | Status | Commit | Notes |
+| --- | --- | --- | --- |
+| S-70 Branch, baseline, decisions | Done | 0186842 | Branch `feat/v3.2` created; baseline verified; owner decisions D-30..D-38 recorded in `RESEARCH-DECISIONS.md`. |
+| U-01 Tooltips and `IconButton` | Done | 5855dad | Wrapped @base-ui/react/tooltip; built IconButton with accessible names; replaced raw icon buttons; iconButtonGuard passes. |
+| U-02 Table system: `DataTable` v2 and `RowActions` | Done | 1e608d4 | Single DataTable component with fit/fill widths, priority folding, density, TableCard mobile layout, TableFooter, selectable stub, and RowActions pattern. |
+| U-03 Migrate Transactions and Customers pages | Done | bb3f78e | Migrated TransactionsPage and CustomersPage to DataTable v2, fit/fill widths, priority folding, RowActions, and shared TableCard mobile spec. |
+| U-04 Migrate Customer ledger, Day book, Members, Recently deleted | Done | 219fadb | LedgerTable, DayBook, MembersPage, DeletedItemsPage on DataTable v2 & RowActions; RowActionsCompat deleted; 81 test files passing (641 tests). |
+| U-05 Remove the quick-add card | Done | 1d7c2b5 | CustomerQuickAdd deleted, empty state buttons removed, header buttons responsive (under name on phone, under balance on desktop); 11/11 customerDetail tests pass. |
+| U-06 Dashboard activity chart, rebuilt | Done | 5a1ab83 | Diverging bars, 3 comparison tiles, URL range sync (?activity=30), interactive readout with View entries link, keyboard navigation, full-width layout. |
+| S-71 Analysis: the "who to chase" threshold | Done | 5275747 | Analysis query documented in MANUAL_STEPS.md; decision rule written; default CHASE_AFTER_DAYS=30 set pending owner production query. |
+| U-07 Who to chase (L-13) | Done | c7f6251 | Replaced TopOutstanding with ChaseList; CHASE_AFTER_DAYS=30; AgeFlag synced; LeaderRows with 44px touch targets; See all link; ChaseList.test.tsx 13/13 passing. |
+| S-72 Transaction revision history (B-08) | Done | 7c728a4 | Trigger records edit/void/restore to transaction_revisions; transaction_history RPC; History section on TransactionDetailPage; EditedBadge links to #history; 20 SQL sections; frontend tests pass. |
+| S-73 Deletion log export and purge (B-12) | Done | 0e642de | RPC purge_deletion_log with 30-day floor, orphan revisions purge, audit table deletion_log_purges; CleanUpDialog; export_deletion_log; Section 21 SQL tests; 24 unit/page tests pass. |
+| S-74 Ownership transfer (B-14) | Done | 86e3873 | Atomic transfer_ownership RPC, ownership_transfers table, Make owner dialog with typed confirmation, permissions refresh; Section 22 SQL tests (22 sections); all frontend tests pass. |
+| S-75 Bulk select and act (B-13) | Done | b9a5202 | 5 bulk RPCs capped at 100 with atomic rollback; ui/checkbox with touch-target and indeterminate; BulkActionBar; BulkConfirmDialog with typed DELETE {n}; Section 23 SQL tests (23 sections); unit & page tests pass. |
+| U-08 Entry row on the ledger (L-12) | Done | fd0408f | LedgerEntryRow with 6 columns, live balance preview, auto-clearing / error validation, entry-reveal highlight, responsive desktop-only; 88 test files passing (722 tests). |
+| S-76 Documentation, rollout guide, backlog | Done | 013616b | Updated MANUAL_STEPS.md with v3.2 rollout runbook, UI-CONTRACT.md with all new systems & glossary, RLS.md, RELEASE-NOTES-v3.2.md, BACKLOG.md (closed B-08/12/13/14, added B-24..29), and README.md. |
+| S-77 Final verification and release candidate | Done | 54efe23 | Release candidate verified: 88 test files (722 tests), lint 0 errors, tsc clean, bundle 350.88 kB max, contrast 82/82, 280/280 responsive & table audit PASS. |
+
+## S-77 Final verification and release candidate (checklist)
+
+### Automated Verification Metrics (S-70 Baseline vs S-77 Release Candidate)
+
+| Metric | Baseline (v3.2 / S-70) | Release Candidate (v3.2 / S-77) | Status |
+| --- | --- | --- | --- |
+| **Unit tests** | 629 passed (79 files) | **722 passed (88 files)** | **PASS** (0 failing, 0 skipped) |
+| **Lint** | 0 errors, 10 warnings | **0 errors, 10 warnings** | **PASS** (0 errors, 10 pre-existing fast-refresh warnings) |
+| **Typecheck** | Clean (`tsc -b`) | **Clean (`tsc -b`)** | **PASS** (0 errors) |
+| **Build** | Succeeded (22 chunks) | **Succeeded (22 chunks in 15.83s)** | **PASS** |
+| **Largest JS chunk** | 373.0 kB (`dashboard`) | **350.88 kB (`dashboard`)** | **PASS** (< 500 kB budget) |
+| **Total JS bundle** | 1469 kB | **1491 kB** | **PASS** (across 22 code-split chunks) |
+| **Production audit** | 0 vulnerabilities | **0 vulnerabilities** | **PASS** (`npm audit --omit=dev`) |
+| **WCAG AA contrast** | 82 checks AA (41L + 41D) | **82 checks AA (41L + 41D)** | **PASS** (100% compliant) |
+| **Design token sync** | 58/58 tokens match | **58/58 tokens match** | **PASS** (`npm run audit:tokens`) |
+| **Responsive & table audit** | Deferred at S-70 (V-01) | **28 scenarios × 5 widths × 2 themes (280/280)** | **PASS** (100% PASS, 0 failures, 1230 controls checked, 0 hit misses, review shots in `.local/ui-checks`) |
+| **SQL test suite** | 19 sections | **23 sections (100% passed)** | **PASS** (`DATABASE_URL=... bash scripts/run-sql-tests.sh` against scratch PostgreSQL 17; all 23 sections ran clean; `==> SQL tests passed` in 10.4s) |
+
+### Human Verification Checklist (PRD S-77 Step 3)
+
+The following 9 items require manual on-device / human sign-off once the 4 new database migrations are executed by the owner in Supabase:
+
+1. **Tooltips on hover and keyboard focus**:
+   - Verify tooltips on all `IconButton`s: Topbar hamburger menu, sidebar collapse rail, theme toggle button, customer palette search (`Ctrl+K`), invitations bell (with badge), account menu button, dialog/sheet close X buttons, table row actions (`RowActions`), and filter bar chip removals.
+   - Verify tooltips open on pointer hover (after 400ms delay) and on keyboard tab focus; verify tooltips never open on touch tap.
+2. **Table anatomy & responsiveness at 390 px and 1440 px**:
+   - Verify all 6 tables in both light and dark themes: Customers (`/customers`), Customer Ledger (`/customers/:id`), Transactions detailed (`/transactions`), Transactions summarized (`/transactions?view=summarized`), Day book on Dashboard, Members & pending invitations (`/members`), Recently deleted (`/deleted`), and UI gallery (`/__ui`).
+   - At 1440 px: confirm exact column fit/fill layout (single fill column, fit headers tight to data), desktop inline icon buttons (max 2 inline + 1 More menu).
+   - At 390 px: confirm transition to mobile `TableCard` with single 44px More menu button and zero inline icon buttons.
+3. **Add charge / Add payment on phone vs desktop**:
+   - At 390 px: verify header buttons "Add charge" and "Add payment" in customer header (44px hit height, flex-1). Confirm no ledger entry row is rendered below 768 px.
+   - At 1440 px: verify `LedgerEntryRow` at top of customer ledger with live balance preview, auto-clearing inputs, Enter-to-save, and `entry-reveal` fade highlight.
+4. **Activity chart on phone and desktop**:
+   - At 390 px: verify diverging bar chart renders with 220px height, charges above zero line, payments below zero line; tap a bar to verify interactive readout sentence ("Wed 15 Oct · Charged ₹... · Paid ₹... · Net ₹...") with "View entries" link; verify zero horizontal scroll on card.
+   - At 1440 px: verify 280px height, 3 comparison tiles with percentage badges vs previous period, and segmented range buttons (7 days, 30 days, 90 days, 12 months) syncing with URL query (`?activity=...`).
+5. **Bulk select, act and 10s undo**:
+   - Select multiple customers or transactions via checkboxes (including Shift+click range select and header select-all).
+   - Trigger Bulk Archive or Bulk Void: verify toast with 10s Undo button.
+   - Trigger Bulk Delete: verify `BulkConfirmDialog` with typed confirmation `DELETE {n}`, execute, and test 10s Undo restoring entries.
+6. **Ownership transfer between two real accounts**:
+   - As owner, navigate to `/members`, select "Make owner..." from a member's action menu.
+   - Verify `TransferOwnershipDialog` warning list, type exact business name to enable destructive button.
+   - Execute transfer: verify immediate demotion to Editor, new owner promotion, and permissions refresh.
+7. **Transaction revision history**:
+   - Perform an edit, void, or restore on a transaction.
+   - Navigate to transaction detail page (`/transactions/:id`): verify "History" section displays timeline of changes (old value → new value, author, timestamp with tooltip).
+8. **Deletion log export and cleanup**:
+   - As owner, navigate to `/deleted`: click "Export CSV" to download deletion history.
+   - Click "Clean up...": test dry-run preview sentence with 30-day minimum floor, enter typed `PURGE` confirmation, and confirm deletion log purges cleanly.
+9. **Ledger entry row keyboard entry**:
+   - Self-test: record 5 charges and 5 payments by keyboard alone (Tab, amounts, Enter) on a test customer and verify zero wrong-column misentries.
+
+
+## S-70 Baseline verification report
+
+Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
+
+| Metric | Baseline (v3.2 / S-70) | Target / Notes |
+| --- | --- | --- |
+| **Unit tests** | **629 passed (79 files)** | 0 failing, 0 skipped; vitest testTimeout set to 15s for full suite stability |
+| **Test duration** | **~80.5s** | Full suite under Windows jsdom load |
+| **Lint** | **0 errors, 10 warnings** | Pre-existing `react-refresh/only-export-components` warnings |
+| **Typecheck** | **Clean (`tsc -b`)** | 0 TypeScript errors |
+| **Build** | **Succeeded** | 22 code-split chunks |
+| **Largest JS chunk** | **373.0 kB (`dashboard`)** | Target < 500 kB (budget passed) |
+| **Total JS bundle** | **1469 kB** | Across 22 chunks |
+| **Production audit** | **0 vulnerabilities** | `npm audit --omit=dev` clean |
+| **WCAG AA contrast** | **82 checks AA (41 light + 41 dark)** | `npm run audit:contrast` 100% pass, 0 failing |
+| **Design token sync** | **58/58 tokens match** | `npm run audit:tokens` verified against `src/index.css` |
+| **Responsive audit** | **28 scenarios × 5 widths (140 cells, light & dark)** | 100% PASS, 0 failures, 1,234 controls checked, 0 < 44px hit misses (V-01 closed) |
+
+## Deviations (v3.2)
+
+- **V-01 Responsive audit (CLOSED)**: Real-browser headless Chrome responsive audit was initially deferred at S-70. Fully resolved and measured:
+  - **Before fixes:** Audit stalled on outdated markers and lacked table/chart checks. Initial runs produced table horizontal overflows on `customers` and `customer-detail`, transient dimension overflow on the chart container, 360px viewport expansion on ledger mobile totals (386px), hit misses under sticky chrome for chart scenarios, and missing tooltips on dialog/sheet close, Topbar bell and user menu.
+  - **Defects found and how fixed:**
+    1. *Audit observability & stall prevention*: Added 60s per-scenario timeout, timestamped progress logging, and updated scenario markers/routes to v3.2 UI ("Where you stand", "Everyone in this business", etc.).
+    2. *Table audit (PRD U-02)*: Added CDP table assertions verifying no horizontal page scroll or table scroll at >= 1024px, exactly one `fill` column per table, fit column header <= max cell content + 32px, action cell contract (<= 2 inline icon buttons + 1 More on desktop; exactly 1 More and 0 inline icons on touch). Fixed table horizontal scroll by adding `max-w-0 whitespace-normal` to `fill` columns in `DataTable.tsx`. Filtered `.sr-only` tables.
+    3. *Action cell regex*: Corrected More button regex in audit to avoid substring false positive on "transaction" in "Add transaction".
+    4. *Tooltip coverage (PRD U-01)*: Converted `DialogClose` and `SheetClose` to `IconButton`, added tooltips to Topbar invitations bell and user menu button, implemented `disabledReason` prop in `IconButton`, wrote AST-based guard in `src/test/iconButtonGuard.test.tsx` ensuring 100% coverage across non-test TSX.
+    5. *Transient chart overflow*: Sampled `scrollWidth` at 100, 300, 600, 1000 ms on dashboard; added `overflow-hidden` to `TrendChart.tsx` container.
+    6. *Ledger mobile totals overflow*: Added `flex-wrap` and `justify-end` to `mobileTotals` container in `LedgerTable.tsx` preventing viewport expansion at 360px.
+    7. *Mobile card links*: Simplified customer mobile card spec in `CustomersPage.tsx` to eliminate sub-44px nested link hit misses.
+    8. *Sticky header hit testing*: Updated `HITTEST_SOURCE` in `responsive-audit.cjs` so elements physically scrolled beneath `sticky` / `fixed` chrome are marked covered.
+  - **After fixes:** Full matrix across 28 scenarios, 5 widths (360, 390, 768, 1024, 1440 px), and both themes (light & dark) yields 280/280 PASS, 0 failures. Controls checked: 1,234; failing (< 44x44): 0. Review screenshots saved in `.local/ui-checks`. All 83 test files (670 tests) pass.
+- **V-08 Bulk actions used is_archived (`aada936`)**: `20261201000300_v32_bulk_actions.sql` used `is_archived` instead of `archived_at` on customers. Caught and corrected by executing the consolidated SQL tests against a scratch database.
+- **V-09 Viewer bulk actions silently no-opped instead of raising 42501 (`aada936`)**: `bulk_set_customers_archived` and `bulk_set_transactions_voided` updated zero rows for viewers instead of raising 42501 due to missing `v_count <> v_expected` checks, and the transaction unvoid path called undefined `is_member_with_role` instead of `has_role(..., 'editor')`. Fixed with explicit row counts and correct helper functions.
+- **V-10 Ownership transfers select policy was unscoped and not re-runnable (`aada936`)**: `20261201000200_v32_ownership_transfer.sql` created policy without `to authenticated` (violating Section 01 policy scope contract) and lacked `drop policy if exists`, failing idempotency re-runs. Fixed with drop-before-create and `to authenticated`.
+- **V-11 record_transaction_revision remained executable by public (`aada936`)**: Trigger function `record_transaction_revision()` in `20261201000000_v32_transaction_revisions.sql` was not revoked from `public`, `anon`, and `authenticated`. Added explicit revoke statements.
+- **V-12 Consolidated SQL suite sections 20-23 were drafted without execution (`073d5b5`)**: Sections 20-23 contained references to non-existent `memberships` table, invalid UUID literals, missing column inserts for deletion_log fixtures, and unhandled JSON object comparison ordering. Suite repaired and 100% passing.
+- **V-13 Unit tests depended on local .env (`c42bf37`)**: `ChaseList.test.tsx` and `transactionHistory.test.tsx` imported real Supabase client through `api.ts` without mocking `@/lib/supabase`, causing failures on clean checkouts lacking `.env`. Resolved by mocking `@/lib/supabase` and adding a guard test in `clientHygiene.test.tsx`.
+
+## U-01 scenarios (checklist)
+
+- [x] Tooltip primitive wraps @base-ui/react/tooltip with flat panel styling (bg-popover border border-border rounded px-2 py-1 text-xs text-popover-foreground), 400ms open delay, 0ms close delay.
+- [x] IconButton renders shared Button with .touch-target hit area (44px), label tooltip, and ariaLabel accessible name. Disabled triggers remain accessible to hover and focus.
+- [x] Replaced icon-only controls across Topbar (menu, collapse, theme toggle), SearchInput (clear X), FilterBar (remove chip X), DataTable (RowActionsMenu), Sidebar (collapsed rail items), and ledger / transaction row actions (Edit, Void, Restore, Delete).
+- [x] src/test/iconButtonGuard.test.tsx passes (4/4 tests: rendering, disabled trigger, destructive tone, no raw icon buttons missing accessible labels).
+- [x] docs/UI-CONTRACT.md updated with IconButton and tooltip specifications.
+
+## U-02 scenarios (checklist)
+
+- [x] DataTable v2 implements fit ("w-px whitespace-nowrap") and fill ("w-full min-w-0") column layout, with exactly one fill column per table.
+- [x] Responsive priority folding: priority 3 columns hide below xl (1280px), priority 2 columns hide below lg (1024px), and folded column content renders into the fill column as a muted second line.
+- [x] Density support: density="comfortable" (px-3 py-2.5) and density="compact" (px-3 py-1.5) with h-9 sticky header.
+- [x] Mobile card layout: mobile spec ({ lead, title, subtitle, meta, trailing, lines }) renders shared TableCard (< 768px) with 44px More actions button.
+- [x] RowActions pattern: max 2 non-destructive actions inline on fine pointer >= 768px; remaining/destructive actions fold into More actions menu; touch and mobile cards render single More menu. Destructive actions set apart by divider.
+- [x] Shared TableFooter: supports pagination controls and mode="more" ("Show more" button) with sticky/totals slot integration.
+- [x] Selection stub (selectable prop): adds checkbox column with select-all on table and selection checkbox on cards.
+- [x] Action copy unified in src/lib/actionLabels.ts.
+- [x] UiGallery updated to showcase both comfortable and compact DataTable densities.
+- [x] docs/UI-CONTRACT.md updated with Table anatomy section.
+- [x] Tests pass: dataTable.test.tsx (21/21) and RowActions.test.tsx (5/5).
+
+## U-03 scenarios (checklist)
+
+- [x] TransactionsPage (detailed view): Date (fit), Customer + Particulars merged into fill column (Monogram, customer link, note second line, "by {name}" folded below xl, Voided/Imported chips), Charged (fit), Paid (fit), Recorded by (priority 3, hides below xl and folds).
+- [x] TransactionsPage (summarized view): Period (fill), Entries (fit), Charged (fit), Paid (fit), Net (fit).
+- [x] TransactionsPage totals: rendered through the totals/footer slot without table width distortions.
+- [x] CustomersPage: Customer (fill: Monogram, name link, phone folded below lg, tags/archived line), Phone (fit, priority 2, folds below lg), Balance (fit with tone and words), Last activity (fit, priority 2), Added (fit, priority 3).
+- [x] RowActions pattern:
+  - Transactions: Edit & Void inline, Delete in More menu (destructive, owner-only); Restore inline on voided rows. Viewers see no action column.
+  - Customers: Edit & Add transaction inline, Archive & Delete in More menu; Restore inline on archived rows. Viewers see no action column.
+- [x] Shared mobile spec: page-local card renderers replaced with shared TableCard layout across both Transactions and Customers pages.
+- [x] Test suite updated for markup changes: 81 test files, 644 tests passing (0 failing, 0 skipped).
+
+## U-04 scenarios (checklist)
+
+- [x] Customer ledger (`LedgerTable.tsx`): migrated from raw `<table>` and mobile `<ul>` to `DataTable`: Date (fit), Particulars (fill, margin rule cell styling, EditedBadge, VoidedChip), Charged (fit), Paid (fit), Balance (fit), actions via `useLedgerRowActions` (RowActions pattern: Edit & Void inline, Delete in More menu; Restore inline on voided rows). Double-rule totals rendered via `totals` (desktop) and `mobileTotals` slots summing all non-voided entries. `footerMode="more"` for "Show earlier entries (50 at a time)".
+- [x] Day book (`DayBook.tsx`): migrated to `DataTable` with `density="compact"`, no pagination footer, "View all" link in card header, row click opens transaction detail. Columns: Date (fit), Customer (fill: link, note, "by ..." folded), Charged (fit), Paid (fit).
+- [x] Members and Invitations (`MembersPage.tsx`): Member (fill: avatar, name, email folded below lg), Email (fit, priority 2), Role (fit), Joined (fit, priority 2). Actions via `RowActions`: Change role (inline), Remove (More menu, destructive). Pending invitations migrated to `DataTable` with Revoke action via `RowActions`.
+- [x] Recently deleted (`DeletedItemsPage.tsx`): Item (fill: icon, strike-through label, transaction count, reason), Type (fit), Deleted by (fit, priority 2), Deleted (fit). Actions via `RowActions`: Restore as first inline action (spins during restore, with tooltip), View details in More menu. Restored rows display "Restored {when} by {name}" in action cell.
+- [x] Deprecated components deleted: `RowActionsMenu` and `RowActionCluster` (`RowActionsCompat.tsx`) completely removed; all pages and UI gallery migrated to `RowActions`.
+- [x] Full verification: 81 test files, 641 tests passing (0 failing, 0 skipped), `npm run build` succeeds, `npm run lint` clean (0 errors), design tokens & contrast audits 100% pass.
+
+## U-05 scenarios (checklist)
+
+- [x] Deleted CustomerQuickAdd.tsx and its tests (CustomerQuickAdd.test.tsx); removed mount in CustomerDetailPage.tsx. Retained entry-reveal CSS in index.css.
+- [x] Removed duplicate Add charge / Add payment buttons from CustomerDetailPage empty-ledger state; updated copy to "No entries yet. Use Add charge or Add payment above."
+- [x] CustomerHeader: Add charge and Add payment shown for Owner/Editor when not archived; on mobile (< 640px) sit under customer name, flex-1, 44px (h-11); on desktop sit under balance.
+- [x] Verified phone scenario with responsive tests; customerDetail.test.tsx passes (11/11).
+
+## U-06 scenarios (checklist)
+
+- [x] Dashboard layout updated: Row 1 Position sheet + Top debtors (2 cols), Row 2 Activity (full width), Row 3 Day book (full width); updated skeleton and gridGuard.
+- [x] Activity card header with segmented range control: 7 days · 30 days · 90 days · 12 months; default 30 days, synced to URL (?activity=30).
+- [x] Three summary tiles (Charged, Paid, Net) with swatches and comparison vs previous period (▲ 12% vs previous 30 days or — when previous is zero) computed from daily_activity(2 * days).
+- [x] Diverging bar chart: charges above zero (--receivable), payments below zero (--credit), heavier zero baseline (--foreground), dashed gridlines, symmetric Y axis with formatCompactInr ticks (1k, 50k, 1L, 10L, 1Cr), height 280px at md+, 220px below.
+- [x] Pure grouping function bucketActivity in src/features/dashboard/activity.ts with auto-coarsening rule (bars never narrower than 6px).
+- [x] Readout line under chart: highlights on hover/tap/keyboard with formatted date, Charged, Paid, Net, and "View entries" link with from and to params to transactionsPath (extended transactionsPath and TransactionsPage).
+- [x] Keyboard navigation on focusable chart region (role="group", label "Activity chart, use left and right arrow keys"): Left/Right, Home/End, Escape.
+- [x] Empty state ("No charges or payments in this period") when all zeros with range control usable.
+- [x] Screen reader accessibility: sr-only table, role="img" summary sentence, "Archived customers are not included" note.
+- [x] Tests pass: activity.test.ts (18/18), TrendChart.test.tsx (8/8), dashboardPage.test.tsx (26/26), gridGuard.test.tsx (2/2).
+
+## S-71 scenarios (checklist)
+
+- [x] Read-only analysis query added to `docs/MANUAL_STEPS.md` under "v3.2 analysis query (S-71)".
+- [x] Explicit human item for the owner to paste production query results recorded.
+- [x] Decision rule recorded: keep `CHASE_AFTER_DAYS = 30` if >= 20% of outstanding amount is older than 30 days and fewer than half of owing customers are flagged; choose 60 if more than half flagged; choose 14 if fewer than 5% flagged; default 30 if no production data pasted before U-07.
+- [x] Owner input requested:
+  > **Owner input requested for S-71:** Run the read-only query in `docs/MANUAL_STEPS.md` §"v3.2 analysis query (S-71)" in Supabase SQL editor and paste results here. Until provided, U-07 continues with default threshold `CHASE_AFTER_DAYS = 30`.
+
+## U-07 scenarios (checklist)
+
+- [x] Threshold `CHASE_AFTER_DAYS = 30` configured in `src/features/dashboard/chase.ts` and re-exported in `constants.ts`; `AgeFlag` uses the same constant.
+- [x] `getLastPayments(ids)` api function in `features/dashboard/api.ts` querying `customer_balances.last_payment_at`.
+- [x] `useLastPayments(businessId, ids)` hook in `features/dashboard/hooks.ts` with key in `dashboardKeys.lastPayments`.
+- [x] `ChaseList` component (`Card p-6 min-w-0`) replaces `TopOutstanding` on row 1 right of DashboardPage.
+- [x] Rows rendered as `LeaderRow`s: Monogram, customer link, sub-line (paid today, paid yesterday, last paid N days ago, no payments yet), AgeFlag, amount. Entire row is a 44px link target on touch.
+- [x] "See all customers who owe" link under list leads to `/b/:businessId/customers?sort=balance-desc`.
+- [x] Empty state ("All settled — no outstanding balances.") preserved when there are no debtors.
+- [x] `TopOutstanding.tsx` deleted as nothing else imports it.
+- [x] Tests pass: `ChaseList.test.tsx` (13 tests including 5 PRD scenarios, fake timer day arithmetic, api test, axe) and `dashboardPage.test.tsx` (26 tests).
+
+## S-72 Transaction revision history (checklist)
+
+- [x] Migration `20261201000000_v32_transaction_revisions.sql`:
+  - `transaction_revisions` table: `id`, `business_id` (cascade), `transaction_id` (no FK), `action` check (edit, void, restore), `changes` jsonb, `reason`, `changed_by` (set null), `changed_at`.
+  - RLS: business members can select (`transaction_revisions_select` using `is_member(business_id)`); client writes revoked.
+  - Trigger `record_transaction_revision()` on `transactions` after update: records edit diff (content tuple changed), void with `void_reason`, restore; suppresses when `bahikhata.restoring = 'on'`.
+  - RPC `transaction_history(uuid)` security invoker returning actor name from `profiles`, ordered newest first, limit 200.
+- [x] Constant `HISTORY_START_DATE` in `src/features/transactions/historyStart.ts` with helper `isBeforeHistoryStart()` and `HISTORY_START_LABEL`.
+- [x] API functions `getTransactionHistory(transactionId)` and updated `getTransactionById()` resolving creator name; `useTransactionHistory` hook with query key `transactionKeys.history`.
+- [x] UI `TransactionHistory` component mounted on `TransactionDetailPage` under details with `#history` container:
+  - Timeline of revisions newest first with icons (`Pencil`, `Ban`, `RotateCcw`), relative time with tooltip for absolute timestamp, readable change sentences with amounts through `Money`.
+  - Bottom derived item: "Recorded by {creator} on {date}".
+  - Empty state: "No changes recorded".
+  - Error state with Retry button.
+  - `#history` hash smooth scroll on detail page mount.
+- [x] `EditedBadge` links to `#history` when `businessId` and `transactionId` present; pre-migration edits show `(earlier changes were not recorded)`.
+- [x] SQL tests: Section 20 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering edit amount, 2-field edit, no-op update, void, restore, viewer vs outsider visibility, client write denial, and restore suppression.
+- [x] Documentation: `supabase/tests/README.md` updated to 20 sections; `docs/RLS.md` updated with `transaction_revisions` and RPC details; `docs/MANUAL_STEPS.md` updated with rollout verification queries.
+- [x] Frontend tests: `src/features/transactions/__tests__/transactionHistory.test.tsx` (6 tests passing including actions, empty, error retry, pre-migration label, and axe accessibility).
+
+
+
+
+
+
+## S-73 Deletion log export and purge (checklist)
+
+- [x] Migration `20261201000100_v32_deletion_log_purge.sql`:
+  - `deletion_log_purges` table: `id`, `business_id` (cascade), `purged_by` (set null), `purged_at`, `scope` check (`restored_only`, `all`), `older_than`, `entries_purged`, `revisions_purged`.
+  - RPC `purge_deletion_log(p_business_id, p_scope, p_older_than, p_dry_run)`: security definer, owner only, 30-day minimum validation (`older_than <= now() - interval '30 days'` or raises 22023), logs to `deletion_log_purges` unless dry run, returns counts `entries_purged`, `revisions_purged`, `dry_run`. Purges orphaned `transaction_revisions` where transaction was permanently purged.
+  - RPC `export_deletion_log(p_business_id)`: security invoker, limit 5000 rows without snapshot, actor name resolved.
+  - RLS: business owners can select `deletion_log_purges`; client writes revoked.
+- [x] Permissions: `exportDeletionLog` and `purgeDeletionLog` added to `permissions.ts` (Owner only); UI contract and permissions test (53 tests) updated.
+- [x] API functions: `purgeDeletionLog`, `exportDeletionLog`, and `getLastPurge` in `deleted-items/api.ts`; hooks `useLastPurge`, `usePurgeDryRun`, `usePurgeDeletionLog` in `deleted-items/hooks.ts`.
+- [x] `CleanUpDialog`: scope radio ("Items already restored" vs "All items"), age select (30 days to 1 year), live dry-run preview sentence, typed `PURGE` confirmation when unrestored items or scope="all", "Export first" button, submit button with loading state.
+- [x] `DeletedItemsPage`: "Export CSV" and "Clean up…" buttons (Owner only), safe CSV formatting, "Last cleaned up {when} by {name}: {n} entries removed" sub-header line.
+- [x] SQL tests: Section 21 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering owner authorization, 30-day minimum limit enforcement, dry-run accuracy, restored scope isolation, purge of unrestored entries & orphaned revisions, and export RPC.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Tests: `deletedItemsPage.test.tsx` (13 tests) and `deletedItemsApi.test.ts` (11 tests) passing.
+
+## S-74 Ownership transfer (checklist)
+
+- [x] Migration `20261201000200_v32_ownership_transfer.sql`:
+  - `ownership_transfers` table: `id`, `business_id` (cascade), `from_user` (set null), `to_user` (set null), `transferred_at`.
+  - RPC `transfer_ownership(p_business_id, p_new_owner)`: security definer, owner-only check (42501), target must be member of business (55000), target must not own another business (55000), self-transfer refused (55000). Atomically demotes caller to editor, promotes target to owner, updates `businesses.owner_id`, logs to `ownership_transfers`, returns updated rows.
+  - Updated `leave_business` message to mention ownership transfer (42501).
+  - RLS: members can select `ownership_transfers`; client writes revoked.
+- [x] Permissions: `transferOwnership` added to `permissions.ts` (Owner only), `UI-CONTRACT.md` updated, permissions matrix unit test (56 tests) passed.
+- [x] API & hooks: `transferOwnership` in `features/members/api.ts`; `useTransferOwnership` in `features/members/hooks.ts` with cache invalidation (`members`, `memberships`, `detail`).
+- [x] UI `TransferOwnershipDialog`:
+  - List of consequences (you become an Editor; target can change roles, remove anyone, delete business; cannot undo yourself).
+  - Business name to type for confirmation.
+  - Destructive primary button "Transfer ownership" (disabled until name matches).
+  - Inline error display if rejected.
+  - Toast "{name} is now the owner" and permissions refresh on success.
+- [x] MembersPage integration:
+  - RowActions menu item "Make owner…" on member rows for owner (not on owner row, not on self) using `menuOnly: true`.
+  - Updated "Owners cannot leave. Transfer ownership first, or delete the business." note.
+- [x] SQL tests: Section 22 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/outsider refusal (42501), target non-member refusal (55000), target owning another business refusal (55000), self-transfer refusal (55000), role swap & `owner_id` update & audit row logging, old owner privilege loss, new owner privilege gain, cascade delete.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Frontend tests: `transferOwnership.test.tsx` (4 tests) passing including typed confirmation, success toast, inline server error, and axe accessibility; `memberManagement.test.tsx` (11 tests) and `RowActions.test.tsx` (7 tests) passing.
+
+
+## S-75 Bulk select and act (checklist)
+
+- [x] Migration `20261201000300_v32_bulk_actions.sql`:
+  - 5 atomic RPCs capped at 100 items (error `54000`):
+    - `bulk_set_customers_archived(p_business_id uuid, p_ids uuid[], p_archived boolean)` (security invoker)
+    - `bulk_set_transactions_voided(p_business_id uuid, p_ids uuid[], p_voided boolean, p_reason text)` (security invoker)
+    - `bulk_delete_transactions(p_business_id uuid, p_ids uuid[], p_reason text)` (security definer, owner only, loops `delete_transaction`)
+    - `bulk_delete_customers(p_business_id uuid, p_ids uuid[], p_reason text)` (security definer, owner only, loops `delete_customer_permanently`)
+    - `bulk_restore_deleted(p_log_ids uuid[])` (security definer, owner only, loops `restore_deleted`)
+  - All-or-nothing rollback on any row error (P0002, 55000, 42501).
+- [x] Components:
+  - `src/components/ui/checkbox.tsx`: built on `@base-ui/react/checkbox` with `.touch-target` (44px on coarse pointer), indeterminate state, Check and Minus icons.
+  - `src/components/app/BulkActionBar.tsx`: sticky on desktop, fixed above safe area on phone, `aria-live="polite"` count readout, Escape key to clear.
+  - `src/components/app/BulkConfirmDialog.tsx`: shows first 5 items + "and n more", totals summary, recovery notice, typed `DELETE {n}` gate for destructive deletes.
+  - `src/components/app/DataTable.tsx` & `TableCard.tsx`: selectable rows, header indeterminate checkbox, Shift+click range selection, card checkbox.
+- [x] Page integrations:
+  - `CustomersPage`: selection state cleared on search/filter/sort/page; viewers see no checkboxes; BulkActionBar with Archive/Restore/Delete; BulkConfirmDialog with typed `DELETE {n}`; 10s Undo toast calling `bulk_restore_deleted`.
+  - `TransactionsPage`: selection state cleared on filter/range/page/sort/tab; viewers see no checkboxes; BulkActionBar with Void/Restore/Delete; BulkConfirmDialog with typed `DELETE {n}` and sum charged/paid; 10s Undo toast calling `bulk_restore_deleted`.
+  - `DeletedItemsPage`: selection state cleared on filter/tab; BulkActionBar with Restore (Owner only); only unrestored items selectable.
+- [x] SQL tests: Section 23 added to `supabase/tests/bahikhata_consolidated_tests.sql` covering editor/viewer/owner permission matrix, 100-item cap (54000), foreign id refusal, all-or-nothing rollback, deletion log undo roundtrip, archived customer transaction void refusal. Suite updated to 23 sections.
+- [x] Documentation: `supabase/tests/README.md`, `docs/RLS.md`, `docs/MANUAL_STEPS.md` updated.
+- [x] Frontend tests: `src/features/__tests__/bulkActions.test.tsx` (5 tests) passing; `dataTable.test.tsx` (21 tests), `customersList.test.tsx` (18 tests), `transactionsPage.test.tsx` (16 tests), `deletedItemsPage.test.tsx` (13 tests) passing; axe accessibility and 0 lint errors.
+
+
+## U-08 Entry row on the customer ledger (L-12 checklist)
+
+- [x] Schema & validation:
+  - `src/features/transactions/schemas.ts`: exported `amountField` (required, > 0, <= 2 decimals).
+  - Both-columns validation: shows inline `Enter either Charged or Paid` error if both are populated and disables Save button.
+  - Auto-clearing: typing into Charged clears Paid and vice versa.
+- [x] Component `LedgerEntryRow.tsx`:
+  - 6 table cells matching ledger columns: Date (defaults today, accessible change date button with date input), Particulars (input max 500 chars), Charged (amount input), Paid (amount input), Balance (live preview `after: ₹X.XX`), Action (Save button).
+  - Live balance preview dynamically updates according to current customer balance plus charge or minus payment.
+  - Keyboard flow: Tab moves through Date -> Particulars -> Charged -> Paid -> Save; Enter in amount input saves; Escape key clears row.
+  - On submit: calls `useCreateTransaction`, clears row, fires toast "Charge added" or "Payment added", returns focus to Charged input, and passes new transaction ID to `onSuccess`.
+- [x] Integration in `LedgerTable.tsx` and `CustomerDetailPage.tsx`:
+  - `LedgerTable`: supports `topRow` and `highlightId`; applies `.entry-reveal` class to newly created row.
+  - `CustomerDetailPage`: mounts `LedgerEntryRow` as `topRow` when `canWriteTransactions` (`can("manageTransactions") && !archived`); tracks `revealedId` on success.
+  - Responsive: entry row only appears on desktop (`md` and up via `DataTable`'s desktop `<table>` body); below `md`, `DataTable` switches to mobile cards where entry row is absent, leaving the header buttons "Add charge" and "Add payment" as the sole mobile entry point.
+- [x] Frontend tests:
+  - `src/features/customers/__tests__/LedgerEntryRow.test.tsx` (8 tests) passing: 6 table cells, charge flow balance increase, payment flow balance decrease, both-filled error and disabled save, button click save and onSuccess, Enter key save, Escape clear, accessible change date button.
+  - `src/features/customers/__tests__/customerDetail.test.tsx` (11 tests) passing: row index assertions, viewer and archived customer omit entry row, narrow mobile screen omits entry row.
+- [ ] Human validation item:
+  - On desktop (>=768px), navigate to customer detail page: verify LedgerEntryRow is present at the top of the ledger table. Type a charge and press Enter; verify toast "Charge added", row clears, focus returns to Charged input, and new row fades in with `entry-reveal`.
+  - On mobile (<768px), verify no entry row is rendered, only "Add charge" / "Add payment" header buttons.
+
+## S-76 Documentation, rollout guide and backlog (checklist)
+
+- [x] `docs/MANUAL_STEPS.md`:
+  - Section 0 updated with full 7-migration v3.2 chain.
+  - "v3.2 database rollout runbook" section added covering backups, file execution order, error/stop rules, per-file verification queries, post-deploy steps, analysis query from S-71, and history start date from S-72.
+- [x] `docs/UI-CONTRACT.md`:
+  - Detailed sections added for Tooltips & `IconButton`, Table anatomy & `RowActions`, Bulk selection & actions, Activity chart, Transaction revision history, Ownership transfer, and Deletion log purge.
+  - Copy glossary updated with new concepts: Make owner, Clean up, History, Select, Activity.
+- [x] `docs/RLS.md` & `supabase/tests/README.md`:
+  - `docs/RLS.md` updated with the 7-migration chain and 23-section test suite.
+  - `supabase/tests/README.md` documents all 23 test sections including revision history (§20), deletion log export & purge (§21), ownership transfer (§22), and bulk actions (§23).
+- [x] `docs/RELEASE-NOTES-v3.2.md`:
+  - Comprehensive release notes created documenting user changes across all v3.2 stories (U-01..U-08, S-71..S-75), database migration table, rollout guide, rollback procedures, and known limits.
+- [x] `docs/BACKLOG.md`:
+  - Marked B-08, B-12, B-13, B-14 as completed in v3.2.
+  - Added future backlog items B-24 (two-step ownership transfer), B-25 (automatic purge by retention), B-26 (select-all-matching-filter), B-27 (customer revision history), B-28 (per-business chase threshold), and B-29 (cross-page selection).
+- [x] `README.md`:
+  - Updated technology stack, 7-migration list, 23 SQL test sections, script descriptions, and document links.
+

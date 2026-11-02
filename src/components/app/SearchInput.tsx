@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { IconButton } from "@/components/app/IconButton";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
@@ -69,14 +70,13 @@ export function SearchInput({
         aria-label={label}
       />
       {local && (
-        <button
-          type="button"
+        <IconButton
+          icon={<X className="size-3.5" />}
+          label="Clear search"
           onClick={clear}
-          aria-label="Clear search"
-          className="absolute right-2 top-1/2 -translate-y-1/2 touch-target rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
+          size="icon-xs"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        />
       )}
     </div>
   );

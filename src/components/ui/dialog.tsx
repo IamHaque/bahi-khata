@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/app/IconButton"
 import { XIcon } from "lucide-react"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -64,17 +65,15 @@ function DialogContent({
           <DialogPrimitive.Close
             data-slot="dialog-close"
             render={
-              <Button
+              <IconButton
+                icon={<XIcon className="size-4" />}
+                label="Close"
                 variant="ghost"
-                className="absolute top-2 right-2"
                 size="icon-sm"
+                className="absolute top-2 right-2"
               />
             }
-          >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
+          />
         )}
       </DialogPrimitive.Popup>
     </DialogPortal>

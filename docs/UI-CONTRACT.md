@@ -18,6 +18,7 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 | Form control (input, select, textarea, checkbox, outline button) | `border border-input` | `border-border` (too faint for 3:1) |
 | Tinted chip | light `bg-TONE/10`, dark `dark:bg-TONE/8`, text `text-TONE` | `/12` or higher (the audit assumes 10 and 8) |
 | Popover, menu, dialog | `bg-popover border border-border`; dialogs add `border-t-2 border-t-foreground` | custom backgrounds |
+| Tooltip (U-01) | `bg-popover border border-border rounded px-2 py-1 text-xs text-popover-foreground` | `shadow-*`, `ring-*`, `rounded-xl` or larger |
 | Page title and section heading | `font-heading` | any other family |
 | Hero figure (balances, net position) | `font-display tabular-nums` | proportional digits |
 | All money | `<Money>` / `formatMoney` (guard test added in L-03) | hand formatting |
@@ -80,6 +81,11 @@ Tokens come from `design/design-tokens.ledger.css` (applied by L-01, verified by
 | Bring back a deleted item | Restore | Undelete, Recover |
 | Workspace | Business | Tenant, Workspace, Organization |
 | Shared access | Member, Editor, Viewer, Owner | Admin, User |
+| Transfer business ownership | Make owner | Transfer, Hand over |
+| Clean up old deletion log | Clean up | Purge, Prune, Wipe |
+| Transaction edits and audit trail | History | Audit log, Revisions, Changelog |
+| Bulk action mode | Select | Multi-select, Batch |
+| Dashboard trend visualization | Activity | Chart, Trends, Volume |
 
 The note field keeps the label **Note** in forms; its ledger column header
 is **Particulars** (D-27).
@@ -95,17 +101,50 @@ is **Particulars** (D-27).
 
 Shared components (the `ui/` primitives plus the L-04 ledger set):
 
-- Primitives: `Button`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
+- Primitives: `Button`, `IconButton`, `Tooltip`, `Input`, `Select`, `Textarea`, `Switch`, `Tabs`,
   `Card`, `Dialog`, `AlertDialog`, `Sheet`, `Popover`, `Menu`,
   `EntityDialog`, `ConfirmDialog`, `MoneyField`.
 - Ledger (L-04): `LeaderRow` (label + dotted leader + amount, never
   truncates the amount), `TotalsRule` (single rule above, double below),
   `Monogram` (initials avatar on a tone tint), `AgeFlag` (30+ day
   thresholds), `TallyMark`, `TypeBadge` (Charged/Paid), `BalanceBadge`.
-- App-level: `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
+- App-level: `IconButton` (44px touch hit area via `.touch-target`, accessible name + tooltip, disabled triggers supported), `PageHeader`, `DataTable` (five states, `RowActionsMenu`,
   mobile cards), `SearchInput`, `FilterBar`, `EmptyState`, `ErrorState`,
   `Skeleton`, `StatCard`, `Money`/`formatMoney`, `LedgerTable` (the L-07
   real-table ledger with caption, header cells and a Totals row).
+
+## Table anatomy (PRD v3.2 U-02, D-33)
+
+Every list and table follows one shared contract:
+1. **One component:** `DataTable` is the single table component across the app.
+2. **Column sizing & priority folding:**
+   - `width: "fit" | "fill"`: Exactly one `fill` column per table (the primary descriptive text); every other column is `fit` (`w-px whitespace-nowrap` shrink-to-fit for dates, money, badges, counts). No fixed column widths.
+   - `priority: 1 | 2 | 3`: Priority 3 hides below `xl` (1280px), priority 2 hides below `lg` (1024px).
+   - `fold?: (row) => ReactNode`: When priority 2 or 3 columns hide, their content folds into the `fill` column as a muted second line.
+3. **Density:**
+   - `"comfortable"` (default): `px-3 py-2.5`, `text-sm`.
+   - `"compact"`: `px-3 py-1.5`, `text-xs` (for Day book and embedded tables).
+   - Header row is `h-9`, sticky (`sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground`).
+4. **Mobile cards (< 768px):** Shared `mobile` spec renders rows through `TableCard` (`lead`, `title`, `subtitle`, `meta`, `trailing`, `lines`) with a single 44px More button on the right.
+5. **Row actions:** Rendered via `RowActions` (`src/components/app/RowActions.tsx`) with copy from `src/lib/actionLabels.ts`.
+   - Fine pointer at >= 768px: up to two non-destructive actions inline as `IconButton`s; remaining actions (including all destructive actions) collapse into a More actions menu.
+   - Coarse pointer (touch) or mobile card: exactly one More actions menu (44px touch target) holding all actions.
+   - Action ordering: Edit -> Void/Archive -> Restore/Unarchive -> [Divider] -> Delete.
+6. **Selection:** `selectable` prop adds a checkbox fit column and select-all header, plus checkbox support on mobile cards.
+7. **Footer & Totals:** `TableFooter` supports standard pagination (`Showing a–b of n`, rows per page, prev/next) and `mode="more"` (`Showing k of n`, "Show more" button). `totals` slot renders a `TotalsRule` within `tfoot`.
+8. **Top row slot:** `topRow` renders an optional `<tr>` above `tbody` for inline quick-entry.
+
+## Dashboard Activity chart (PRD v3.2 U-06, D-34)
+
+1. **Diverging bar chart:** Charges above zero (receivable), payments below zero (credit). Symmetric Y-axis with nice limits and compact INR formatting (0, 1k, 50k, 1L, 10L, 1Cr).
+2. **Range controls:** 7 days, 30 days, 90 days, 12 months synced to URL (?activity=30 default).
+3. **Summary comparison tiles:** Charged, Paid, Net comparing current period against the immediately preceding period of equal length.
+4. **Partial buckets:**
+   - Daily buckets (7 and 30 days) are never partial.
+   - Weekly buckets (90 days): first bucket is partial if the range starts after Monday 00:00; last bucket is partial if the range ends before Sunday 23:59. Label: `Week of 13 Oct (from 15 Oct)` or `Week of 13 Oct (to 15 Oct)`.
+   - Monthly buckets (12 months): first bucket is partial if range starts after the 1st; last bucket is partial if the current month has not ended. Label: `Oct 2026 (from 17 Oct)` or `Nov 2026 (so far)`.
+   - Visual: partial bars render with reduced opacity (`fillOpacity={0.6}`).
+   - Accessible descriptions: interactive readout and screen-reader `sr-only` table describe partial bucket coverage.
 
 ## Permission matrix ↔ database agreement (S-21)
 
@@ -130,6 +169,9 @@ outsider.
 | `manageMembers` | ✅ | ❌ | ❌ | 0002 §6 "Eli cannot change a member role" / "Eli cannot remove a member" / "Eli cannot insert an invitation" (S-21); 0002c §3 owner changes a role, owner row protected (no promote-to-owner, no remove) (S-25) |
 | `deleteBusiness` | ✅ | ❌ | ❌ | §6 "Eli cannot delete the business"; §10 "Olivia deleted the business" |
 | `leaveBusiness` | ❌ | ✅ | ✅ | 0002 §7 "Olivia cannot leave her own business" (owner must delete instead); 0002c §5 a member leaves and loses access (S-25) |
+| `exportDeletionLog` | ✅ | ❌ | ❌ | §21 export_deletion_log: owner reads; editor/viewer/outsider refused |
+| `purgeDeletionLog` | ✅ | ❌ | ❌ | §21 purge_deletion_log: owner cleans up; editor/viewer/outsider refused (42501) |
+| `transferOwnership` | ✅ | ❌ | ❌ | §22 transfer_ownership: owner transfers; editor/viewer/outsider refused (42501) |
 
 Two guard rails keep the two layers honest:
 
@@ -139,3 +181,53 @@ Two guard rails keep the two layers honest:
 - **Database → UI:** `assertCan` only blocks *known* roles; an unknown
   role falls through and the RLS policies refuse the write anyway.
   The UI hiding a control is experience, never security.
+
+
+## Tooltips & IconButton (PRD v3.2 U-01, D-32)
+1. **Single Tooltip primitive:** Wrapped `@base-ui/react/tooltip`, styled with `bg-popover border border-border text-xs rounded px-2 py-1`.
+2. **IconButton:** Standard icon-only button control. Requires `label` (or `ariaLabel`), renders Lucide icon, auto-wraps in `Tooltip`. Touch hit target is expanded to 44px on coarse pointers via `.touch-target`.
+3. **Disabled state with reason:** When disabled, `disabledReason` displays in the tooltip as `"{label}: {disabledReason}"`. The button renders an accessible focusable wrapper with `aria-label` describing the reason.
+4. **Touch suppression:** Tooltips never open on tap/touch (`pointer: coarse`); clicking or tapping activates the control directly without lingering tooltip artifacts. Enforced by `src/test/iconButtonGuard.test.tsx`.
+
+## Bulk Selection & Actions (PRD v3.2 S-75, B-13)
+1. **Selection contract:**
+   - Desktop and mobile: Checkboxes appear on selectable rows/cards.
+   - Header checkbox toggles all visible rows on current page, with indeterminate state for partial selection.
+   - Shift+click allows range selection across rows on desktop.
+   - Page change, filter change, search query change, tab switch, or Escape key clears active selection.
+2. **BulkActionBar:**
+   - Sticky floating bar on desktop; fixed above bottom safe area on mobile.
+   - `aria-live="polite"` announcement of count (e.g., "3 customers selected").
+   - Action buttons with icon + label (Archive/Restore/Delete for customers; Void/Restore/Delete for transactions; Restore for deleted items).
+   - Escape key dismisses selection.
+3. **BulkConfirmDialog:**
+   - Dialog listing up to 5 affected items plus "and n more".
+   - Shows summary totals (e.g. sum of charged and paid amounts for transactions).
+   - Explains recoverability (archived/voided can be undone; permanently deleted can be restored within 30 days).
+   - Destructive permanent deletes require typing uppercase `DELETE {n}` before confirming.
+   - Provides a 10-second Undo toast on completion.
+4. **Batch limits:** Backend caps operations to 100 items per call with atomic all-or-nothing rollback on any row error.
+
+## Transaction Revision History (PRD v3.2 S-72, B-08)
+1. **Audit trail:** Any edit, void, or restore to a transaction is recorded in `transaction_revisions` via database trigger.
+2. **History section:** Displayed on `TransactionDetailPage` below the details card for all members (Viewers included).
+3. **Changes formatting:** Each revision displays actor name, timestamp, and field-level differences (amount, note, occurred date, status).
+4. **Edited badge:** In tables and lists, the `EditedBadge` displays a pencil icon and links directly to `#history` on the detail page.
+5. **History start notice:** Revisions are tracked starting from the v3.2 database installation date.
+
+## Ownership Transfer (PRD v3.2 S-74, B-14)
+1. **Owner-only atomic transfer:** Executed via `transfer_ownership(p_business_id, p_new_owner)` RPC.
+2. **Make owner dialog:**
+   - Opened from member row menu on Members page for business Owner.
+   - Warns of irreversible consequences (caller becomes Editor; new owner can change roles, remove anyone, or delete business).
+   - Requires typing the exact business name to enable confirmation.
+   - Refreshes app permissions and navigates safely upon completion.
+
+## Deletion Log Export & Purge (PRD v3.2 S-73, B-12)
+1. **Clean up dialog:**
+   - Owner-only operation on Recently Deleted page.
+   - Floor of 30 days: items deleted within the last 30 days can never be purged.
+   - Dry run preview calculates exact count of items eligible for permanent removal.
+   - Requires typing `PURGE` to confirm.
+   - Audit trail logged to `deletion_log_purges`.
+2. **Export:** Export button downloads deletion log as CSV before cleanup.

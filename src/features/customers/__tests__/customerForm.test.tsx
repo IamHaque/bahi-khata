@@ -396,11 +396,10 @@ describe("S-29 customer form", () => {
     renderPage();
     await screen.findByText("Rahim Uddin");
 
+    // v3.2 U-02: Edit is an inline IconButton
     await userEvent.click(
-      screen.getByRole("button", { name: "Actions for Rahim Uddin" }),
+      screen.getByRole("button", { name: "Edit" }),
     );
-    const menu = await screen.findByRole("menu");
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Edit" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(
@@ -469,15 +468,11 @@ describe("S-29 customer form", () => {
     await screen.findByText("Rahim Uddin");
 
     expect(screen.queryByRole("button", { name: "Add customer" })).toBeNull();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Actions for Rahim Uddin" }),
-    );
-    const menu = await screen.findByRole("menu");
-    const labels = within(menu)
-      .getAllByRole("menuitem")
-      .map((item) => item.textContent);
-    expect(labels).toEqual(["View"]);
+    // v3.2 U-02: Viewers have no action column
+    expect(
+      screen.queryByRole("button", { name: "Actions for Rahim Uddin" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
   });
 
   // L-14 — the open customer form dialog passes axe.

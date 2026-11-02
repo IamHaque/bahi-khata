@@ -8,6 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface BusinessSwitcherProps {
@@ -97,40 +98,51 @@ export function BusinessSwitcher({ collapsed }: BusinessSwitcherProps) {
     ? `Switch business: ${current.name} (${roleLabel(current.role)})`
     : "Switch business: BahiKhata Business";
 
+  const trigger = (
+    <PopoverTrigger
+      render={
+        // L-05: the trigger sits under the brand row as plain text on
+        // the spine - no border, a soft white hover, muted at rest.
+        <button
+          type="button"
+          className={cn(
+            "flex h-auto w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm opacity-80 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-foreground pointer-coarse:min-h-11",
+            collapsed && "justify-center px-0",
+          )}
+          aria-label={triggerLabel}
+          onKeyDown={onTriggerKeyDown}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Building2 className="size-4" />
+          </span>
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-semibold">
+                  {current?.name ?? "BahiKhata"}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {current ? roleLabel(current.role) : "Business"}
+                </span>
+              </span>
+              <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+            </>
+          )}
+        </button>
+      }
+    />
+  );
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          // L-05: the trigger sits under the brand row as plain text on
-          // the spine - no border, a soft white hover, muted at rest.
-          <button
-            type="button"
-            className={cn(
-              "flex h-auto w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm opacity-80 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-foreground pointer-coarse:min-h-11",
-              collapsed && "justify-center px-0",
-            )}
-            aria-label={triggerLabel}
-            onKeyDown={onTriggerKeyDown}
-          >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Building2 className="size-4" />
-            </span>
-            {!collapsed && (
-              <>
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-sm font-semibold">
-                    {current?.name ?? "BahiKhata"}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {current ? roleLabel(current.role) : "Business"}
-                  </span>
-                </span>
-                <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-              </>
-            )}
-          </button>
-        }
-      />
+      {collapsed ? (
+        <Tooltip>
+          <TooltipTrigger render={trigger} />
+          <TooltipContent side="right">{current?.name ?? "Switch business"}</TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
       <PopoverContent align="start" side="bottom" className="w-64 p-1">
         <ul role="menu" aria-label="Switch business" className="space-y-0.5">
           {ordered.map((business, index) => (

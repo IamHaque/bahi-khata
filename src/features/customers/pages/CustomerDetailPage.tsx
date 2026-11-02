@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Can } from "@/components/app/Can";
-import type { RowActionItem } from "@/components/app/DataTable";
+import { Archive, Trash2 } from "lucide-react";
+import type { RowAction } from "@/components/app/RowActions";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ErrorState } from "@/components/app/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,8 @@ import { ArchiveCustomerDialog } from "@/features/customers/components/ArchiveCu
 import { DeleteCustomerDialog } from "@/features/customers/components/DeleteCustomerDialog";
 import { CustomerFormDialog } from "@/features/customers/components/CustomerFormDialog";
 import { CustomerHeader } from "@/features/customers/components/CustomerHeader";
-import { CustomerQuickAdd } from "@/features/customers/components/CustomerQuickAdd";
 import { LedgerTable } from "@/features/customers/components/LedgerTable";
+import { LedgerEntryRow } from "@/features/customers/components/LedgerEntryRow";
 import { useCustomer, useSetCustomerArchived } from "@/features/customers/hooks";
 import type { CustomerListRow } from "@/features/customers/api";
 import { useLedgerRowActions } from "@/features/customers/useLedgerRowActions";
@@ -85,6 +85,7 @@ export function CustomerDetailPage() {
     "all",
   );
   const [showVoided, setShowVoided] = useState(true);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
 
   // Derived before the early returns: the row-actions hook must run on
   // every render (React's hook order), and every value it reads is
@@ -177,20 +178,23 @@ export function CustomerDetailPage() {
   // v3 (S-55): Archive stays for active customers; Delete customer
   // joins it next to Archive and also stands alone on archived ones
   // (destroying works either way), always owner-only.
-  const customerMenuItems: RowActionItem[] = [];
+  const customerActions: RowAction[] = [];
   if (canArchive && !archived) {
-    customerMenuItems.push({
+    customerActions.push({
+      id: "archive",
       label: "Archive",
+      icon: Archive,
       onSelect: () => setArchiveOpen(true),
-      variant: "destructive",
+      destructive: true,
     });
   }
   if (can("deleteCustomer")) {
-    customerMenuItems.push({
+    customerActions.push({
+      id: "delete",
       label: "Delete customer",
+      icon: Trash2,
       onSelect: () => setDeleteCustomerOpen(true),
-      variant: "destructive",
-      separator: customerMenuItems.length > 0,
+      destructive: true,
     });
   }
 
@@ -222,7 +226,7 @@ export function CustomerDetailPage() {
         statementHref={paths.statement(businessId, customerId ?? "")}
         canEdit={canManageCustomers && !archived}
         canWrite={canWriteTransactions}
-        menuItems={customerMenuItems}
+        actions={customerActions}
         onBack={() => navigate(paths.customers(businessId))}
         onEdit={() => setEditOpen(true)}
         onAddCharge={addCharge}
@@ -236,18 +240,6 @@ export function CustomerDetailPage() {
         </TabsList>
 
         <TabsContent value="ledger" className="space-y-3">
-          {/* G-A2 is pending, so the baseline quick-add card ships
-              here; L-12's entry row takes the slot when the gate
-              approves (the card stays on as the mobile control). */}
-          <Can action="manageTransactions">
-            {!archived && (
-              <CustomerQuickAdd
-                customerId={customer.id}
-                businessId={businessId}
-              />
-            )}
-          </Can>
-
           <div className="flex flex-wrap items-center justify-between gap-2">
             <ToggleGroup
               // base-ui's group value is always an array of pressed
@@ -289,21 +281,24 @@ export function CustomerDetailPage() {
           ) : filtered.length === 0 ? (
             <EmptyState
               title="No transactions yet"
-              description="Add a charge or a payment to start this ledger."
-            >
-              {canWriteTransactions && (
-                <>
-                  <Button onClick={addCharge}>Add charge</Button>
-                  <Button variant="outline" onClick={addPayment}>
-                    Add payment
-                  </Button>
-                </>
-              )}
-            </EmptyState>
+              description="No entries yet. Use Add charge or Add payment above."
+            />
           ) : (
             <LedgerTable
               entries={filtered}
+              businessId={businessId}
               renderActions={renderLedgerActions}
+              topRow={
+                canWriteTransactions ? (
+                  <LedgerEntryRow
+                    businessId={businessId}
+                    customerId={customer.id}
+                    initialBalance={balance}
+                    onSuccess={(newId) => setRevealedId(newId)}
+                  />
+                ) : undefined
+              }
+              highlightId={revealedId}
             />
           )}
         </TabsContent>
