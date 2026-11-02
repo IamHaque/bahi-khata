@@ -224,21 +224,54 @@ describe("S-42 client hygiene", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("unit tests never import @/lib/supabase without mocking it", () => {
+  it("unit tests never import @/lib/supabase or api modules without mocking supabase", () => {
+    // An allowlist with reasons for tests where an indirect mock or full module mock is used:
+    const ALLOWLIST: Record<string, string> = {
+      "features/dashboard/__tests__/TrendChart.test.tsx":
+        "Mocks ../api directly via vi.mock",
+      "features/import-export/__tests__/exports.test.ts":
+        "Mocks customer and transaction api modules directly via vi.mock",
+      "features/__tests__/keyboardJourneys.test.tsx":
+        "Uses renderApp which provides the global @/lib/supabase mock",
+    };
+
     const offenders: string[] = [];
     for (const file of walk(SRC)) {
       const rel = relative(SRC, file).replace(/\\/g, "/");
       if (!rel.includes("__tests__") && !rel.endsWith(".test.ts") && !rel.endsWith(".test.tsx")) {
         continue;
       }
+      if (ALLOWLIST[rel]) continue;
+
       const content = readIfExists(file) ?? "";
-      const importsClient =
-        content.includes('from "@/lib/supabase"') ||
-        content.includes("from '@/lib/supabase'");
       const mocksClient =
         content.includes('vi.mock("@/lib/supabase"') ||
         content.includes("vi.mock('@/lib/supabase'");
-      if (importsClient && !mocksClient) {
+
+      const importsClient =
+        content.includes('from "@/lib/supabase"') ||
+        content.includes("from '@/lib/supabase'");
+
+      // Check for value imports from api (excluding "import type ...")
+      const lines = content.split("\n");
+      let importsApi = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]?.trim() ?? "";
+        if (line.startsWith("import ") && !line.startsWith("import type ")) {
+          let fullImport = line;
+          let j = i;
+          while (!fullImport.includes("from ") && j < lines.length - 1 && j < i + 10) {
+            j++;
+            fullImport += " " + (lines[j]?.trim() ?? "");
+          }
+          if (/from\s+["'][^"']*\/api["']|from\s+["']\.\.?\/api["']/.test(fullImport)) {
+            importsApi = true;
+            break;
+          }
+        }
+      }
+
+      if ((importsClient || importsApi) && !mocksClient) {
         offenders.push(`src/${rel}`);
       }
     }

@@ -73,6 +73,13 @@ select count(*) from information_schema.routines
      'export_deletion_log',
      'transfer_ownership'
    );
+
+-- 4. Verify anon cannot execute any public function (asserts 0 rows)
+select p.proname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and has_function_privilege('anon', p.oid, 'execute');
 ```
 
 **Warning - never apply migrations to production without a backup**
@@ -1379,6 +1386,13 @@ select count(*) from information_schema.routines
      'export_deletion_log',
      'transfer_ownership'
    );
+
+-- 4. Verify anon cannot execute any public function (asserts 0 rows)
+select p.proname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and has_function_privilege('anon', p.oid, 'execute');
 ```
 
 > [!CAUTION]

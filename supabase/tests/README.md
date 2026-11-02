@@ -12,7 +12,7 @@ needs no extra tooling.
 npm run test:sql          # = bash scripts/run-sql-tests.sh
 ```
 
-`DATABASE_URL` must point at a **scratch** database with all three
+`DATABASE_URL` must point at a **scratch** database with all seven
 migrations applied in filename order — never a real Supabase project: the
 runner installs a stub `auth` schema and the `anon`/`authenticated` roles
 first (see `ci/supabase_stub.sql`). CI runs exactly this in the `sql` job
