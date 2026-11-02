@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePopupViewport } from "@/hooks/usePopupViewport"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -41,11 +42,13 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  style,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  const viewportStyle = usePopupViewport()
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -58,9 +61,10 @@ function SheetContent({
           // rule as the dialog, and home-indicator safe-area padding.
           // L-14 (F4): no drop shadow — the heavy top rule + hairline
           // border carry the elevation, matching every dialog (PRD 5.2).
-          "fixed z-50 flex flex-col gap-4 border-border bg-popover bg-clip-padding text-sm text-popover-foreground transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:rounded-t-sm data-[side=bottom]:border-t-2 data-[side=bottom]:border-t-foreground data-[side=bottom]:pb-[env(safe-area-inset-bottom)] data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
+          "fixed z-50 flex max-h-[var(--popup-height,100dvh)] flex-col gap-4 overflow-y-auto overscroll-contain border-border bg-popover bg-clip-padding text-sm text-popover-foreground transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:top-[calc(var(--popup-top,0px)_+_var(--popup-height,100dvh))] data-[side=bottom]:-translate-y-full data-[side=bottom]:max-h-[calc(var(--popup-height,100dvh)-max(1rem,env(safe-area-inset-top)))] data-[side=bottom]:h-auto data-[side=bottom]:rounded-t-sm data-[side=bottom]:border-t-2 data-[side=bottom]:border-t-foreground data-[side=bottom]:pb-[env(safe-area-inset-bottom)] data-[side=bottom]:data-ending-style:translate-y-[calc(-100%_+_2.5rem)] data-[side=bottom]:data-starting-style:translate-y-[calc(-100%_+_2.5rem)] data-[side=left]:top-[var(--popup-top,0px)] data-[side=left]:left-0 data-[side=left]:h-[var(--popup-height,100dvh)] data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:top-[var(--popup-top,0px)] data-[side=right]:right-0 data-[side=right]:h-[var(--popup-height,100dvh)] data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-[var(--popup-top,0px)] data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
           className
         )}
+        style={{ ...viewportStyle, ...style }}
         {...props}
       >
         {children}
@@ -87,7 +91,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-0.5 border-b border-border p-4", className)}
+      className={cn("flex shrink-0 flex-col gap-0.5 border-b border-border p-4", className)}
       {...props}
     />
   )

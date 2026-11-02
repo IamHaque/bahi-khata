@@ -136,7 +136,7 @@ Every list and table follows one shared contract:
 
 ## Dashboard Activity chart (PRD v3.2 U-06, D-34)
 
-1. **Diverging bar chart:** Charges above zero (receivable), payments below zero (credit). Symmetric Y-axis with nice limits and compact INR formatting (0, 1k, 50k, 1L, 10L, 1Cr).
+1. **Grouped bar chart:** Charges (receivable) and payments (credit) side by side above zero; net remains in the summary. Zero-based Y-axis with nice limits and compact INR formatting (0, 1k, 50k, 1L, 10L, 1Cr).
 2. **Range controls:** 7 days, 30 days, 90 days, 12 months synced to URL (?activity=30 default).
 3. **Summary comparison tiles:** Charged, Paid, Net comparing current period against the immediately preceding period of equal length.
 4. **Partial buckets:**
@@ -231,3 +231,12 @@ Two guard rails keep the two layers honest:
    - Requires typing `PURGE` to confirm.
    - Audit trail logged to `deletion_log_purges`.
 2. **Export:** Export button downloads deletion log as CSV before cleanup.
+
+## Mobile/dashboard follow-up behavior
+
+- Popup height follows the visual viewport, with dynamic CSS viewport height as fallback. Long forms scroll internally; pending saves cannot be dismissed.
+- Drawer width and sidebar content width agree; short navigation panels scroll and respect safe areas.
+- Activity grouping uses the measured chart width. View entries opens the last valid selected bar's inclusive calendar dates, clamped to the plotted range for partial periods. Cleared hover indices must not select the first bar.
+- Transactions custom dates represent local calendar days, with an exclusive query end at the next local midnight.
+
+Implementation evidence and manual verification limits: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md).

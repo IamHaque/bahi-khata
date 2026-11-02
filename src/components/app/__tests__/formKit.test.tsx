@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { useState } from "react";
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { z } from "zod";
 import { renderApp } from "@/test/app-render";
@@ -202,6 +202,23 @@ describe("EntityDialog", () => {
       (screen.getByLabelText("Name") as HTMLInputElement).value,
     ).toBe("Asha");
     expect(container).toBeTruthy();
+  });
+
+  it("ignores close and Escape while saving, then keeps input after failure", async () => {
+    let rejectSave!: (reason: Error) => void;
+    const onSubmit = vi.fn(() => new Promise<void>((_, reject) => { rejectSave = reject; }));
+    renderApp(<DialogProbe onSubmit={onSubmit} defaultValues={{ name: "Asha", amount: 100 }} />);
+    expect(screen.getByRole("dialog").className).toContain("max-h-[calc(var(--popup-height,100dvh)-2rem)]");
+    await userEvent.click(screen.getByRole("button", { name: "Add customer" }));
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByText("Discard changes?")).toBeNull();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await act(async () => rejectSave(new Error("Try again")));
+    expect((await screen.findByRole("alert")).textContent).toContain("Try again");
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Asha");
+    expect((screen.getByRole("button", { name: "Add customer" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("maps field-level errors to the fields", async () => {

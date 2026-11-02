@@ -46,10 +46,10 @@ export function Sidebar({ collapsed, onNavigate }: SidebarProps) {
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-sidebar py-5 pl-3 text-sidebar-foreground",
+        "flex min-h-full shrink-0 flex-col bg-sidebar py-5 pl-3 text-sidebar-foreground",
         // L-05: the spine is 212px and borderless so the active tab
         // touches the main area; the collapsed rail keeps its 64px.
-        collapsed ? "w-16 pl-0" : "w-[212px]",
+        collapsed ? "w-16 pl-0" : "w-full",
       )}
     >
       {/* L-05: brand row - the tally mark and the product name. */}
@@ -119,7 +119,7 @@ interface MobileDrawerProps {
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-[212px] p-0">
+      <SheetContent side="left" className="data-[side=left]:w-[212px] max-w-full gap-0 bg-sidebar p-0 [&_[data-slot=sheet-close]]:text-sidebar-foreground pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <SheetTitle className="sr-only">Navigation menu</SheetTitle>
         <Sidebar
           collapsed={false}

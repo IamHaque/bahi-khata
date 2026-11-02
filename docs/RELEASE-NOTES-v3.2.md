@@ -5,6 +5,12 @@ Story-by-story build evidence: `docs/PROGRESS.md`; human-facing steps: `docs/MAN
 
 ---
 
+## Unreleased mobile/dashboard follow-up
+
+Branch `feat/mobile-layout-dashboard`; implemented locally, not deployed. Drawer content fills its panel; creation popups have scrolling and visual-viewport height limits. Picker sizing and pending-save dismissal are corrected. Chart links preserve the last valid hovered period, clamp partial periods, and apply local calendar dates in Transactions.
+
+Evidence and remaining issues: [review](MOBILE-DASHBOARD-REVIEW.md). Physical-device acceptance is pending in [manual steps](MANUAL_STEPS.md). No new dependencies, migrations, or environment settings.
+
 ## 1. What changed for users
 
 ### Tooltip system and icon buttons (U-01)
@@ -21,8 +27,8 @@ Story-by-story build evidence: `docs/PROGRESS.md`; human-facing steps: `docs/MAN
 - **Unified RowActions:** Desktop displays up to two inline icon buttons plus a More menu; mobile and touch pointers consolidate all actions into a single menu.
 
 ### Rebuilt Dashboard Activity chart (U-06)
-- Replaces the weekly chart with a diverging bar chart: charges render upward in receivable green, payments render downward in credit blue.
-- Symmetric Y-axis with nice tick bounds and compact Indian numbering format (₹1k, ₹50k, ₹1L, ₹10L, ₹1Cr).
+- Activity compares charges and payments side by side above zero, with net shown separately. Grouping adapts to the measured card width.
+- Zero-based Y-axis with nice tick bounds and compact Indian numbering format (₹1k, ₹50k, ₹1L, ₹10L, ₹1Cr).
 - Four range options: **7 days**, **30 days**, **90 days**, **12 months**, synchronized to the URL query string (`?activity=30`).
 - Three comparison metric tiles (Charged, Paid, Net) comparing the selected window to the preceding period of equal length.
 - Interactive keyboard-accessible readout with a direct "View entries" deep link.

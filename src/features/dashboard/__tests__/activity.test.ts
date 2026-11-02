@@ -200,7 +200,7 @@ describe("activity helpers", () => {
 
       expect(buckets[0]?.label).toBe("Sep 26");
       expect(buckets[0]?.charges).toBe(500);
-      expect(buckets[0]?.startDate).toBe("2026-09-01");
+      expect(buckets[0]?.startDate).toBe("2026-09-28");
       expect(buckets[0]?.endDate).toBe("2026-09-30");
 
       expect(buckets[1]?.label).toBe("Oct 26");
@@ -220,6 +220,8 @@ describe("activity helpers", () => {
       ];
       const weeklyBuckets = bucketActivity(partialWeeklyRows, "weekly");
       expect(weeklyBuckets).toHaveLength(2);
+      expect(weeklyBuckets[0]?.startDate).toBe("2026-10-15");
+      expect(weeklyBuckets[1]?.endDate).toBe("2026-10-21");
       expect(weeklyBuckets[0]?.partial).toBe(true);
       expect(weeklyBuckets[0]?.fullDateLabel).toBe("Week of 12 Oct (from 15 Oct)");
       expect(weeklyBuckets[1]?.partial).toBe(true);
@@ -232,6 +234,8 @@ describe("activity helpers", () => {
       ];
       const monthlyBuckets = bucketActivity(partialMonthlyRows, "monthly");
       expect(monthlyBuckets).toHaveLength(2);
+      expect(monthlyBuckets[0]?.startDate).toBe("2026-10-17");
+      expect(monthlyBuckets[1]?.endDate).toBe("2026-11-15");
       expect(monthlyBuckets[0]?.partial).toBe(true);
       expect(monthlyBuckets[0]?.fullDateLabel).toBe("Oct 2026 (from 17 Oct)");
       expect(monthlyBuckets[1]?.partial).toBe(true);

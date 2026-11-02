@@ -1398,3 +1398,20 @@ select p.proname
 > [!CAUTION]
 > **CRITICAL SAFETY WARNING — NEVER RUN THE SQL TEST SUITE AGAINST PRODUCTION:**
 > `supabase/tests/bahikhata_consolidated_tests.sql` must **NEVER** be executed against a production or shared Supabase database. The suite creates and alters test fixtures in `auth.users`, replaces existing roles, and defines temporary helper routines. It is strictly designed for throwaway scratch PostgreSQL instances via `scripts/run-sql-tests.sh`.
+
+## Mobile/dashboard follow-up — pending manual acceptance
+
+Branch: `feat/mobile-layout-dashboard`. Frontend changes only; this branch adds no migrations or environment variables. Existing v3.2 database prerequisites still apply. No deployment has been performed for this work.
+
+Run these checks against the updated branch, then repeat after deployment. These boxes are intentionally unchecked; automated fixture checks do not establish physical-device behavior.
+
+- [ ] On iPhone Safari and Android Chrome, open navigation in portrait and short landscape views. Confirm the sidebar fills the drawer, the close icon is visible, and all navigation items can be reached by scrolling.
+- [ ] Open customer and transaction create/edit forms; focus the first and last fields with the keyboard open, rotate the phone, and expand/collapse browser toolbars. Confirm the popup stays within the visible area and all fields, errors, Cancel and Save remain reachable.
+- [ ] Open customer selection and inline customer creation from a transaction; confirm nested popups scroll, close in the correct order, preserve the transaction draft, and return focus appropriately.
+- [ ] Save with a slow connection: close/Escape/backdrop cannot dismiss a pending save. On a failed save, values remain and retry works. Closing a dirty form still asks before discarding.
+- [ ] Check 7/30/90-day and yearly charts on phone, tablet and desktop, in both themes, with zero activity, payments only, and mixed activity. Grouping may change with width; totals must remain equal.
+- [ ] Hover or tap a later bar, then move outside the plot toward View entries. The readout and link must retain that period. Click through and compare the custom Start/End dates and transaction totals with the selected bar, including partial weeks/months. The link opens the selected bar, not the entire chart range.
+- [ ] Check keyboard chart navigation (arrows/Home/End/Escape), popup focus trapping and focus return to the trigger.
+- [ ] After deployment, repeat the creation and chart-link smoke checks using a test business. Confirm no unexpected network/schema errors.
+
+Automated evidence and remaining defects: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md). The final hover/date fixes pass targeted tests and the full 731-test verification gate; their manual browser confirmation is pending.

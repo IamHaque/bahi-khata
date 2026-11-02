@@ -45,9 +45,8 @@ const RANGE_OPTIONS: RangeOption[] = [
 ];
 
 /**
- * U-06 / D-34: Rebuilt Dashboard Activity chart.
- * Diverging bars: charges above zero (--receivable), payments below (--credit).
- * Symmetric Y axis, 3 summary comparison tiles, URL-synced range selector,
+ * Activity compares positive charges and payments on a shared zero-based scale.
+ * Three summary comparison tiles, URL-synced range selector,
  * interactive readout with "View entries" date link, full keyboard navigation.
  */
 export function TrendChart({ businessId }: { businessId: string }) {
@@ -102,11 +101,13 @@ export function TrendChart({ businessId }: { businessId: string }) {
     return splitActivityPeriods(rows, selectedRange.days, selectedRange.periodLabel);
   }, [rows, selectedRange.days, selectedRange.periodLabel]);
 
-  // Coarsen bucket if bars would be narrower than 6px
+  const [chartWidth, setChartWidth] = useState(320);
+
+  // Leave room for the axis, two 6px bars and the space between groups.
   const bucketType = useMemo(() => {
-    const estimatedWidth = isDesktop ? 1000 : 350;
-    return resolveBucket(selectedRange.bucket, currentRows.length, estimatedWidth);
-  }, [selectedRange.bucket, currentRows.length, isDesktop]);
+    const count = bucketActivity(currentRows, selectedRange.bucket).length;
+    return resolveBucket(selectedRange.bucket, count, Math.max(1, chartWidth - 64) / 3);
+  }, [selectedRange.bucket, currentRows, chartWidth]);
 
   const buckets: ActivityBucket[] = useMemo(() => {
     return bucketActivity(currentRows, bucketType);
@@ -116,7 +117,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
     buckets.length === 0 ||
     buckets.every((b) => b.charges === 0 && b.payments === 0);
 
-  // Symmetric nice maximum for diverging Y-axis
+  // Both series use the same positive scale; net remains in the summary.
   const niceMax = useMemo(() => {
     const maxVal = Math.max(
       ...buckets.map((b) => Math.max(b.charges, b.payments)),
@@ -167,7 +168,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
 
   return (
     <Card
-      className="p-6 min-w-0"
+      className="min-w-0 p-4 sm:p-6"
       role="region"
       aria-label="Activity"
     >
@@ -181,7 +182,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
         <div
           role="group"
           aria-label="Chart range"
-          className="inline-flex rounded-lg border border-input p-0.5"
+          className="inline-flex max-w-full flex-wrap rounded-lg border border-input p-0.5"
         >
           {RANGE_OPTIONS.map((option) => {
             const isSelected = selectedRange.id === option.id;
@@ -291,6 +292,10 @@ export function TrendChart({ businessId }: { businessId: string }) {
             </div>
           </div>
 
+          <p className="mt-3 text-xs text-muted-foreground">
+            {bucketType === "daily" ? "Daily" : bucketType === "weekly" ? "Weekly" : "Monthly"} totals · Charged and paid side by side · Net = charged − paid
+          </p>
+
           {isEmpty ? (
             <div className="my-10 text-center text-sm text-muted-foreground">
               No charges or payments in this period
@@ -308,19 +313,25 @@ export function TrendChart({ businessId }: { businessId: string }) {
                 <ResponsiveContainer
                   width="100%"
                   height={chartHeight}
-                  initialDimension={{ width: 800, height: chartHeight }}
+                  initialDimension={{ width: 320, height: chartHeight }}
+                  onResize={(width) => {
+                    setChartWidth(width);
+                    setActiveIndex(null);
+                  }}
                 >
                   <BarChart
                     data={buckets}
                     margin={{ top: 12, right: 8, bottom: 0, left: -10 }}
-                    stackOffset="sign"
+                    accessibilityLayer={false}
+                    barGap={2}
+                    maxBarSize={24}
                     onClick={(state) => {
-                      if (state && state.activeTooltipIndex !== undefined) {
+                      if (state?.activeTooltipIndex != null) {
                         setActiveIndex(Number(state.activeTooltipIndex));
                       }
                     }}
                     onMouseMove={(state) => {
-                      if (state && state.activeTooltipIndex !== undefined) {
+                      if (state?.activeTooltipIndex != null) {
                         setActiveIndex(Number(state.activeTooltipIndex));
                       }
                     }}
@@ -340,9 +351,9 @@ export function TrendChart({ businessId }: { businessId: string }) {
                       minTickGap={20}
                     />
                     <YAxis
-                      domain={[-niceMax, niceMax]}
-                      ticks={[-niceMax, -niceMax / 2, 0, niceMax / 2, niceMax]}
-                      tickFormatter={(val: number) => formatCompactInr(Math.abs(val))}
+                      domain={[0, niceMax]}
+                      ticks={[0, niceMax / 2, niceMax]}
+                      tickFormatter={(val: number) => formatCompactInr(val)}
                       tickLine={false}
                       axisLine={false}
                       width={52}
@@ -363,7 +374,7 @@ export function TrendChart({ businessId }: { businessId: string }) {
                         fillOpacity={0.4}
                       />
                     )}
-                    {/* Charges above zero */}
+                    {/* Grouped positive amounts share a comparable baseline. */}
                     <Bar
                       dataKey="charges"
                       name="Charges"
@@ -379,9 +390,9 @@ export function TrendChart({ businessId }: { businessId: string }) {
                         />
                       ))}
                     </Bar>
-                    {/* Payments below zero */}
+                    {/* Payment amounts are positive; the net is charged minus paid. */}
                     <Bar
-                      dataKey="paymentsNegative"
+                      dataKey="payments"
                       name="Payments"
                       fill="var(--credit)"
                       radius={0}
