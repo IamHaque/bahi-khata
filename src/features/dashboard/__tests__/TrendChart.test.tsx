@@ -1,5 +1,7 @@
+import type { ComponentProps } from "react";
+import type { BarChart } from "recharts";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { renderApp } from "@/test/app-render";
@@ -7,6 +9,20 @@ import { expectNoSeriousViolations } from "@/test/a11y";
 import { __setMatchMedia } from "@/test/setup";
 import { TrendChart } from "../components/TrendChart";
 import * as dashboardApi from "../api";
+
+type ChartInteraction = (state: { activeTooltipIndex: string | number | null | undefined }) => void;
+const chartEvents = vi.hoisted(() => ({ move: undefined as ChartInteraction | undefined, click: undefined as ChartInteraction | undefined }));
+vi.mock("recharts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("recharts")>();
+  return {
+    ...actual,
+    BarChart(props: ComponentProps<typeof BarChart>) {
+      chartEvents.move = props.onMouseMove as ChartInteraction;
+      chartEvents.click = props.onClick as ChartInteraction;
+      return <actual.BarChart {...props} />;
+    },
+  };
+});
 
 vi.mock("../api", () => ({
   getDailyActivity: vi.fn(),
@@ -127,6 +143,21 @@ describe("U-06 TrendChart", () => {
     expect(screen.queryByText("View entries")).toBeNull();
   });
 
+  it("keeps the last hovered period when Recharts clears its tooltip index", async () => {
+    renderTrendChart("/b/b1?activity=7");
+    await screen.findByRole("group", { name: "Activity chart, use left and right arrow keys" });
+    act(() => chartEvents.move?.({ activeTooltipIndex: "4" }));
+    const expectedHref = "/b/b1/transactions?range=custom&from=2026-10-15&to=2026-10-15";
+    expect(screen.getByRole("link", { name: "View entries" }).getAttribute("href")).toBe(expectedHref);
+    act(() => chartEvents.move?.({ activeTooltipIndex: null }));
+    act(() => chartEvents.move?.({ activeTooltipIndex: undefined }));
+    act(() => chartEvents.click?.({ activeTooltipIndex: null }));
+    expect(screen.getByRole("link", { name: "View entries" }).getAttribute("href")).toBe(expectedHref);
+    expect(screen.getAllByText("Thu 15 Oct").length).toBeGreaterThan(0);
+    act(() => chartEvents.move?.({ activeTooltipIndex: 0 }));
+    expect(screen.getByRole("link", { name: "View entries" }).getAttribute("href")).toContain("from=2026-09-10&to=2026-09-10");
+  });
+
   it("switching range updates the URL and fetches new period", async () => {
     renderTrendChart();
 
@@ -213,6 +244,50 @@ describe("U-06 TrendChart", () => {
       expect(await screen.findByText("View entries")).toBeTruthy();
     } finally {
       __setMatchMedia(false);
+    }
+  });
+
+  it("uses measured card width for density while preserving totals and positive payments", async () => {
+    const callbacks: ResizeObserverCallback[] = [];
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) { callbacks.push(callback); }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    vi.mocked(dashboardApi.getDailyActivity).mockResolvedValue(
+      Array.from({ length: 60 }, (_, index) => ({
+        activity_date: new Date(Date.UTC(2026, 8, 1 + index)).toISOString().slice(0, 10),
+        charges: 100,
+        payments: 40,
+      })),
+    );
+    try {
+      renderTrendChart();
+      await screen.findByRole("table");
+      const resize = (width: number) => act(() => {
+        for (const callback of callbacks) {
+          callback([{ contentRect: { width, height: 280 } } as ResizeObserverEntry], {} as ResizeObserver);
+        }
+      });
+      resize(300);
+      expect(screen.getByText(/Weekly totals/)).toBeTruthy();
+      const table = screen.getByRole("table");
+      expect(within(table).getAllByRole("row").length).toBeLessThan(10);
+      const summary = screen.getByRole("img", { name: /Activity summary/ });
+      expect(summary.getAttribute("aria-label")).toContain("charged ₹3,000.00, paid ₹1,200.00, net ₹1,800.00");
+      const chartRegion = screen.getByRole("group", { name: "Activity chart, use left and right arrow keys" });
+      chartRegion.focus();
+      await userEvent.keyboard("{ArrowRight}");
+      expect(screen.getByRole("link", { name: "View entries" })).toBeTruthy();
+      resize(900);
+      expect(screen.queryByRole("link", { name: "View entries" })).toBeNull();
+      expect(screen.getByText(/Daily totals/)).toBeTruthy();
+      expect(within(table).getAllByRole("row")).toHaveLength(31);
+      expect(summary.getAttribute("aria-label")).toContain("charged ₹3,000.00, paid ₹1,200.00, net ₹1,800.00");
+      expect(document.querySelectorAll(".recharts-bar-rectangle").length).toBe(60);
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 

@@ -35,3 +35,7 @@ post-v3.1 pass. B-01, B-04, B-06 and B-09 are done and kept as history.
 | B-27 | Revision history for customers | S-72 (v3.2) — history tracks transaction changes | Add a `customer_revisions` table and trigger to track changes to customer name, phone, address, and notes. |
 | B-28 | Per-business chase threshold setting | S-71 / U-07 (v3.2) — CHASE_AFTER_DAYS is hardcoded to 30 | Store `chase_after_days` on the `businesses` table so each business can configure its own overdue threshold. |
 | B-29 | Cross-page selection | S-75 (v3.2) — page navigation clears active selection | Retain selected row IDs across page changes so users can build a selection across multiple pages before taking action. |
+
+## Mobile/dashboard review follow-ups
+
+The nine numbered findings in [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md) remain open. Prioritize customer-field clearing, valid large-amount validation, picker/payment-history error states, mobile balance direction (existing B-11), and README migration instructions. The review also records the debtor-link filter, picker pagination limit, and inline customer-selection improvement. Completed layout and chart fixes are recorded in [PROGRESS.md](PROGRESS.md); do not treat the review findings as implemented.

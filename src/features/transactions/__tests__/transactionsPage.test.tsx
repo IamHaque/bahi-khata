@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
 import { __setMatchMedia } from "@/test/setup";
 import { Topbar } from "@/components/layout/Topbar";
+import { TrendChart } from "@/features/dashboard/components/TrendChart";
 import { TransactionsPage } from "@/features/transactions/pages/TransactionsPage";
 import {
   closeTransactionSheet as closeSheet,
@@ -14,6 +15,9 @@ import {
 import { paths, routePatterns } from "@/lib/paths";
 import type { Memberships } from "@/features/business/api";
 import type { CustomerListRow } from "@/features/customers/api";
+
+const dashboardApi = vi.hoisted(() => ({ getDailyActivity: vi.fn() }));
+vi.mock("@/features/dashboard/api", () => dashboardApi);
 
 const businessApi = vi.hoisted(() => ({ getMemberships: vi.fn() }));
 const customersApi = vi.hoisted(() => ({
@@ -217,6 +221,7 @@ function renderPage(route = paths.transactions("b1")) {
   return renderApp(
     <Routes>
       <Route path={routePatterns.business} element={<TopbarStub />}>
+        <Route index element={<TrendChart businessId="b1" />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route
           path="transactions/:transactionId"
@@ -460,6 +465,33 @@ describe("S-35 transactions page v2", () => {
     );
     expect(screen.getByText("Search: bKash")).toBeTruthy();
     expect(screen.getByTestId("url").textContent).toContain("q=bKash");
+  });
+
+  it.each([
+    { activity: "7", dates: ["2026-03-08"], from: "2026-03-08", to: "2026-03-08" },
+    { activity: "90", dates: ["2026-03-06", "2026-03-07", "2026-03-08"], from: "2026-03-06", to: "2026-03-08" },
+    { activity: "12m", dates: ["2026-03-08", "2026-03-09"], from: "2026-03-08", to: "2026-03-09" },
+  ])("chart $activity View entries restores the displayed dates in filters and both queries", async ({ activity, dates, from, to }) => {
+    dashboardApi.getDailyActivity.mockResolvedValue(dates.map((activity_date) => ({ activity_date, charges: 100, payments: 40 })));
+    renderPage(`${paths.business("b1")}?activity=${activity}`);
+    const chart = await screen.findByRole("group", { name: "Activity chart, use left and right arrow keys" });
+    chart.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    const link = screen.getByRole("link", { name: "View entries" });
+    expect(link.getAttribute("href")).toBe(`${paths.transactions("b1")}?range=custom&from=${from}&to=${to}`);
+    await userEvent.click(link);
+    expect((await screen.findByLabelText("Start date") as HTMLInputElement).value).toBe(from);
+    expect((screen.getByLabelText("End date") as HTMLInputElement).value).toBe(to);
+    expect(screen.getByText(`Range: ${from} → ${to}`)).toBeTruthy();
+    expect(screen.getByLabelText("Range").textContent).toContain("Custom");
+    const [fy, fm, fd] = from.split("-").map(Number) as [number, number, number];
+    const [ty, tm, td] = to.split("-").map(Number) as [number, number, number];
+    const range = {
+      start: new Date(fy, fm - 1, fd).toISOString(),
+      end: new Date(ty, tm - 1, td + 1).toISOString(),
+    };
+    await waitFor(() => expect(transactionsApi.queryTransactions).toHaveBeenCalledWith("b1", expect.objectContaining({ range, type: "all", customerId: null, search: "", includeVoided: false })));
+    expect(transactionsApi.transactionRollup).toHaveBeenCalledWith("b1", expect.objectContaining({ range }));
   });
 
   it("deep link: every filter, view and group restores from the query string — the dashboard's Today link shape", async () => {

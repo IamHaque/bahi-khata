@@ -105,7 +105,7 @@ if (process.env.AUDIT_THEMES) {
 // Widths at which touch emulation is switched on and 44x44 targets are
 // enforced. The addendum names 360 and 390.
 const TOUCH_WIDTHS = [360, 390];
-const VIEWPORT_HEIGHT = 900;
+const VIEWPORT_HEIGHT = Number(process.env.AUDIT_HEIGHT || 900);
 const ROOT = path.resolve(__dirname, "..");
 
 const CHROME_CANDIDATES = [
@@ -1267,7 +1267,17 @@ const MEASURE_SOURCE = (requestedWidth) => `(() => {
     .filter((o) => !o.el.parentElement || !outsideSet.has(o.el.parentElement))
     .map(({ el, ...rest }) => rest)
     .slice(0, 8);
+  const viewport = window.visualViewport;
+  const viewportTop = viewport?.offsetTop ?? 0;
+  const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+  const popupOverflow = Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"]'))
+    .filter((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && (rect.top < viewportTop - 1 || rect.bottom > viewportBottom + 1 || rect.left < -1 || rect.right > LIMIT + 1);
+    })
+    .map((el) => ({ title: el.getAttribute("aria-label") || el.textContent.slice(0, 60), top: Math.round(el.getBoundingClientRect().top), bottom: Math.round(el.getBoundingClientRect().bottom) }));
   return {
+    popupOverflow,
     requestedWidth: REQUESTED,
     innerWidth: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -2061,6 +2071,9 @@ async function main() {
             status = "REDIRECTED/BLANK";
             const bodyText = (await evaluate(cdp, `(() => (document.body ? document.body.innerText.slice(0, 160) : ""))()`)) || "";
             detail = `content marker not found, landed on ${measurement.pathname}; body: ${JSON.stringify(bodyText.slice(0, 120))}`;
+          } else if (measurement.popupOverflow.length > 0) {
+            status = "FAIL";
+            detail = `popup outside visual viewport: ${JSON.stringify(measurement.popupOverflow)}`;
           } else if (measurement.scrollWidth <= measurement.innerWidth + 1 && !measurement.viewportExpanded) {
             if (measurement.truncatedAmounts.length === 0) {
               status = "PASS";

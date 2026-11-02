@@ -243,6 +243,8 @@ describe("S-41 responsive pass", () => {
       expect(drawer.getAttribute("data-slot")).toBe("sheet-content");
       expect(drawer.getAttribute("data-side")).toBe("left");
       expect(drawer.textContent).toContain("Navigation menu");
+      expect(drawer.className).toContain("data-[side=left]:w-[212px]");
+      expect(drawer.querySelector("nav")?.parentElement?.className).toContain("w-full");
       expect(
         within(drawer).getByRole("navigation", { name: "Main navigation" }),
       ).toBeTruthy();
@@ -299,6 +301,8 @@ describe("S-41 responsive pass", () => {
       const sheet = await screen.findByRole("dialog");
       expect(sheet.getAttribute("data-slot")).toBe("sheet-content");
       expect(sheet.getAttribute("data-side")).toBe("bottom");
+      expect(sheet.className).toContain("max-h-[calc(var(--popup-height,100dvh)");
+      expect(sheet.querySelector("form")?.parentElement?.className).toContain("min-h-0 overflow-y-auto");
     } finally {
       __setMatchMedia(false);
     }

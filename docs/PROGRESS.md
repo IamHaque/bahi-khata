@@ -1556,3 +1556,14 @@ Baseline captured on branch `feat/v3.2` at `8a0d3b2`:
 - [x] `README.md`:
   - Updated technology stack, 7-migration list, 23 SQL test sections, script descriptions, and document links.
 
+
+## Mobile layout and dashboard follow-up — feat/mobile-layout-dashboard
+
+Status: implemented and verified; submitted for PR review on `feat/mobile-layout-dashboard`. Not deployed by this task.
+
+- Drawer sizing/scrolling/contrast, viewport-bounded creation forms, picker sizing, and pending-save dismissal corrected in shared components.
+- Activity uses grouped positive bars and measured-width grouping. Partial-period links match plotted dates; leaving a bar retains its selection instead of converting a cleared index to zero.
+- Custom transaction dates parse as local calendar days, including daylight-saving boundaries.
+- Final verification: `npm run verify` passed after the navigation follow-up: 89 test files / 731 tests, lint (10 existing warnings), TypeScript and production build. Four navigation/hover regressions also passed in Los Angeles time. Manual browser verification of the final navigation follow-up remains pending.
+- Earlier production build, contrast/token/bundle checks, and fixture-backed short-viewport browser checks passed. Physical-device keyboard checks and deployment verification remain pending.
+- Plan and detailed evidence: [MOBILE-DASHBOARD-PLAN.md](MOBILE-DASHBOARD-PLAN.md), [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md). Manual acceptance: [MANUAL_STEPS.md](MANUAL_STEPS.md), mobile/dashboard follow-up section.

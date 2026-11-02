@@ -108,8 +108,8 @@ export function buildRange(
     case "custom":
       if (!customFrom || !customTo) return null;
       return {
-        start: startOfDay(new Date(customFrom)).toISOString(),
-        end: nextDayStart(new Date(customTo)).toISOString(),
+        start: new Date(`${customFrom}T00:00:00`).toISOString(),
+        end: nextDayStart(new Date(`${customTo}T00:00:00`)).toISOString(),
       };
   }
 }

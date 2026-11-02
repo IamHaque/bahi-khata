@@ -77,6 +77,7 @@ export function EntityDialog({
   }, [open, form]);
 
   const requestClose = () => {
+    if (saving) return;
     if (isDirty) {
       setDiscardOpen(true);
     } else {
@@ -167,7 +168,7 @@ export function EntityDialog({
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
             </SheetHeader>
-            <div className="overflow-y-auto px-4 pb-4">{body}</div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">{body}</div>
           </SheetContent>
         </Sheet>
       ) : (

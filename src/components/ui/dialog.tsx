@@ -1,4 +1,5 @@
 import * as React from "react"
+import { usePopupViewport } from "@/hooks/usePopupViewport"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -42,10 +43,12 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  style,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  const viewportStyle = usePopupViewport()
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -55,9 +58,10 @@ function DialogContent({
           // L-10 — the ledger shell: square corners, a hairline box and
           // the heavy 2px foreground rule across the top, like a bound
           // page. ConfirmDialog and every other dialog inherit it.
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-sm border border-border border-t-2 border-t-foreground bg-popover p-4 text-sm text-popover-foreground duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-[calc(var(--popup-top,0px)_+_var(--popup-height,100dvh)/2)] left-1/2 z-50 grid max-h-[calc(var(--popup-height,100dvh)-2rem)] overflow-y-auto overscroll-contain w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-sm border border-border border-t-2 border-t-foreground bg-popover p-4 text-sm text-popover-foreground duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
+        style={{ ...viewportStyle, ...style }}
         {...props}
       >
         {children}
@@ -84,7 +88,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 border-b border-border pb-3", className)}
+      className={cn("flex shrink-0 flex-col gap-2 border-b border-border pb-3", className)}
       {...props}
     />
   )

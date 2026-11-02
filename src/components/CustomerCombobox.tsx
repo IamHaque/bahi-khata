@@ -234,7 +234,7 @@ export function CustomerCombobox({
             <span className="text-muted-foreground">Select customer...</span>
           )}
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <PopoverContent className="w-(--anchor-width) max-w-[calc(100vw-2rem)] p-0">
           <PickerContent {...pickerProps} />
         </PopoverContent>
       </Popover>
@@ -257,7 +257,7 @@ export function CustomerCombobox({
         )}
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="h-[80vh]">
+        <SheetContent side="bottom" className="h-[80dvh]">
           <SheetTitle className="sr-only">Select customer</SheetTitle>
           <PickerContent {...pickerProps} />
         </SheetContent>
