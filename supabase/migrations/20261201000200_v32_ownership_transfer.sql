@@ -16,9 +16,11 @@ create index if not exists ownership_transfers_business_id_idx
 
 alter table public.ownership_transfers enable row level security;
 
+drop policy if exists "ownership_transfers_select" on public.ownership_transfers;
 create policy "ownership_transfers_select"
   on public.ownership_transfers
   for select
+  to authenticated
   using (public.is_member(business_id));
 
 revoke insert, update, delete on public.ownership_transfers from anon, authenticated;
@@ -137,3 +139,6 @@ begin
      and user_id = (select auth.uid());
 end;
 $$;
+
+revoke execute on function public.leave_business(uuid) from public, anon;
+grant execute on function public.leave_business(uuid) to authenticated;

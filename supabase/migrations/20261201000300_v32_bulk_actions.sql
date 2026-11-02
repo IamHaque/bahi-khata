@@ -16,6 +16,7 @@ as $$
 declare
   v_id uuid;
   v_count int := 0;
+  v_expected int := 0;
 begin
   if cardinality(p_ids) > 100 then
     raise exception 'Cannot act on more than 100 items at a time.' using errcode = '54000';
@@ -23,6 +24,8 @@ begin
   if p_ids is null or cardinality(p_ids) = 0 then
     return 0;
   end if;
+
+  v_expected := (select count(distinct x) from unnest(p_ids) as x);
 
   foreach v_id in array p_ids loop
     if not exists (
@@ -34,12 +37,17 @@ begin
   end loop;
 
   update public.customers
-     set is_archived = p_archived,
+     set archived_at = case when p_archived then now() else null end,
          updated_at = now()
    where id = any(p_ids)
      and business_id = p_business_id;
 
   get diagnostics v_count = row_count;
+  if v_count <> v_expected then
+    raise exception 'You do not have permission to change these items.'
+      using errcode = '42501';
+  end if;
+
   return v_count;
 end;
 $$;
@@ -67,6 +75,7 @@ declare
   v_status transaction_status;
   v_cust_archived boolean;
   v_count int := 0;
+  v_expected int := 0;
 begin
   if cardinality(p_ids) > 100 then
     raise exception 'Cannot act on more than 100 items at a time.' using errcode = '54000';
@@ -75,12 +84,14 @@ begin
     return 0;
   end if;
 
+  v_expected := (select count(distinct x) from unnest(p_ids) as x);
+
   if p_voided and p_reason is not null and char_length(p_reason) > 200 then
     raise exception 'Reason must be 200 characters or fewer.' using errcode = '22001';
   end if;
 
   foreach v_id in array p_ids loop
-    select t.id, t.customer_id, t.status, c.is_archived
+    select t.id, t.customer_id, t.status, (c.archived_at is not null)
       into v_tx_id, v_cust_id, v_status, v_cust_archived
       from public.transactions t
       join public.customers c on c.id = t.customer_id
@@ -105,10 +116,22 @@ begin
      where id = any(p_ids)
        and business_id = p_business_id;
     get diagnostics v_count = row_count;
+    if v_count <> v_expected then
+      raise exception 'You do not have permission to change these items.'
+        using errcode = '42501';
+    end if;
     return v_count;
   else
     foreach v_id in array p_ids loop
-      perform public.restore_transaction(v_id, p_business_id);
+      begin
+        perform public.restore_transaction(v_id, p_business_id);
+      exception
+        when others then
+          if not public.is_member_with_role(p_business_id, array['owner', 'editor']) then
+            raise exception 'You do not have permission to change these items.' using errcode = '42501';
+          end if;
+          raise exception 'Could not restore transaction %: %', v_id, sqlerrm using errcode = sqlstate;
+      end;
       v_count := v_count + 1;
     end loop;
     return v_count;

@@ -187,3 +187,5 @@ $$;
 
 revoke all on function public.transaction_history(uuid) from public, anon;
 grant execute on function public.transaction_history(uuid) to authenticated;
+
+revoke all on function public.record_transaction_revision() from public, anon, authenticated;
