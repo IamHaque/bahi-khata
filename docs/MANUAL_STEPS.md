@@ -49,38 +49,7 @@ changed `delete_customer_permanently()`'s return type.
 **Idempotency proof (S-77):**
 All four new v3.2 migrations (`20261201000000` through `20261201000300`) were verified for idempotency by applying them sequentially twice against a clean scratch database (PostgreSQL 17.11) with zero errors (`psql` exited with code 0 on both runs).
 
-**Post-rollout verification queries (v3.2 overall):**
-After applying all 4 migrations, run these queries to assert overall database state:
-```sql
--- 1. Verify policy count across public schema (asserts 22 policies)
-select count(*) from pg_policies where schemaname = 'public';
-
--- 2. Verify all 3 new v3.2 tables exist (asserts 3)
-select count(*) from information_schema.tables
- where table_schema = 'public'
-   and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
-
--- 3. Verify all 8 new v3.2 functions exist (asserts 8)
-select count(*) from information_schema.routines
- where routine_schema = 'public'
-   and routine_name in (
-     'bulk_set_customers_archived',
-     'bulk_set_transactions_voided',
-     'bulk_delete_transactions',
-     'bulk_restore_deleted',
-     'bulk_delete_customers',
-     'purge_deletion_log',
-     'export_deletion_log',
-     'transfer_ownership'
-   );
-
--- 4. Verify anon cannot execute any public function (asserts 0 rows)
-select p.proname
-  from pg_proc p
-  join pg_namespace n on n.oid = p.pronamespace
- where n.nspname = 'public'
-   and has_function_privilege('anon', p.oid, 'execute');
-```
+For overall verification queries, see the v3.2 post-rollout section below.
 
 **Warning - never apply migrations to production without a backup**
 (see the backup step in the "v3 database rollout" section). The full
@@ -1191,6 +1160,34 @@ from step (a).
 
 ## v3.2 database rollout runbook (S-76)
 
+### Production status
+The owner applied the four v3.2 migrations in their fixed form on YYYY-MM-DD and verified the function definitions, anon privileges, policy roles, and policy count with the four read-only checks below. `HISTORY_START_DATE` (`2026-11-02T16:21:21.000Z`) is the real deployment time. The four files are frozen; put any further SQL in a new migration file.
+
+### Is production on the fixed version?
+Run these read-only checks in the SQL editor:
+
+```sql
+-- Five rows: has_is_archived is false for each; both set-functions have viewer_error true.
+select p.proname,
+       position('is_archived' in pg_get_functiondef(p.oid)) > 0 as has_is_archived,
+       position('You do not have permission to change these items.' in pg_get_functiondef(p.oid)) > 0 as viewer_error
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname in (
+   'bulk_set_customers_archived', 'bulk_set_transactions_voided',
+   'bulk_delete_transactions', 'bulk_delete_customers', 'bulk_restore_deleted');
+
+-- Zero rows: anon cannot execute public functions.
+select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute');
+
+-- Zero rows: every public policy applies only to authenticated.
+select tablename, policyname, roles from pg_policies
+ where schemaname = 'public' and roles <> array['authenticated']::name[];
+
+-- 22 policies.
+select count(*) from pg_policies where schemaname = 'public';
+```
+
 ### Prerequisites & Safety Rules
 1. **Backups first:** Perform a full database backup via Supabase Dashboard (Database -> Backups) or CLI (`pg_dump`) before executing any migrations.
 2. **Order of execution:** Apply the 4 migration files in exact filename order:
@@ -1373,7 +1370,7 @@ select count(*) from information_schema.tables
  where table_schema = 'public'
    and table_name in ('transaction_revisions', 'deletion_log_purges', 'ownership_transfers');
 
--- 3. Verify all 8 new v3.2 functions exist (asserts 8)
+-- 3. Verify all 10 new v3.2 functions exist (asserts 10)
 select count(*) from information_schema.routines
  where routine_schema = 'public'
    and routine_name in (
@@ -1384,7 +1381,9 @@ select count(*) from information_schema.routines
      'bulk_delete_customers',
      'purge_deletion_log',
      'export_deletion_log',
-     'transfer_ownership'
+     'transfer_ownership',
+     'transaction_history',
+     'record_transaction_revision'
    );
 
 -- 4. Verify anon cannot execute any public function (asserts 0 rows)
