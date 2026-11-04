@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Transaction } from "@/types";
+import { formatMoney } from "@/lib/format";
 
 /**
  * S-32 — the add-transaction form's validation, shared by every entry
@@ -41,13 +42,15 @@ function localTime(when: Date): string {
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export const MAX_AMOUNT = 999_999_999.99;
+
 export const amountField = z
   .number({ error: "Amount is required" })
+  .max(MAX_AMOUNT, `Amount must be ${formatMoney(MAX_AMOUNT)} or less.`)
   .refine((value) => value > 0, { message: "Amount must be above zero" })
   .refine(
-    (value) =>
-      Number.isFinite(value) &&
-      Math.abs(Math.round(value * 100) - value * 100) < 1e-9,
+    // Decimal representation avoids multiplication drift within the supported maximum.
+    (value) => /^\d+(\.\d{1,2})?$/.test(String(value)),
     { message: "Amount can have at most 2 decimals" },
   );
 

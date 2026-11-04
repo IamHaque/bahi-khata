@@ -342,6 +342,14 @@ beforeEach(() => {
 });
 
 describe("S-32 transaction sheet", () => {
+  it("allows a charge of ₹12,34,567.89", async () => {
+    const dialog = await openLedgerSheet();
+    await userEvent.type(within(dialog).getByLabelText("Amount"), "1234567.89");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add charge" }));
+    await waitFor(() => expect(transactionsApi.createTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 1234567.89 }), "b1",
+    ));
+  });
   it("adds a charge from the ledger: focused amount, live preview, row on top, balance flashes", async () => {
     const before = Date.now();
     const dialog = await openLedgerSheet();

@@ -1636,3 +1636,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - Completed: 28 scenarios x five widths x both themes = 280 passing layout cells; pointer-coarse 112/112, 1,230 touch controls checked, zero touch failures; visible focus rings and reduced motion passed. Evidence: `.local/v321-baseline-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-aC5USH/report.json`.
 - V-18: audit limitations are explicit: three unmatched history/deletion-log requests received empty fixtures; closing focus was reported on body for several dialogs, and the separate delete-transaction keyboard pass reported opened=false at both widths despite passing layout cells. These are baseline limitations to resolve before final verification; do not claim dialog focus return is verified.
 - P-00 complete: baseline commands executed and recorded; working specification and owner confirmations added. P-01 is next.
+
+### P-01 checklist — complete
+
+- [x] Shared amountField uses decimal representation and MAX_AMOUNT 999_999_999.99, with maximum formatted through formatMoney; transaction add/edit and ledger already consume the shared schema. CSV import's actual parser is validateAmount in src/lib/csv-import.ts (rather than parseAmount); it now consumes the same rule.
+- [x] Table-driven boundary and import tests: 9 failures before fix, all passing after; sheet test submits 1234567.89. Full verify: 90 files / 751 tests passed, 48.61s; lint, typecheck and build passed; tokens 58, contrast 41 per theme / zero failures, bundle guard passed.
+- No layout or touch behavior changed. P-00 commit: `8553838`; P-01 commit hash will be recorded in the next story commit.

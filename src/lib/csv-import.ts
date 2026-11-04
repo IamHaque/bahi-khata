@@ -1,4 +1,5 @@
 import type { TransactionType } from "@/types";
+import { amountField } from "@/features/transactions/schemas";
 
 export interface CsvRow {
   customer_name: string;
@@ -61,7 +62,7 @@ function parseCsvLine(line: string): string[] {
 function validateAmount(value: string): number | null {
   const cleaned = value.replace(/[₹,\s]/g, "");
   const num = Number(cleaned);
-  if (isNaN(num) || num <= 0) return null;
+  if (!amountField.safeParse(num).success) return null;
   return num;
 }
 
