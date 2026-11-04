@@ -54,6 +54,14 @@ beforeEach(() => {
 });
 
 describe("exportCustomersCsv (S-39)", () => {
+  it("exports numeric credit balances and protected customer text", async () => {
+    vi.mocked(queryCustomers).mockResolvedValueOnce({ items: [{ ...customerRow("=1+1"), balance: -500 }], total: 1, allTotal: 1 });
+    await exportCustomersCsv("b1", {}, () => {});
+    expect(vi.mocked(downloadCsv).mock.calls[0]![1]).toMatchInlineSnapshot(`
+      "name,phone,balance,last_activity,created
+      '=1+1,,-500,,2024-01-01T00:00:00.000Z"
+    `);
+  });
   it("pages through the server until every matching row is fetched", async () => {
     vi.mocked(queryCustomers)
       .mockResolvedValueOnce({
@@ -147,6 +155,14 @@ describe("exportCustomersCsv (S-39)", () => {
 });
 
 describe("exportTransactionsCsv (S-39)", () => {
+  it("exports numeric amounts and preserves formula protection for notes", async () => {
+    vi.mocked(queryTransactions).mockResolvedValueOnce({ rows: [{ ...transactionRow("t1", "Asha"), amount: -500, note: "-5" }], total: 1 });
+    await exportTransactionsCsv("b1", { type: "all", includeVoided: false }, () => {});
+    expect(vi.mocked(downloadCsv).mock.calls[0]![1]).toMatchInlineSnapshot(`
+      "date,type,customer,amount,note,status
+      2024-01-15T00:00:00.000Z,charge,Asha,-500,'-5,posted"
+    `);
+  });
   it("exports the filtered entries with their customer names", async () => {
     vi.mocked(queryTransactions)
       .mockResolvedValueOnce({

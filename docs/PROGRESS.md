@@ -1701,3 +1701,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Transactions query already inner-joins customers and filters customers.archived_at=null before applying any range; existing businessScoping test and Today page/date-range tests passed in the full suite. No Today label change or responsive rerun needed; no client layout changed.
 - [x] Contract/backlog rule corrected. Full verify with two workers: 92 files / 765 tests, 152.04s; lint/typecheck/build and token/contrast/bundle guards passed. P-08 commit: `34e45c3`; P-10 is next.
 - V-22: the prompt's suggested contract text implies Transactions shows archived customers, but source and API tests prove it excludes them too. Document the actual rule: Archived customer list and individual ledgers retain access to archived history; dashboard and cross-customer Transactions exclude it.
+
+### P-10 checklist — complete
+
+- [x] Explicit csvNumber cells serialize finite numeric values without prefixes/quotes; default text retains formula protection, now including leading tab/carriage return. Customers balance, Transactions amount and deletion-log amount are marked; business backup/DangerZone reuse those builders.
+- [x] Focused regressions failed before the fix; numeric parse-back sums -500 + 200 to -300, formula-like names/notes and quoting remain guarded, non-finite numeric cells rejected, header/sample snapshots cover all three builders. Full verify passed with two workers: 92 files / 776 tests, 151.38s; lint/typecheck/build and token/contrast/bundle guards passed.
+- V-23: StatementPage is print-only and has no CSV export in this source version; no new statement export was added. No layout/touch change; P-09 commit is `f35baa3`; P-11 is next.

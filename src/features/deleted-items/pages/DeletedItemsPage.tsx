@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ArrowLeftRight, Download, Info, Loader2, Trash2, Undo2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/PageHeader";
-import { toCsv, downloadCsv } from "@/features/import-export/csv";
+import { csvNumber, toCsv, downloadCsv } from "@/features/import-export/csv";
 import { exportDeletionLog } from "../api";
 import { CleanUpDialog } from "../components/CleanUpDialog";
 import { DataTable, type Column } from "@/components/app/DataTable";
@@ -61,7 +61,7 @@ export function DeletedItemsPage() {
         r.reason ?? "",
         r.restored_at ?? "",
         r.restorer_name ?? "",
-        r.amount !== null && r.amount !== undefined ? r.amount : "",
+        r.amount !== null && r.amount !== undefined ? csvNumber(r.amount) : "",
       ]);
       const csv = toCsv(headers, dataRows);
       const today = new Date().toISOString().slice(0, 10);
