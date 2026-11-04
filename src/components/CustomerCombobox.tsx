@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useCustomers } from "@/features/customers/hooks";
+import { useCustomer, useCustomerList } from "@/features/customers/hooks";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import type { Customer } from "@/types";
 
@@ -45,13 +46,7 @@ function PickerContent({
   inputRef: React.RefObject<HTMLInputElement | null>;
   listRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const filtered = search.trim()
-    ? customers.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          (c.phone && c.phone.includes(search)),
-      )
-    : customers;
+  const filtered = customers;
 
   const noMatches = search.trim() && filtered.length === 0;
   const showAddNew = !loading && !failed && noMatches;
@@ -88,7 +83,7 @@ function PickerContent({
           </div>
         )}
 
-        {!loading && !failed && customers.length === 0 && (
+        {!loading && !failed && !search.trim() && customers.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-4">
             <p className="text-sm text-muted-foreground">No customers yet.</p>
             <button
@@ -165,6 +160,9 @@ function PickerContent({
           </div>
         )}
       </div>
+      {!search.trim() && !failed && (
+        <p className="px-3 py-2 text-xs text-muted-foreground">Type to search all customers</p>
+      )}
     </div>
   );
 }
@@ -183,7 +181,12 @@ export function CustomerCombobox({
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const businessId = useScopedBusinessId() ?? "";
-  const { data: customers = [], isLoading, isError, refetch } = useCustomers(businessId);
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const { data, isPending, isError, refetch } = useCustomerList(businessId, {
+    search: debouncedSearch, status: "all", page: 1, pageSize: 20, sort: "name", dir: "asc",
+  });
+  const customers = data?.items ?? [];
+  const { data: selectedCustomer } = useCustomer(value ?? "", businessId, { enabled: !!value });
 
   useEffect(() => {
     if (open) {
@@ -205,11 +208,11 @@ export function CustomerCombobox({
     return () => clearTimeout(timer);
   }, [open]);
 
-  const selected = customers.find((c) => c.id === value);
+  const selected = selectedCustomer ?? customers.find((c) => c.id === value);
 
   const pickerProps = {
     customers,
-    loading: isLoading,
+    loading: isPending || search.trim() !== debouncedSearch,
     failed: isError,
     onRetry: () => void refetch(),
     search,

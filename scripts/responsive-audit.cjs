@@ -222,6 +222,16 @@ const SCENARIOS = [
     dialog: true,
   },
   {
+    id: "customer-picker-results",
+    path: "/b/b1",
+    marker: "Where you stand",
+    expectedText: "Type to search all customers",
+    open: [
+      { role: "button", name: /^Add transaction$/ },
+      { role: "button", name: /^Select customer\.\.\.$/ },
+    ],
+  },
+  {
     id: "customer-picker-error",
     path: "/b/b1",
     marker: "Where you stand",

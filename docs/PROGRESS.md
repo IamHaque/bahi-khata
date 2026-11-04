@@ -1661,3 +1661,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 
 - [x] Final full responsive audit completed: 29 scenarios x five widths x both themes, 290 passing layout cells; pointer-coarse 116/116; 1,195 touch controls, zero failures; focus-ring, trap/Escape and motion checks passed. Log `.local/v321-p03-responsive-verified.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-yMj7P7/report.json`; baseline focus-return and unmatched-request limitations from V-18 remain explicit.
 - [x] Picker error/Retry and successful empty state tested, axe passed; full verify 92 files / 756 tests, 53.00s; lint/typecheck/build and static audits passed. P-03 is complete; P-04 is next.
+
+### P-04 checklist — complete
+
+- [x] Picker reuses active-only queryCustomers search through useCustomerList, debounced 300ms, sorted alphabetically, first page of 20; empty search includes the search-all hint. Selected customer resolves by id through useCustomer, independently of the result window; create/loading/error/empty states preserved.
+- [x] Tests pin delayed request timing, server search for c1001 beyond the initial window, selected label after changing search, and successful-empty/error/retry behavior. Full verify: 92 files / 758 tests passed, 53.60s; lint/typecheck/build and token/contrast/bundle audits passed.
+- [x] Full responsive run: 30 scenarios, 300 passing cells, pointer-coarse 120/120, 1,214 touch controls, zero failures; log `.local/v321-p04-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-k8Ev7l/report.json`. Baseline supplemental focus-return and unmatched-request limitations remain V-18; P-03 commit is `fe20735`.
