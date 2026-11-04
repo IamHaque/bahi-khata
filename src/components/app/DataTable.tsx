@@ -234,6 +234,67 @@ export function DataTable<T>({
     }
   };
 
+  const columnHeaders = columns.map((col) => {
+    const sortActive = (col.sortKey ?? col.key) === sortBy;
+    return (
+      <TableHead
+        key={col.key}
+        data-width={col.width === "fill" ? "fill" : "fit"}
+        aria-sort={
+          col.sortable
+            ? sortActive
+              ? sortDir === "asc"
+                ? "ascending"
+                : "descending"
+              : "none"
+            : undefined
+        }
+        className={cn(
+          "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
+          col.sortable && "pointer-coarse:h-11 focus-visible:outline-2 focus-visible:outline-ring",
+          col.sortable &&
+            (sortActive
+              ? "cursor-pointer bg-accent-wash font-medium text-primary"
+              : "cursor-pointer hover:bg-accent-wash"),
+          col.align === "right" && "text-right",
+          col.align === "center" && "text-center",
+          getPriorityClass(col.priority),
+          getWidthClass(col.width),
+          cellPadding,
+          col.className,
+        )}
+        {...(col.sortable
+          ? {
+              onClick: () => handleSort(col),
+              role: "columnheader" as const,
+              tabIndex: 0,
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSort(col);
+                }
+              },
+            }
+          : { scope: "col" as const })}
+      >
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 font-medium",
+            col.align === "right" && "flex-row-reverse",
+          )}
+        >
+          {col.header}
+          {sortActive &&
+            (sortDir === "asc" ? (
+              <ArrowUp className="size-3 text-foreground" />
+            ) : (
+              <ArrowDown className="size-3 text-foreground" />
+            ))}
+        </span>
+      </TableHead>
+    );
+  });
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -242,21 +303,7 @@ export function DataTable<T>({
             <TableHeader>
               <TableRow className="h-9">
                 {selectable && <TableHead className="w-px px-3 bg-muted/60" data-width="fit" />}
-                {columns.map((col) => (
-                  <TableHead
-                    key={col.key}
-                    data-width={col.width === "fill" ? "fill" : "fit"}
-                    className={cn(
-                      "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
-                      getPriorityClass(col.priority),
-                      getWidthClass(col.width),
-                      cellPadding,
-                      col.className,
-                    )}
-                  >
-                    {col.header}
-                  </TableHead>
-                ))}
+                {columnHeaders}
                 {renderRowActions && (
                   <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" data-width="fit" />
                 )}
@@ -389,65 +436,7 @@ export function DataTable<T>({
                   </div>
                 </TableHead>
               )}
-              {columns.map((col) => {
-                const sortActive = (col.sortKey ?? col.key) === sortBy;
-                return (
-                  <TableHead
-                    key={col.key}
-                    data-width={col.width === "fill" ? "fill" : "fit"}
-                    aria-sort={
-                      col.sortable
-                        ? sortActive
-                          ? sortDir === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                        : undefined
-                    }
-                    className={cn(
-                      "sticky top-0 z-10 bg-muted/60 text-xs font-medium text-muted-foreground",
-                      col.sortable &&
-                        (sortActive
-                          ? "cursor-pointer bg-accent-wash font-medium text-primary"
-                          : "cursor-pointer hover:bg-accent-wash"),
-                      col.align === "right" && "text-right",
-                      col.align === "center" && "text-center",
-                      getPriorityClass(col.priority),
-                      getWidthClass(col.width),
-                      cellPadding,
-                      col.className,
-                    )}
-                    {...(col.sortable
-                      ? {
-                          onClick: () => handleSort(col),
-                          role: "columnheader" as const,
-                          tabIndex: 0,
-                          onKeyDown: (e: React.KeyboardEvent) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              handleSort(col);
-                            }
-                          },
-                        }
-                      : { scope: "col" as const })}
-                  >
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 font-medium",
-                        col.align === "right" && "flex-row-reverse",
-                      )}
-                    >
-                      {col.header}
-                      {sortActive &&
-                        (sortDir === "asc" ? (
-                          <ArrowUp className="size-3 text-foreground" />
-                        ) : (
-                          <ArrowDown className="size-3 text-foreground" />
-                        ))}
-                    </span>
-                  </TableHead>
-                );
-              })}
+              {columnHeaders}
               {renderRowActions && (
                 <TableHead className="sticky top-0 z-10 w-px bg-muted/60 px-3" data-width="fit">
                   <span className="sr-only">Actions</span>

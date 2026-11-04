@@ -1713,3 +1713,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Repo-wide TSX source scan excludes tests and features/dev, removes minmax(0, ...) tracks, and reports each remaining fractional track as file:line; no allowlist needed. Existing Dashboard/Settings render assertions retained.
 - [x] Temporary GridGuardProbe bare 1fr failed at components/GridGuardProbe.tsx:2, then probe removed; underscores normalized before matching, and existing filesystem typings/JS target respected. Full verify passed with two workers: 92 files / 777 tests, 169.93s; lint/typecheck/build and token/contrast/bundle audits passed.
 - P-10 commit: `dc95ced`; owner explicitly requested both P-12 optional items. P-12 loading headers is next, then URL page sizes.
+
+### P-12 loading headers — complete (B-02)
+
+- [x] Loading/data branches share the existing sortable header rendering, preserving role, aria-sort, sort icon, click and keyboard behavior. Coarse-pointer sortable headers have 44px height and visible keyboard outlines; audit now includes focusable column headers and a held customer-list loading scenario.
+- [x] Regression failed before fix; all DataTable tests passed, then full verify passed: 92 files / 777 tests, 151.75s; lint/typecheck/build and static audits passed. Focused loading audit passed 10 cells / 68 touch checks; full audit passed 33 scenarios / 330 cells, pointer-coarse 132/132, 1,386 touch checks, zero failures (`.local/v321-p12-header-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-IcrW92/report.json`).
+- P-11 commit: `fe255ac`; owner requested both P-12 items. URL page size is next.

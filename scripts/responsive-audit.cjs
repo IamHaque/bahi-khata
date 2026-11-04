@@ -177,6 +177,7 @@ const SCENARIOS = [
   { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business", cardWords: ["owes you", "you owe", "Settled"] },
   { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
   { id: "customers-all-archived", path: "/b/b1/customers", marker: "All your customers are archived", mode: "all-archived" },
+  { id: "customers-loading", path: "/b/b1/customers", marker: "Everyone in this business", mode: "customers-hold", focus: true },
 
   // Customer detail: with ledger entries and with none. ("Current Balance"
   // was L-07-renamed to "Owes you / You owe / Settled" — the marker tracks
@@ -1112,6 +1113,9 @@ function fixtureFor(urlString, method, headers, postData) {
       if (fixtureMode === "hold" && urlObj.pathname.startsWith("/rest/v1/rpc/")) {
         return { hold: true };
       }
+      if (fixtureMode === "customers-hold" && urlObj.pathname === "/rest/v1/customers" && (urlObj.searchParams.get("select") || "").includes("customer_balances!inner")) {
+        return { hold: true };
+      }
       fixture = routeRest(urlObj, method, headers, postData);
     } else {
       unmatchedRequests.add(`${method} ${urlObj.pathname} (unknown supabase path) — served []`);
@@ -1376,7 +1380,7 @@ const HITTEST_SOURCE = `(() => {
   const modalRoot =
     document.querySelector("[data-slot$='-content'][data-open], [data-slot='sheet-content'][data-open], [role='dialog']:not([hidden])") ||
     null;
-  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"]';
+  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="columnheader"][tabindex]';
   const els = Array.from(document.querySelectorAll(SEL));
   const failures = [];
   let checked = 0;

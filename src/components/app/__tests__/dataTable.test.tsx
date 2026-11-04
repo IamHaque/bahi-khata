@@ -79,10 +79,21 @@ describe("DataTable", () => {
     expect(onSortChange).toHaveBeenCalledWith("amount", "asc");
   });
 
-  it("shows skeleton rows while loading", () => {
-    renderApp(<DataTable {...baseProps} loading />);
+  it("shows skeleton rows with usable sort headers while loading", async () => {
+    const onSortChange = vi.fn();
+    renderApp(<DataTable {...baseProps} loading sortBy="name" sortDir="asc" onSortChange={onSortChange} />);
     expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
     expect(screen.queryByText("Asha")).toBeNull();
+    const header = screen.getByRole("columnheader", { name: /name/i });
+    expect(header.getAttribute("aria-sort")).toBe("ascending");
+    expect(header.className).toContain("cursor-pointer");
+    expect(header.tabIndex).toBe(0);
+    expect(header.querySelector("svg")).toBeTruthy();
+    await userEvent.click(header);
+    expect(onSortChange).toHaveBeenCalledWith("name", "desc");
+    header.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(onSortChange).toHaveBeenCalledTimes(2);
   });
 
   it("shows the empty state slot when there are no rows", () => {
