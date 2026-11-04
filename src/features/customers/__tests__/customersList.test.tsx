@@ -181,6 +181,24 @@ beforeEach(() => {
 });
 
 describe("S-28 customers list", () => {
+  it.each([["25", 25], ["10", 10], ["invalid", 10]] as const)("restores pageSize=%s from a shared URL", async (raw, expected) => {
+    renderPage(`${paths.customers("b1")}?pageSize=${raw}`);
+    await screen.findByText("Asha");
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", expect.objectContaining({ pageSize: expected }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(expected === 10 ? "" : "?pageSize=25"));
+  });
+
+  it("saves changed page sizes in the URL, drops the default, and resets the page", async () => {
+    customersApi.queryCustomers.mockResolvedValue(result(threeCustomers, 60));
+    renderPage(`${paths.customers("b1")}?pageSize=25&page=2`);
+    await screen.findByText("Asha");
+    await userEvent.click(screen.getByLabelText("Rows per page"));
+    await userEvent.click(await screen.findByRole("option", { name: "50" }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe("?pageSize=50"));
+    await userEvent.click(screen.getByLabelText("Rows per page"));
+    await userEvent.click(await screen.findByRole("option", { name: "10" }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(""));
+  });
   it("the chase destination requests only customers who owe", async () => {
     customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => {
       const items = params.status === "owes" ? threeCustomers.filter((row) => row.balance > 0) : threeCustomers;

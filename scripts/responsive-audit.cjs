@@ -178,6 +178,7 @@ const SCENARIOS = [
   { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
   { id: "customers-all-archived", path: "/b/b1/customers", marker: "All your customers are archived", mode: "all-archived" },
   { id: "customers-loading", path: "/b/b1/customers", marker: "Everyone in this business", mode: "customers-hold", focus: true },
+  { id: "customers-page-size", path: "/b/b1/customers?pageSize=25", marker: "Everyone in this business", expectedPageSize: 25 },
 
   // Customer detail: with ledger entries and with none. ("Current Balance"
   // was L-07-renamed to "Owes you / You owe / Settled" — the marker tracks
@@ -194,6 +195,7 @@ const SCENARIOS = [
 
   // Transactions: detailed and summarized views.
   { id: "transactions-detailed", path: "/b/b1/transactions", marker: "Every entry across customers" },
+  { id: "transactions-page-size", path: "/b/b1/transactions?pageSize=50", marker: "Every entry across customers", expectedPageSize: 50 },
   {
     id: "transactions-summarized",
     path: "/b/b1/transactions",
@@ -2030,6 +2032,10 @@ async function main() {
           return ${JSON.stringify(scenario.cardWords)}.every(word => labels.some(label => label.startsWith(word + ':')));
         })()`);
         if (!wordsPresent) throw new Error("Customer cards are missing balance direction words");
+      }
+      if (scenario.expectedPageSize) {
+        const selectedSize = await evaluate(cdp, `({ search: location.search, text: document.querySelector('[aria-label="Rows per page"] [data-slot="select-value"]')?.textContent.trim() })`);
+        if (selectedSize?.text !== String(scenario.expectedPageSize)) throw new Error(`URL page size was not restored: ${JSON.stringify(selectedSize)}`);
       }
       return { ok: true, found, themeApplied, transientOverflow };
     };

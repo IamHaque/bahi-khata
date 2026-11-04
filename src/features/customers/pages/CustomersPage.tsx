@@ -9,6 +9,7 @@ import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { usePageSize } from "@/hooks/usePageSize";
 import { usePermissions } from "@/features/business/hooks";
 import {
   useBulkDeleteCustomers,
@@ -213,7 +214,7 @@ export function CustomersPage() {
   const { sort, dir } = parseSort(searchParams.get("sort"));
   const pageParam = Number(searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam >= 1 ? pageParam : 1;
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
@@ -624,10 +625,7 @@ export function CustomersPage() {
         pageSize={pageSize}
         totalCount={data?.total}
         onPageChange={(next) => updateParams({ page: String(next) })}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          updateParams({ page: null });
-        }}
+        onPageSizeChange={setPageSize}
         onRowClick={(row) => navigate(paths.customerDetail(businessId, row.id))}
         renderRowActions={renderRowActions}
         mobile={(row) => ({

@@ -1719,3 +1719,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Loading/data branches share the existing sortable header rendering, preserving role, aria-sort, sort icon, click and keyboard behavior. Coarse-pointer sortable headers have 44px height and visible keyboard outlines; audit now includes focusable column headers and a held customer-list loading scenario.
 - [x] Regression failed before fix; all DataTable tests passed, then full verify passed: 92 files / 777 tests, 151.75s; lint/typecheck/build and static audits passed. Focused loading audit passed 10 cells / 68 touch checks; full audit passed 33 scenarios / 330 cells, pointer-coarse 132/132, 1,386 touch checks, zero failures (`.local/v321-p12-header-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-IcrW92/report.json`).
 - P-11 commit: `fe255ac`; owner requested both P-12 items. URL page size is next.
+
+### P-12 URL page size — complete (B-03)
+
+- [x] Shared usePageSize validates the footer's single allowed-size list (10/25/50/100), restores state from URL, removes invalid/default values, preserves other filters and resets page on size changes. Existing defaults remain Customers 10 / Transactions 25.
+- [x] Seven page-level regressions failed before implementation and pass after: valid/default/invalid URL parsing on both pages, user changes persisted, default dropped and page reset. Full verify passed with two workers: 92 files / 784 tests, 151.17s; lint/typecheck/build and static audits passed.
+- [x] Browser reload scenarios for Customers pageSize=25 and Transactions pageSize=50 passed 20 cells, pointer-coarse 8/8, 152 touch checks, zero failures (`.local/v321-p12-size-browser.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-PoYGXA/report.json`). Existing layout unchanged; both scenarios added to the final full audit; selected-value assertion excludes decorative dropdown icon text. Loading-header commit: `ca30829`; P-13 is next.
