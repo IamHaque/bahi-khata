@@ -195,7 +195,7 @@ const SCENARIOS = [
     id: "transactions-summarized",
     path: "/b/b1/transactions",
     marker: "Every entry across customers",
-    open: [{ role: "tab", name: /Summarized/ }],
+    open: [{ role: "button", name: /^Summarized$/ }],
   },
   { id: "transaction-detail", path: "/b/b1/transactions/t1", marker: "Transaction Detail" },
 
@@ -222,11 +222,25 @@ const SCENARIOS = [
     dialog: true,
   },
   {
+    id: "customer-picker-error",
+    path: "/b/b1",
+    marker: "Where you stand",
+    mode: "picker-error",
+    expectedText: "Could not load customers. Try again.",
+    open: [
+      { role: "button", name: /^Add transaction$/ },
+      { role: "button", name: /^Select customer\.\.\.$/ },
+    ],
+  },
+  {
     id: "dialog-delete-transaction",
     path: "/b/b1/transactions",
     marker: "Every entry across customers",
     role: "owner",
-    open: [{ role: "button", name: /^Delete (charge|payment)/ }],
+    open: [
+      { role: "button", name: /^Transaction actions$/ },
+      { role: "menuitem", name: /^Delete$/ },
+    ],
     dialog: true,
   },
   {
@@ -791,6 +805,11 @@ function routeRest(urlObj, method, headers, postData) {
   // head:true count probes use HTTP HEAD; GET + Prefer:count=exact still
   // carries a body and must be answered with rows plus Content-Range.
   const isCountHead = method === "HEAD";
+
+  if (fixtureMode === "picker-error" && pathname === "/customers") {
+    // Use a terminal error; the SDK retries 503 before exposing the error state.
+    return { ...jsonResult({ message: "Customer request failed" }), status: 400 };
+  }
 
   // --- rpc endpoints -------------------------------------------------------
   if (pathname.startsWith("/rpc/")) {
@@ -1968,13 +1987,18 @@ async function main() {
       // Reach tabs / menus / dialogs / sheets listed in `open`.
       if (scenario.open) {
         for (const step of scenario.open) {
-          await evaluate(cdp, CLICK_SOURCE(step));
+          const clicked = await evaluate(cdp, CLICK_SOURCE(step));
+          if (!clicked?.found) throw new Error(`Trigger missing: ${step.role} ${step.name}`);
           await sleep(500);
         }
         if (!found) found = await waitFor(cdp, markerWait, 5000);
         await sleep(400);
       }
       if (!found) found = await waitFor(cdp, markerWait, 5000);
+      if (scenario.expectedText && !(await waitFor(cdp,
+        `document.body.innerText.includes(${JSON.stringify(scenario.expectedText)})`, 5000))) {
+        throw new Error(`Expected state missing: ${scenario.expectedText}`);
+      }
       return { ok: true, found, themeApplied, transientOverflow };
     };
 

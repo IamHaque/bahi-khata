@@ -1648,3 +1648,16 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Edit sends explicit null for phone, email, address, alternate contact name/phone, notes and empty tags; trimmed whitespace clears. Create preserves omission; CustomerInput already derives nullable optional fields from Customer, so no redundant type change was needed.
 - [x] Regression failed before fix; stateful clear/save/reopen test passes, exact payload and API null pass-through asserted, create omission asserted. Null contacts render absent in the list; existing customer detail header tests remain green.
 - [x] Full verify passed: 91 files / 754 tests, 49.79s; lint, typecheck, build passed; token/contrast/bundle guards passed. No layout or touch change; P-01 commit is `43ec7fe`.
+
+### P-03 in progress
+
+- Picker load failures now show an alert and Retry, with no empty-state or create prompt; retry success and successful-empty behavior covered, including axe. Full verify passed: 92 files / 756 tests, 53.00s, lint/typecheck/build; token, contrast and bundle guards passed.
+- Browser regression scenario added for picker errors. Initial 503 fixture exposed SDK retries (not terminal within the assertion window); terminal HTTP 400 fixture passes all ten width/theme combinations, 40 touch checks, zero failures (`.local/v321-p03-picker-debug.log`).
+- V-19: audit click helper previously ignored missing triggers. It now rejects missing triggers; existing transaction-delete and summarized scenarios were stale (removed inline Delete button and old tab role), corrected to current Transaction actions > Delete and pressed Summarized button, with isolated ten-cell passes for each.
+- Final complete 29-scenario responsive run is active: `.local/v321-p03-responsive-verified.log`, process session 62579; do not mark done until it completes with zero failures. Earlier runs with fixture/selector failures are retained as evidence, never counted as passes. P-02 commit: `0107b1d`; P-03 remains uncommitted.
+- Local dev server remains active on port 5173 (session 73205); isolated scratch database `bk_v321_scratch` is accessible with `wsl.exe -d Debian -u postgres -- psql bk_v321_scratch`. The owner-supplied remote scratch connection is saved privately in ignored `.local/scratch-database.url`; do not log it.
+
+### P-03 checklist — complete
+
+- [x] Final full responsive audit completed: 29 scenarios x five widths x both themes, 290 passing layout cells; pointer-coarse 116/116; 1,195 touch controls, zero failures; focus-ring, trap/Escape and motion checks passed. Log `.local/v321-p03-responsive-verified.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-yMj7P7/report.json`; baseline focus-return and unmatched-request limitations from V-18 remain explicit.
+- [x] Picker error/Retry and successful empty state tested, axe passed; full verify 92 files / 756 tests, 53.00s; lint/typecheck/build and static audits passed. P-03 is complete; P-04 is next.

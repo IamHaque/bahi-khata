@@ -23,6 +23,8 @@ interface CustomerComboboxProps {
 function PickerContent({
   customers,
   loading,
+  failed,
+  onRetry,
   search,
   setSearch,
   value,
@@ -33,6 +35,8 @@ function PickerContent({
 }: {
   customers: Customer[];
   loading: boolean;
+  failed: boolean;
+  onRetry: () => void;
   search: string;
   setSearch: (v: string) => void;
   value: string | null;
@@ -50,7 +54,7 @@ function PickerContent({
     : customers;
 
   const noMatches = search.trim() && filtered.length === 0;
-  const showAddNew = !loading && noMatches;
+  const showAddNew = !loading && !failed && noMatches;
 
   return (
     <div className="flex flex-col">
@@ -72,13 +76,19 @@ function PickerContent({
       </div>
 
       <div ref={listRef} className="max-h-72 overflow-y-auto p-1 sm:max-h-72">
+        {failed && (
+          <div role="alert" className="flex flex-col items-center gap-2 px-2 py-4 text-center">
+            <p className="text-sm text-muted-foreground">Could not load customers. Try again.</p>
+            <Button type="button" variant="outline" onClick={onRetry}>Retry</Button>
+          </div>
+        )}
         {loading && (
           <div className="py-6 text-center text-sm text-muted-foreground">
             Loading customers...
           </div>
         )}
 
-        {!loading && customers.length === 0 && (
+        {!loading && !failed && customers.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-4">
             <p className="text-sm text-muted-foreground">No customers yet.</p>
             <button
@@ -91,7 +101,7 @@ function PickerContent({
           </div>
         )}
 
-        {!loading && filtered.length > 0 && (
+        {!loading && !failed && filtered.length > 0 && (
           <ul role="listbox" aria-label="Customers">
             {filtered.map((customer) => (
               <li
@@ -142,7 +152,7 @@ function PickerContent({
           </div>
         )}
 
-        {!loading && !noMatches && customers.length > 0 && (
+        {!loading && !failed && !noMatches && customers.length > 0 && (
           <div className="border-t border-border p-1">
             <button
               type="button"
@@ -173,7 +183,7 @@ export function CustomerCombobox({
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const businessId = useScopedBusinessId() ?? "";
-  const { data: customers = [], isLoading } = useCustomers(businessId);
+  const { data: customers = [], isLoading, isError, refetch } = useCustomers(businessId);
 
   useEffect(() => {
     if (open) {
@@ -200,6 +210,8 @@ export function CustomerCombobox({
   const pickerProps = {
     customers,
     loading: isLoading,
+    failed: isError,
+    onRetry: () => void refetch(),
     search,
     setSearch,
     value,
