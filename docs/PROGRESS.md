@@ -1673,3 +1673,10 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] CustomerFormDialog optionally returns the created row; TransactionSheet selects it through the existing form-value effect without resetting the draft. Customer prop synchronization runs when the supplied customer changes, allowing subsequent manual selection; other dialog callers are unchanged.
 - [x] Stateful inline-creation test submits the newly selected customer and preserves amount 456.78, payment type, yesterday's date, 12:34 time, and note. Updated the stateful mock to apply server-side search introduced in P-04; full verify passed: 92 files / 759 tests, 49.17s; lint/typecheck/build and token/contrast/bundle guards passed.
 - No layout, surface, or touch-target changes; existing dialog/picker surfaces were measured by P-04. P-04 commit is `8c43309`; P-06 is next.
+
+### P-06 checklist — complete
+
+- [x] History loading renders a neutral dash; errors keep debtor names/balances, show Payment history unavailable and Retry, and suppress AgeFlag. Only successful explicit null history says no payments yet; the parent DashboardPage already handles summary/balance errors with Retry (existing regression retained).
+- [x] Chase link is status=owes&sort=balance-desc; both pinned URLs updated, destination-page test requests owes and excludes settled/credit rows. New loading/failure/retry regressions failed before the fix; dashboard mock now supplies explicit null history and waits for the query rather than assuming never-paid during loading.
+- [x] Full verify passed: 92 files / 762 tests, 53.12s; lint/typecheck/build; tokens 58, contrast 41 per theme/zero failures, bundle guard passed (largest 343.2 KiB). Full browser audit: 31 scenarios, 310 passing cells, pointer-coarse 124/124, 1,252 touch controls, zero failures; `.local/v321-p06-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-WvBeV8/report.json`; supplemental baseline limitations remain V-18.
+- P-05 commit: `b176206`; P-07 is next.

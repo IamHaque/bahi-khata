@@ -180,6 +180,17 @@ beforeEach(() => {
 });
 
 describe("S-28 customers list", () => {
+  it("the chase destination requests only customers who owe", async () => {
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => {
+      const items = params.status === "owes" ? threeCustomers.filter((row) => row.balance > 0) : threeCustomers;
+      return result(items, items.length);
+    });
+    renderPage(`${paths.customers("b1")}?status=owes&sort=balance-desc`);
+    expect(await screen.findByText("Asha")).toBeTruthy();
+    expect(screen.queryByText("Rahim")).toBeNull();
+    expect(screen.queryByText("Chand")).toBeNull();
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", expect.objectContaining({ status: "owes", sort: "balance", dir: "desc" }));
+  });
   it("renders the shared table with a monogram, the phone beneath the name, the tone balance and the dates", async () => {
     renderPage();
 

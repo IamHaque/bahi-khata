@@ -139,6 +139,7 @@ const SCENARIOS = [
 
   // Dashboard: with data, empty (first-run) and loading (skeleton) states.
   { id: "dashboard-data", path: "/b/b1", marker: "Where you stand", focus: true },
+  { id: "chase-history-error", path: "/b/b1", marker: "Payment history unavailable", mode: "history-error" },
   {
     id: "dashboard-chart-7",
     path: "/b/b1",
@@ -973,6 +974,9 @@ function routeRest(urlObj, method, headers, postData) {
 
     case "/customer_balances": {
       if (select.includes("last_payment_at")) {
+        if (fixtureMode === "history-error") {
+          return { ...jsonResult({ message: "Payment history request failed" }), status: 400 };
+        }
         if (fixtureMode === "empty") return jsonResult([]);
         return jsonResult(
           CUSTOMERS.map((c) => ({

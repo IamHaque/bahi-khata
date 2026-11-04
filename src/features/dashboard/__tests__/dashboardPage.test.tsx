@@ -111,7 +111,7 @@ vi.mock("@/features/transactions/api", () => ({
 vi.mock("@/features/dashboard/api", () => ({
   getDailyActivity: dashboardApi.getDailyActivity,
   getActivityFeed: dashboardApi.getActivityFeed,
-  getLastPayments: vi.fn(async () => ({})),
+  getLastPayments: vi.fn(async (ids: string[]) => Object.fromEntries(ids.map((id) => [id, null]))),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -361,7 +361,7 @@ describe("L-06 dashboard as a ledger page", () => {
       paths.customerDetail("b1", "d9"),
     );
     expect(within(items[0]!).getByText("₹9,000.00")).toBeTruthy();
-    expect(within(items[0]!).getByText("no payments yet")).toBeTruthy();
+    expect(await within(items[0]!).findByText("no payments yet")).toBeTruthy();
     // The decorative monogram rides along.
     expect(items[0]!.querySelector("span.rounded-sm")).not.toBeNull();
     // The ninth debtor never renders.
@@ -370,7 +370,7 @@ describe("L-06 dashboard as a ledger page", () => {
 
     // Link under list
     const seeAll = screen.getByRole("link", { name: /see all customers who owe/i });
-    expect(seeAll.getAttribute("href")).toBe(`${paths.customers("b1")}?sort=balance-desc`);
+    expect(seeAll.getAttribute("href")).toBe(`${paths.customers("b1")}?status=owes&sort=balance-desc`);
   });
 
   it("Who to chase shows each debtor's name and link", async () => {
