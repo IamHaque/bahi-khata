@@ -1667,3 +1667,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Picker reuses active-only queryCustomers search through useCustomerList, debounced 300ms, sorted alphabetically, first page of 20; empty search includes the search-all hint. Selected customer resolves by id through useCustomer, independently of the result window; create/loading/error/empty states preserved.
 - [x] Tests pin delayed request timing, server search for c1001 beyond the initial window, selected label after changing search, and successful-empty/error/retry behavior. Full verify: 92 files / 758 tests passed, 53.60s; lint/typecheck/build and token/contrast/bundle audits passed.
 - [x] Full responsive run: 30 scenarios, 300 passing cells, pointer-coarse 120/120, 1,214 touch controls, zero failures; log `.local/v321-p04-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-k8Ev7l/report.json`. Baseline supplemental focus-return and unmatched-request limitations remain V-18; P-03 commit is `fe20735`.
+
+### P-05 checklist — complete
+
+- [x] CustomerFormDialog optionally returns the created row; TransactionSheet selects it through the existing form-value effect without resetting the draft. Customer prop synchronization runs when the supplied customer changes, allowing subsequent manual selection; other dialog callers are unchanged.
+- [x] Stateful inline-creation test submits the newly selected customer and preserves amount 456.78, payment type, yesterday's date, 12:34 time, and note. Updated the stateful mock to apply server-side search introduced in P-04; full verify passed: 92 files / 759 tests, 49.17s; lint/typecheck/build and token/contrast/bundle guards passed.
+- No layout, surface, or touch-target changes; existing dialog/picker surfaces were measured by P-04. P-04 commit is `8c43309`; P-06 is next.

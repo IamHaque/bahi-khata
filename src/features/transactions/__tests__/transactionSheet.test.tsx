@@ -263,9 +263,11 @@ beforeEach(() => {
       .filter((customer) => !customer.archived_at)
       .map((customer) => ({ ...customer })),
   );
-  customersApi.queryCustomers.mockImplementation(async () => {
+  customersApi.queryCustomers.mockImplementation(async (_businessId: string, params?: { search?: string }) => {
+    const search = (params?.search ?? "").trim().toLowerCase();
     const items = server.customers
       .filter((customer) => !customer.archived_at)
+      .filter((customer) => !search || customer.name.toLowerCase().includes(search) || (customer.phone ?? "").includes(search))
       .map((customer) => ({
         ...customer,
         balance: server.balances[customer.id] ?? 0,
@@ -342,6 +344,32 @@ beforeEach(() => {
 });
 
 describe("S-32 transaction sheet", () => {
+  it("selects an inline-created customer without losing the transaction draft", async () => {
+    const dialog = await openLedgerSheet();
+    await userEvent.type(within(dialog).getByLabelText("Amount"), "456.78");
+    await userEvent.type(within(dialog).getByLabelText("Note"), "Keep this draft");
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Paid" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Yesterday" }));
+    const date = (within(dialog).getByLabelText("Date") as HTMLInputElement).value;
+    const timeInput = within(dialog).getByLabelText("Time");
+    fireEvent.change(timeInput, { target: { value: "12:34" } });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Asha Verma" }));
+    await userEvent.type(screen.getByPlaceholderText("Search customers..."), "New inline customer");
+    await userEvent.click(await screen.findByRole("button", { name: /Add.*New inline customer.*as a new customer/ }));
+    const customerDialog = await screen.findByRole("dialog", { name: "Add Customer" });
+    await userEvent.click(within(customerDialog).getByRole("button", { name: "Add customer" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add Customer" })).toBeNull());
+    expect(await within(dialog).findByRole("button", { name: "New inline customer" })).toBeTruthy();
+    expect((within(dialog).getByLabelText("Amount") as HTMLInputElement).value).toBe("456.78");
+    expect((within(dialog).getByLabelText("Note") as HTMLInputElement).value).toBe("Keep this draft");
+    expect((within(dialog).getByLabelText("Date") as HTMLInputElement).value).toBe(date);
+    expect((within(dialog).getByLabelText("Time") as HTMLInputElement).value).toBe("12:34");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add payment" }));
+    await waitFor(() => expect(transactionsApi.createTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      customer_id: server.customers.find((c) => c.name === "New inline customer")!.id,
+      amount: 456.78, type: "payment", note: "Keep this draft", occurred_at: new Date(`${date}T12:34`).toISOString(),
+    }), "b1"));
+  });
   it("allows a charge of ₹12,34,567.89", async () => {
     const dialog = await openLedgerSheet();
     await userEvent.type(within(dialog).getByLabelText("Amount"), "1234567.89");

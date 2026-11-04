@@ -31,6 +31,7 @@ interface CustomerFormDialogProps {
    * customer" entry inside the transaction sheet's picker.
    */
   defaultName?: string;
+  onCreated?: (customer: Customer) => void;
 }
 
 /**
@@ -50,6 +51,7 @@ export function CustomerFormDialog({
   mode,
   customer,
   defaultName,
+  onCreated,
 }: CustomerFormDialogProps) {
   const navigate = useNavigate();
   const createCustomer = useCreateCustomer(businessId);
@@ -81,6 +83,7 @@ export function CustomerFormDialog({
       toastSuccess("Customer updated");
     } else {
       const created = await createCustomer.mutateAsync(input);
+      onCreated?.(created);
       // S-32 closed B-04: the action opens the transaction sheet with
       // this brand-new customer preselected — it adds the first entry.
       toastSuccess("Customer added", {
