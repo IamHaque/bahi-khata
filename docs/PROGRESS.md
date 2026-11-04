@@ -1568,3 +1568,71 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 - Final verification: `npm run verify` passed after the navigation follow-up: 89 test files / 731 tests, lint (10 existing warnings), TypeScript and production build. Four navigation/hover regressions also passed in Los Angeles time. Manual browser verification of the final navigation follow-up remains pending.
 - Earlier production build, contrast/token/bundle checks, and fixture-backed short-viewport browser checks passed. Physical-device keyboard checks and deployment verification remain pending.
 - Plan and detailed evidence: [MOBILE-DASHBOARD-PLAN.md](MOBILE-DASHBOARD-PLAN.md), [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md). Manual acceptance: [MANUAL_STEPS.md](MANUAL_STEPS.md), mobile/dashboard follow-up section.
+
+## v3.2.1 patch — preflight blocked
+
+- Branch: `fix/v3.2.1`, created from clean `master` at `2e0b68b`; no application or migration changes made.
+- P-00 is not complete: baseline commands have not run. Chrome is installed, but `DATABASE_URL` is not configured, neither `psql` nor Docker is on PATH, and no PostgreSQL/Docker installation or service was found in the standard Windows locations.
+- Blocked by the patch prompt's scratch-database precondition: owner must provide a scratch PostgreSQL environment before SQL verification; production must never be used. No stories are marked done.
+
+### Scratch database preflight follow-up
+
+- Owner supplied a scratch database through the private secret card; connectivity succeeded to PostgreSQL 18.6 using WSL Debian's psql 17.11. `npm ci` passed after allowing lifecycle processes outside the sandbox; its dependency audit reported 31 vulnerabilities (production-only audit not yet run).
+- SQL runner initially failed on Windows CRLF; stripping CR only from the shell runner in memory reached the database without changing repository files. Setup then stopped at `supabase/tests/ci/supabase_stub.sql:33`: `ERROR: permission denied to change default privileges` for role `postgres`; migrations and SQL assertions did not run.
+- P-00 remains blocked: need a scratch PostgreSQL connection permitted to run the existing stub (including default privileges for role `postgres`). Stub statements before line 33 ran on the supplied scratch database; no application or migration files changed, no stories marked complete, and remaining baseline checks have not run.
+
+
+## v3.2.1 story board (P-00 in progress)
+
+| ID | Story | Source | Size |
+|---|---|---|---|
+| P-00 | Branch, baseline, owner confirmations, PRD file and board | | S |
+| P-01 | Large amounts are rejected | review #2 | S |
+| P-02 | Clearing customer contact details must clear them | review #1 | M |
+| P-03 | Customer picker: error and retry, correct empty state | review #3 | S |
+| P-04 | Customer picker: server-side search (large businesses) | review #8 | M |
+| P-05 | Select a customer right after creating them in the sheet | review #9, B-07 | S |
+| P-06 | Chase list: payment-history error state and the "owe" link | review #5, #7 | M |
+| P-07 | Mobile customer card shows balance direction in words | review #4, B-11 | S |
+| P-08 | "No customers yet" when every customer is archived | B-05 | S |
+| P-09 | Archived customers on the dashboard: verify, test, document | B-06 | S |
+| P-10 | CSV export: plain numbers are not prefixed | B-10 | M |
+| P-11 | Repo-wide guard for bare `[...fr]` grid tracks | B-23 | S |
+| P-12 | Loading headers keep the sort affordance; page size in the URL | B-02, B-03 | S |
+| P-13 | Documentation sync (README, runbook, history, backlog, contract, release notes) | | M |
+| P-14 | Final verification and pull request | | S |
+
+
+All stories are pending except P-00, in progress; no patch story is marked done.
+
+### P-00 owner confirmations
+
+The owner reported, after the v3.2 merge: **CI passed on GitHub; the Vercel
+deployment is done; the owner validated the UI on the deployed code;
+`HISTORY_START_DATE` (`2026-11-02T16:21:21.000Z`) is the real deployment time and the
+SQL migrations had already been run.** The owner verified production with four
+read-only queries and every result matched (no `is_archived` in the bulk functions,
+Viewer error text present, 0 anon-executable functions, 0 policies outside
+`authenticated`, 22 policies). Record these as "per owner statement" (you did not
+verify them yourself). Do not change `HISTORY_START_DATE`.
+
+
+### P-00 measured baseline
+
+- Branch `fix/v3.2.1` from master at 2e0b68b; npm ci passed. npm run verify passed: 89 files / 731 tests, duration 52.11s; lint (10 existing warnings), TypeScript and production build passed.
+- Token audit: 58 matched. Contrast: 41 checks per theme, zero failures. Bundle: largest chunk 343.0 KiB, guard passed; npm audit --omit=dev: 0 vulnerabilities.
+- SQL: isolated WSL database bk_v321_scratch, PostgreSQL 17.11; all seven unchanged migrations applied, all 24 sections passed, final line ==> SQL tests passed. The owner-supplied Neon PostgreSQL 18.6 connection remains saved privately for future scratch use; its role lacks the stub's postgres default-privilege permission.
+- Full responsive audit is running; evidence: .local/v321-baseline-responsive.log (ignored). P-00 is not complete until it finishes.
+
+### v3.2.1 deviations
+
+- V-15: baseline has 731 passed tests, rather than the prompt's expected 730 passed / 1 skipped; recorded the actual result without changing tests.
+- V-16: use isolated local PostgreSQL 17.11 for SQL verification because the supplied Neon role cannot configure postgres default privileges. The Windows checkout's shell runner is passed through CR stripping in memory under WSL; repository files and migrations remain unchanged.
+- V-17: v3.2's diverging chart specification is superseded by the owner's grouped-bar decision already implemented on master; preserve grouped bars and leave PRD-v3.2.md untouched.
+
+
+### P-00 responsive baseline result
+
+- Completed: 28 scenarios x five widths x both themes = 280 passing layout cells; pointer-coarse 112/112, 1,230 touch controls checked, zero touch failures; visible focus rings and reduced motion passed. Evidence: `.local/v321-baseline-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-aC5USH/report.json`.
+- V-18: audit limitations are explicit: three unmatched history/deletion-log requests received empty fixtures; closing focus was reported on body for several dialogs, and the separate delete-transaction keyboard pass reported opened=false at both widths despite passing layout cells. These are baseline limitations to resolve before final verification; do not claim dialog focus return is verified.
+- P-00 complete: baseline commands executed and recorded; working specification and owner confirmations added. P-01 is next.
