@@ -588,6 +588,20 @@ describe("S-39 export CSV on the customers list", () => {
 });
 
 describe("L-08 scanning the list", () => {
+  it("mobile balances say who owes whom, including settled", async () => {
+    __setMatchMedia(true);
+    try {
+      renderPage();
+      await screen.findByText("Asha");
+      for (const [name, amount, words] of [["Asha", 500, "owes you"], ["Rahim", 200, "you owe"], ["Chand", 0, "Settled"]] as const) {
+        const card = screen.getByText(name).closest('[role="listitem"]') as HTMLElement;
+        expect(within(card).getByText(words)).toBeTruthy();
+        expect(within(card).getByRole("group", { name: `${words}: ${formatMoney(amount)}` })).toBeTruthy();
+      }
+    } finally {
+      __setMatchMedia(false);
+    }
+  });
   it("shows only Last activity when it and Added fall on the same calendar day", async () => {
     customersApi.queryCustomers.mockImplementation(async () =>
       result(

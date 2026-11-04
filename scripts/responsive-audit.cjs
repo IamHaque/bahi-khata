@@ -174,7 +174,7 @@ const SCENARIOS = [
   },
 
   // Customers: with results and with none.
-  { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business" },
+  { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business", cardWords: ["owes you", "you owe", "Settled"] },
   { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
 
   // Customer detail: with ledger entries and with none. ("Current Balance"
@@ -2012,6 +2012,13 @@ async function main() {
       if (scenario.expectedText && !(await waitFor(cdp,
         `document.body.innerText.includes(${JSON.stringify(scenario.expectedText)})`, 5000))) {
         throw new Error(`Expected state missing: ${scenario.expectedText}`);
+      }
+      if (scenario.cardWords && width < 768) {
+        const wordsPresent = await evaluate(cdp, `(() => {
+          const labels = Array.from(document.querySelectorAll('[role="listitem"] [role="group"][aria-label]')).map(el => el.getAttribute('aria-label'));
+          return ${JSON.stringify(scenario.cardWords)}.every(word => labels.some(label => label.startsWith(word + ':')));
+        })()`);
+        if (!wordsPresent) throw new Error("Customer cards are missing balance direction words");
       }
       return { ok: true, found, themeApplied, transientOverflow };
     };

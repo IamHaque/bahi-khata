@@ -5,7 +5,7 @@ import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { actionLabels } from "@/lib/actionLabels";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
-import { formatDate, formatRelative } from "@/lib/format";
+import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
@@ -631,10 +631,13 @@ export function CustomersPage() {
           subtitle: row.phone ?? undefined,
           meta: row.archived_at ? "Archived" : undefined,
           trailing: (
+            <div role="group" aria-label={`${balanceWords(row.balance)}: ${formatMoney(Math.abs(row.balance))}`}>
             <Money
               amount={Math.abs(row.balance)}
               className={toneClass[balanceTone(row.balance)]}
             />
+            <div className="text-xs font-normal text-muted-foreground">{balanceWords(row.balance)}</div>
+            </div>
           ),
         })}
       />
