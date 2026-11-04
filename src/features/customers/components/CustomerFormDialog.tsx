@@ -64,15 +64,16 @@ export function CustomerFormDialog({
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     const form = values as unknown as CustomerForm;
+    const cleared = mode === "edit" ? null : undefined;
     const input: CustomerInput = {
       name: form.name,
-      phone: form.phone || undefined,
-      email: form.email || undefined,
-      address: form.address || undefined,
-      alternate_contact_name: form.alternate_contact_name || undefined,
-      alternate_contact_phone: form.alternate_contact_phone || undefined,
-      tags: splitTags(form.tags),
-      notes: form.notes || undefined,
+      phone: form.phone || cleared,
+      email: form.email || cleared,
+      address: form.address || cleared,
+      alternate_contact_name: form.alternate_contact_name || cleared,
+      alternate_contact_phone: form.alternate_contact_phone || cleared,
+      tags: splitTags(form.tags) ?? cleared,
+      notes: form.notes || cleared,
     };
 
     if (mode === "edit" && customer) {

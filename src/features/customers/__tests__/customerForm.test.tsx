@@ -204,6 +204,42 @@ beforeEach(() => {
 });
 
 describe("S-29 customer form", () => {
+  it("clears every optional field to null and keeps them empty after reopening", async () => {
+    Object.assign(server.customers[0]!, {
+      email: "rahim@example.com", address: "Old address",
+      alternate_contact_name: "Asha", alternate_contact_phone: "9876543210",
+    });
+    renderPage();
+    await screen.findByText("Rahim Uddin");
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    await expandDetails(dialog);
+    const labels = ["Phone", "Email", "Address", "Alternate contact name", "Alternate contact phone", "Tags", "Notes"];
+    for (const label of labels) {
+      await userEvent.clear(within(dialog).getByLabelText(label));
+      if (label !== "Email") await userEvent.type(within(dialog).getByLabelText(label), "   ");
+    }
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(customersApi.updateCustomer).toHaveBeenCalledWith("c1", {
+      name: "Rahim Uddin", phone: null, email: null, address: null,
+      alternate_contact_name: null, alternate_contact_phone: null, tags: null, notes: null,
+    }, "b1"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByText("01712 222222")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const reopened = await screen.findByRole("dialog");
+    await expandDetails(reopened);
+    for (const label of labels) expect((within(reopened).getByLabelText(label) as HTMLInputElement).value).toBe("");
+  });
+
+  it("keeps empty optional create values omitted from JSON", async () => {
+    renderPage();
+    await screen.findByText("Rahim Uddin");
+    const dialog = await openAddDialog();
+    await userEvent.type(within(dialog).getByLabelText("Name"), "Asha{Enter}");
+    await waitFor(() => expect(customersApi.createCustomer).toHaveBeenCalled());
+    expect(JSON.parse(JSON.stringify(customersApi.createCustomer.mock.calls[0]![0]))).toEqual({ name: "Asha" });
+  });
   it("fast add: type a name, press Enter, and the toast offers Add transaction", async () => {
     renderPage();
     await screen.findByText("Rahim Uddin");

@@ -1642,3 +1642,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Shared amountField uses decimal representation and MAX_AMOUNT 999_999_999.99, with maximum formatted through formatMoney; transaction add/edit and ledger already consume the shared schema. CSV import's actual parser is validateAmount in src/lib/csv-import.ts (rather than parseAmount); it now consumes the same rule.
 - [x] Table-driven boundary and import tests: 9 failures before fix, all passing after; sheet test submits 1234567.89. Full verify: 90 files / 751 tests passed, 48.61s; lint, typecheck and build passed; tokens 58, contrast 41 per theme / zero failures, bundle guard passed.
 - No layout or touch behavior changed. P-00 commit: `8553838`; P-01 commit hash will be recorded in the next story commit.
+
+### P-02 checklist — complete
+
+- [x] Edit sends explicit null for phone, email, address, alternate contact name/phone, notes and empty tags; trimmed whitespace clears. Create preserves omission; CustomerInput already derives nullable optional fields from Customer, so no redundant type change was needed.
+- [x] Regression failed before fix; stateful clear/save/reopen test passes, exact payload and API null pass-through asserted, create omission asserted. Null contacts render absent in the list; existing customer detail header tests remain green.
+- [x] Full verify passed: 91 files / 754 tests, 49.79s; lint, typecheck, build passed; token/contrast/bundle guards passed. No layout or touch change; P-01 commit is `43ec7fe`.
