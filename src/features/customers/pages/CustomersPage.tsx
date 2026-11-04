@@ -253,6 +253,10 @@ export function CustomersPage() {
   );
 
   const { data, isPending, error, refetch } = useCustomerList(businessId, params);
+  const checkArchived = !!data && !error && data.items.length === 0 && data.allTotal === 0 && q.trim() === "" && status !== "archived";
+  const archived = useCustomerList(businessId, { status: "archived", pageSize: 1 }, { enabled: checkArchived });
+  const allArchived = checkArchived && (archived.data?.items.length ?? 0) > 0;
+  const listError = error ?? (checkArchived ? archived.error : null);
   const { data: balances, isSuccess: balancesLoaded } =
     useAllCustomerBalances(businessId);
   // Restore has no dialog — the menu acts directly (S-30).
@@ -420,7 +424,7 @@ export function CustomersPage() {
   // A stale URL page beyond the count (before the clamp effect above
   // corrects it) is a no-results situation, not "there are no customers".
   const showNoResults =
-    hasFilters || (data !== undefined && data.allTotal > 0 && rows.length === 0);
+    !allArchived && (hasFilters || (data !== undefined && data.allTotal > 0 && rows.length === 0));
 
   const chips: FilterChip[] = [];
   if (q !== "") {
@@ -586,18 +590,19 @@ export function CustomersPage() {
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
-        loading={isPending}
-        error={error ? toAppError(error).message : null}
-        onRetry={() => void refetch()}
+        loading={isPending || (checkArchived && archived.isPending)}
+        error={listError ? toAppError(listError).message : null}
+        onRetry={() => void (checkArchived && archived.isError ? archived.refetch() : refetch())}
         emptyState={
           !showNoResults ? (
             <EmptyState
-              title="No customers yet"
-              description="Add your first customer to get started."
+              title={allArchived ? "All your customers are archived" : "No customers yet"}
+              description={allArchived ? "Show archived customers or add a customer." : "Add your first customer to get started."}
             >
+              {allArchived && <Button variant="outline" onClick={() => updateParams({ status: "archived" })}>Show archived</Button>}
               {can("manageCustomers") && (
                 <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
-                  <Plus className="size-4" /> Add your first customer
+                  <Plus className="size-4" /> {allArchived ? "Add customer" : "Add your first customer"}
                 </Button>
               )}
             </EmptyState>

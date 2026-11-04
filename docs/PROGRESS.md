@@ -1687,3 +1687,10 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Full browser matrix passed: 31 scenarios / 310 cells, pointer-coarse 124/124, 1,250 touch controls, zero failures (`.local/v321-p07-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-unKLcH/report.json`). Supplemental direction-word audit passed all widths/themes, 72 touch controls / zero failures (`.local/v321-p07-card-words.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-FIZurK/report.json`).
 - [x] Full verify passed: 92 files / 763 tests, 244.24s; lint/typecheck/build passed; token/contrast/bundle guards passed. P-06 commit: `341bc59`; P-08 is next.
 - V-20: resource contention caused existing five-second interaction timeouts during P-07 verification; the inline-creation test passed in isolation. Full unchanged verification passed with `VITEST_MAX_WORKERS=2` and Chrome idle; no test timeout, assertion, dependency or repository configuration was weakened or changed.
+
+### P-08 checklist — complete
+
+- [x] When the active result and active count are empty, without search and outside Archived, probe one archived customer; show All your customers are archived with Show archived and permission-gated Add customer. Probe loading/error uses existing table states and Retry; confirmed empty businesses retain their original prompt.
+- [x] Tests cover all-archived navigation/actions, successful empty, probe error/retry, and axe. Full verify passed with two workers: 92 files / 765 tests, 157.22s; lint/typecheck/build and token/contrast/bundle audits passed.
+- [x] Full browser audit: 32 scenarios / 320 passing cells, pointer-coarse 128/128, 1,318 touch controls, zero failures; `.local/v321-p08-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-R44SIn/report.json`. Dev server was restarted after the resumed session; P-07 commit is `8d8840d`.
+- V-21: use the existing active allTotal=0 count as an additional archive-probe condition, avoiding false All archived copy when a balance filter hides active customers. P-09 is next.

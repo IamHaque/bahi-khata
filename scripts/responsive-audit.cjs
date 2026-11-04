@@ -176,6 +176,7 @@ const SCENARIOS = [
   // Customers: with results and with none.
   { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business", cardWords: ["owes you", "you owe", "Settled"] },
   { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
+  { id: "customers-all-archived", path: "/b/b1/customers", marker: "All your customers are archived", mode: "all-archived" },
 
   // Customer detail: with ledger entries and with none. ("Current Balance"
   // was L-07-renamed to "Owes you / You owe / Settled" — the marker tracks
@@ -937,6 +938,11 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customers": {
+      if (fixtureMode === "all-archived" && !wantsObject) {
+        const archivedRows = q.get("archived_at") === "not.is.null"
+          ? [customerListRow({ ...CUSTOMERS[0], archived_at: "2026-10-01T00:00:00Z" })] : [];
+        return isCountHead ? headCount(0) : jsonResult(archivedRows, countHeaders(archivedRows.length));
+      }
       // L-14 empty: no customers in the lists, but a detail page's
       // single-object read still resolves — so the empty LEDGER state is
       // audited rather than a 404.
@@ -973,6 +979,7 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customer_balances": {
+      if (fixtureMode === "all-archived") return jsonResult([]);
       if (select.includes("last_payment_at")) {
         if (fixtureMode === "history-error") {
           return { ...jsonResult({ message: "Payment history request failed" }), status: 400 };

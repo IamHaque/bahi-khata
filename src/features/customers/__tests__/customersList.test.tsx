@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { __setMatchMedia } from "@/test/setup";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
@@ -486,6 +487,37 @@ describe("S-28 customers list", () => {
     expect(
       within(dialog).getByRole("heading", { name: "Add Customer" }),
     ).toBeTruthy();
+  });
+
+  it("explains when all customers are archived and opens the archived view", async () => {
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => ({
+      items: params.status === "archived" ? [listRow({ name: "Archived customer", archived_at: "2026-01-01" })] : [],
+      total: params.status === "archived" ? 1 : 0, allTotal: 0,
+    }));
+    const { container } = renderPage();
+    expect(await screen.findByText("All your customers are archived")).toBeTruthy();
+    expect(screen.queryByText("No customers yet")).toBeNull();
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", { status: "archived", pageSize: 1 });
+    expect(screen.getAllByRole("button", { name: "Add customer" })).toHaveLength(2);
+    await expectNoSeriousViolations(container);
+    await userEvent.click(screen.getByRole("button", { name: "Show archived" }));
+    expect(await screen.findByText("Archived customer")).toBeTruthy();
+    expect(screen.getByTestId("search").textContent).toContain("status=archived");
+  });
+
+  it("retries a failed archive probe before claiming the business is empty", async () => {
+    let archiveAttempts = 0;
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => {
+      if (params.status === "archived" && archiveAttempts++ === 0) throw new AppError("network", "Archive probe failed");
+      return { items: [], total: 0, allTotal: 0 };
+    });
+    const { container } = renderPage();
+    expect(await screen.findByText("Archive probe failed")).toBeTruthy();
+    expect(screen.queryByText("No customers yet")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("No customers yet")).toBeTruthy();
+    await expectNoSeriousViolations(container);
+    expect(archiveAttempts).toBe(2);
   });
 
   it("keeps the empty state text-only for a Viewer", async () => {
