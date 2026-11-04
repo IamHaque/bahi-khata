@@ -9,6 +9,33 @@ import { SettingsPage } from "@/features/business/pages/SettingsPage";
 import { closeTransactionSheet } from "@/features/transactions/sheetStore";
 import { routePatterns, paths } from "@/lib/paths";
 import type { BusinessSummary } from "@/features/business/api";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+
+it("repo-wide grid classes have no bare fr tracks", () => {
+  const root = path.resolve(__dirname, "..");
+  const failures: string[] = [];
+  function scan(dir: string) {
+    for (const entry of readdirSync(dir)) {
+      const file = path.join(dir, entry);
+      if (statSync(file).isDirectory()) {
+        if (entry !== "__tests__" && file !== path.join(root, "features", "dev")) scan(file);
+      } else if (entry.endsWith(".tsx") && !/\.(test|spec)\./.test(entry)) {
+        const code = readFileSync(file, "utf8");
+        for (const match of code.matchAll(/\bgrid-cols-\[([^\]]+)\]/g)) {
+          // Remove zero-minimum tracks; any remaining fr unit can widen the page.
+          const tracks = match[1]!.replace(/_/g, " ").replace(/minmax\(\s*0\s*,[^)]*\)/g, "");
+          if (/\d*\.?\d+fr\b/.test(tracks)) {
+            const line = code.slice(0, match.index).split("\n").length;
+            failures.push(`${path.relative(root, file)}:${line}: ${match[0]}`);
+          }
+        }
+      }
+    }
+  }
+  scan(root);
+  expect(failures).toEqual([]);
+});
 
 // L-14 (F1 regression guard) — the browser audit found the dashboard's
 // second row (`lg:grid-cols-[1.5fr_1fr]`) and the Settings sections
