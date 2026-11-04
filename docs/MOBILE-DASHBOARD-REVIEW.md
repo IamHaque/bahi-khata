@@ -24,11 +24,15 @@ These are additional findings, not changes included in this branch. They are gro
    - **Fix:** send explicit `null` values for cleared optional fields during edits, including an empty tag list. Add a test that clears existing values, saves, and reloads them. Keep create defaults consistent with the database.
    - **If we skip it:** staff believe stale contact information or notes have been removed when they remain stored.
 
+   Fixed in `0107b1d` (v3.2.1).
+
 2. **Some valid two-decimal amounts are rejected.** [transactions/schemas.ts](../src/features/transactions/schemas.ts).
    - **What this is:** `amountField` checks whether an amount has at most two decimal places.
    - **Problem:** its fixed `1e-9` tolerance after multiplying by 100 is too small for larger valid amounts. Running `amountField.safeParse(1234567.89).success` returns `false`; the form rejects ₹12,34,567.89 despite its two decimals.
    - **Fix:** use a precision check that accounts for the number's magnitude, with an explicit supported amount limit. Pin valid larger amounts and invalid three-decimal amounts in a focused schema test.
    - **If we skip it:** otherwise valid charges or payments cannot be entered, with a misleading decimal-place error.
+
+   Fixed in `43ec7fe` (v3.2.1).
 
 3. **A failed customer search looks like an empty business.** [CustomerCombobox.tsx](../src/components/CustomerCombobox.tsx).
    - **What this is:** the transaction form loads customers for selection.
@@ -36,11 +40,15 @@ These are additional findings, not changes included in this branch. They are gro
    - **Fix:** show the query error and a retry action before the empty state. Test a rejected request followed by a successful retry.
    - **If we skip it:** users cannot tell whether customers are missing or the connection failed, and may create duplicates.
 
+   Fixed in `fe20735` (v3.2.1).
+
 4. **Mobile customer balances lose their direction.** [CustomersPage.tsx](../src/features/customers/pages/CustomersPage.tsx), mobile card configuration near `mobile={(row) => ...}`.
    - **What this is:** a mobile card shows the customer's balance.
    - **Problem:** it renders `Math.abs(row.balance)` and uses colour to distinguish money owed by the customer from money owed to them. For balances of +500 and −500, both cards say ₹500.00. The desktop cell supplies direction words; the phone card does not. This is also recorded in existing backlog B-11.
    - **Fix:** include the existing `balanceWords` text beside the phone amount or in its accessible label and visible subtitle.
    - **If we skip it:** screen-reader users and people who cannot distinguish the colours can read the debt direction incorrectly.
+
+   Fixed in `8d8840d` (v3.2.1).
 
 5. **Payment-history failures are presented as “no payments yet.”** [ChaseList.tsx](../src/features/dashboard/components/ChaseList.tsx), [chase.ts](../src/features/dashboard/chase.ts).
    - **What this is:** the dashboard adds last-payment information to the customers who owe most.
@@ -48,11 +56,15 @@ These are additional findings, not changes included in this branch. They are gro
    - **Fix:** distinguish unavailable history from a successful `null` result; show a neutral loading/error label and permit retry. Test a last-payment query failure with an existing debtor.
    - **If we skip it:** the dashboard gives staff incorrect collection context during connection problems.
 
+   Fixed in `341bc59` (v3.2.1).
+
 6. **Setup instructions omit four migrations used by the current UI.** [README.md](../README.md), [supabase/migrations](../supabase/migrations).
    - **What this is:** the README tells a deployer which migrations to apply.
    - **Problem:** it describes seven migrations in the stack table but instructs the reader to apply only the three v3.1 migrations. The directory also contains migrations for transaction revisions, deletion-log purge, ownership transfer, and bulk actions. A database initialized only from that checklist lacks the later tables/functions.
    - **Fix:** update the checklist to all seven migrations in order and reconcile the linked rollout instructions. Verify schema-dependent features against a scratch database.
    - **If we skip it:** a new deployment can load successfully while history and administrative/bulk actions fail. Whether the deployed database is missing these migrations was not checked.
+
+   Fix implemented in P-13; its real commit reference is recorded in P-14.
 
 ## Should fix
 
@@ -62,11 +74,15 @@ These are additional findings, not changes included in this branch. They are gro
    - **Fix:** add `status=owes` and update the two link assertions in the chase/dashboard tests.
    - **If we skip it:** the destination does not match the link's promise.
 
+   Fixed in `341bc59` (v3.2.1).
+
 8. **The picker only searches the customer rows returned in one response.** [CustomerCombobox.tsx](../src/components/CustomerCombobox.tsx), [customers/api.ts](../src/features/customers/api.ts).
    - **What this is:** `listCustomers` reads the active customer list once, and the picker filters that array locally.
    - **Problem:** there is no pagination or server-side search here. If a business exceeds its configured API response row limit, customers outside the returned set cannot be found; the picker can instead offer to create another customer. The deployed row limit and business sizes were not inspected, so this is a conditional scale risk.
    - **Fix:** reuse the existing paged/searchable customer query for picker searches, with the selected customer resolved separately when needed. Test a customer beyond the first response window.
    - **If we skip it:** the picker stops being complete as businesses grow, even though the main customer list already supports paging.
+
+   Fixed in `8c43309` (v3.2.1).
 
 ## Nice to have
 
@@ -75,6 +91,8 @@ These are additional findings, not changes included in this branch. They are gro
    - **Problem:** creation refreshes the list, but does not return the created customer to the current transaction form. The user must open the picker and select them again.
    - **Fix:** return the created customer through a success callback used by this caller, then set the existing transaction form's customer field. Preserve its amount, date, type, and note.
    - **If we skip it:** the flow still works, with an extra search and selection step.
+
+   Fixed in `b176206` (v3.2.1).
 
 ## Verification
 

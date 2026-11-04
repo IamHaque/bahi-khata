@@ -86,7 +86,7 @@ Baseline audit: `docs/ARCHITECTURE-BASELINE.md` (S-01)
 | **Signed in, no business** | `businessRoutes` "sends a user with no business to My businesses" · `landingResolver` resolver-without-deep-link → `/businesses` · `createBusinessPage` onboarding flow |
 | **Pending invitation** | `landingResolver` "sends a user with only a pending invitation to /businesses" · `invitationCard` accept/decline + top-bar count badge · `businessesPage` three-section layout incl. Invitations · `membersPage` pending invitations (owner view) + `inviteDialog` create/revoke |
 
-SQL now passes all 24 sections on local scratch PostgreSQL 17.11 with `DATABASE_URL=... bash scripts/run-sql-tests.sh`, ending `==> SQL tests passed`; the real Google-OAuth click-through remains manual (MANUAL_STEPS). **End state: 43/43 stories Done, master untouched, branch `feat/v2-multi-business` pushed.**
+Honest gaps (unchanged, documented): SQL suite + migrations not executed (no database — ordered steps in MANUAL_STEPS), real Google-OAuth click-through manual (MANUAL_STEPS), no `gh` CLI here so the prepared PR description ships as a doc instead of an opened PR. **End state: 43/43 stories Done, master untouched, branch `feat/v2-multi-business` pushed.**
 
 ## S-42 scenarios (checklist)
 
@@ -756,7 +756,7 @@ All runs: 481 passed (481), 0 failures. `vitest.config.ts` ends byte-identical t
 - [x] All database behaviour is verified: `bash scripts/run-sql-tests.sh` ends with `==> SQL tests passed`; all 19 sections print their NOTICE headers and `ALL 19 TEST SECTIONS PASSED` (two full green runs)
 - [x] Re-running is safe: each migration re-applied immediately after itself = ok, ok, ok (three for three). Full-chain replay limitation recorded as deviation V-05 and documented in MANUAL_STEPS
 - [x] npm run verify green after the archive/copy (57 files, 481 tests) - the repo-hygiene tests scan the moved files without issue
-- [ ] CI `sql` job green - not confirmed on GitHub (deviation V-01, no pushes until the human approves)
+- [x] CI `sql` job green — confirmed per owner statement after the v3.2 merge; not independently verified by the patch agent.
 
 ## S-51 checklist (Behaviour)
 
@@ -851,7 +851,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] theme.test.ts: the two-font test from the card replaces "loads exactly one UI font" verbatim; css.match counts exactly 2 @fontsource-variable/ imports
 - [x] rupee sign + tabular figures: verified in the font files per the PRD (its Why section); Bricolage ships the rupee glyph in its default subset
 - [x] npm run verify green with the font imported (63 files, 543 tests); only the named theme test modified
-- [ ] Human look at the Phase E checkpoint: both fonts render (headings visibly Bricolage, body Public Sans)
+- [x] Human look at the Phase E checkpoint: both fonts render (headings visibly Bricolage, body Public Sans) — Accepted on deployed v3.2 code per owner statement.
 
 ## L-03 checklist (Behaviour)
 
@@ -860,7 +860,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Chips meet contrast: BalanceBadge/StatusBadge (and the Avatar palette) use bg-TONE/10 dark:bg-TONE/8 so the tinted chip clears 4.5:1 in dark too; contrast-audit passes AA in both themes
 - [x] Tests: 2 new (noRawMoney guard, Avatar fallback); 8 files updated for the new format (transactionVoid/transactionSheet/transactionEdit/transactionDelete/transactionsPage, customerDetail, keyboardJourneys) - listed under V-14/V-14b
 - [x] npm run verify green (65 files, 546 tests, 0 lint errors); node scripts/contrast-audit.cjs: all required pairs pass AA in both themes
-- [ ] Human look at the Phase E checkpoint: amounts all two-decimal; a failing avatar URL shows initials
+- [x] Human look at the Phase E checkpoint: amounts all two-decimal; a failing avatar URL shows initials — Accepted on deployed v3.2 code per owner statement.
 
 ## L-04 checklist (Behaviour)
 
@@ -871,7 +871,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Existing behaviour preserved: DataTable sort/pagination/empty/loading/keyboard/URL tests pass unmodified; TypeBadge keeps the v2 colour meaning (D-10: charge receivable, payment credit); BalanceBadge words unchanged, icons decorative (aria-hidden)
 - [x] axe on the gallery in both themes (two dedicated tests rendering fresh per theme - kept out of the S-13 console-error guard, which stays synchronous because awaiting axe lets AuthProvider's async state land outside act() and that guard counts console errors as failure)
 - [x] npm run verify green (71 files, 568 tests, 0 lint errors); 6 new component test files (LeaderRow tones/order/no-truncation, TotalsRule, Monogram initials one- and two-word, AgeFlag thresholds, TallyMark, TypeBadge tones/icons)
-- [ ] Human look at the Phase E checkpoint: Card/DataTable flat in both themes, tabs read as tabs, LeaderRow ledger feel in the UiGallery
+- [x] Human look at the Phase E checkpoint: Card/DataTable flat in both themes, tabs read as tabs, LeaderRow ledger feel in the UiGallery — Accepted on deployed v3.2 code per owner statement.
 
 ## L-05 checklist (Behaviour)
 
@@ -883,7 +883,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] The spine is readable: all spine text uses the sidebar tokens (bg-sidebar, text-sidebar-foreground, /80 inactive) - contrast spot-check at the Phase E manual pass (390px and 1440px, both themes)
 - [x] Existing behaviour kept: most-specific nav highlight, skip link, collapse (w-16 pl-0 rail), mobile drawer (same Sidebar, sheet now 212px)
 - [x] npm run verify green (72 files, 577 tests, 0 lint errors); axe on the shell; pathsHygiene still clean (route patterns via lib/paths in tests too)
-- [ ] Human look at the Phase E checkpoint: titles at 390px and 1440px in both themes, tab-joins-page effect, single Add transaction on Dashboard/Transactions vs Customers
+- [x] Human look at the Phase E checkpoint: titles at 390px and 1440px in both themes, tab-joins-page effect, single Add transaction on Dashboard/Transactions vs Customers — Accepted on deployed v3.2 code per owner statement.
 
 ## L-06 checklist (Behaviour)
 
@@ -899,7 +899,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] ActivityFeed.tsx deleted after its states, texts and data-hook call moved into DayBook (same useActivityFeed read)
 - [x] Gates: G-A1 re-read from docs/RESEARCH-DECISIONS.md before this story - still `pending`, so Top outstanding balances is the slot's final content and no L-13 mount slot was left
 - [x] axe in loading, error, first-run and data states (four dedicated tests) plus the axePages dashboard check; npm run verify green (72 files, 586 tests, 0 lint errors)
-- [ ] Human look at the phase E checkpoint: both rows at 390, 768 and 1440 px in both themes, the large total uncut, and whether the Day book h2 vs the chart's smaller "Daily activity" title reads right (the card leaves TrendChart's heading untouched)
+- [x] Human look at the phase E checkpoint: both rows at 390, 768 and 1440 px in both themes, the large total uncut, and whether the Day book h2 vs the chart's smaller "Daily activity" title reads right (the card leaves TrendChart's heading untouched) — Accepted on deployed v3.2 code per owner statement.
 
 ## L-07 checklist (Behaviour)
 
@@ -913,7 +913,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Phone: under 768 px the entries are two-line list rows carrying their column word (component test + page test) and the quick-add choices are h-11 = 44 px
 - [x] The page is under 450 lines (wc -l = 404); the Details tab, the customer_ledger hook, the hero buttons, the row actions and both dialogs behave exactly as before - the entire pre-existing behavioural suite stays green
 - [x] npm run verify green (74 files, 598 tests, 0 lint errors); LedgerTable axe on both layouts plus the axePages customer-detail check
-- [ ] Human look at the phase E checkpoint: the header hierarchy and TotalsRule at 390/768/1440 in both themes, the double rule and totals digits, and the quick-add flow (preview, change date, focus after save)
+- [x] Human look at the phase E checkpoint: the header hierarchy and TotalsRule at 390/768/1440 in both themes, the double rule and totals digits, and the quick-add flow (preview, change date, focus after save) — Accepted on deployed v3.2 code per owner statement.
 
 ## L-08 checklist (Behaviour)
 
@@ -925,7 +925,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Under 768 px each customer is a `LeaderRow` card (Monogram leading, name, phone, tone amount), no table; the navigation button and `Actions for …` menu stay reachable and the click-through lands on the detail URL
 - [x] PageHeader: the one primary button is Add customer, Export CSV / Import CSV stay outline (a Viewer sees neither write action)
 - [x] npm run verify green (74 files, 600 tests, 0 lint errors, build 7.02s); axePages customers list still clean; the archived-row "Archived" text and every row-menu test unchanged
-- [ ] Human look at the phase E checkpoint: position sheet and monogram rows at 390/768/1440 in both themes, the phone column below/above md, and the mobile LeaderRow card
+- [x] Human look at the phase E checkpoint: position sheet and monogram rows at 390/768/1440 in both themes, the phone column below/above md, and the mobile LeaderRow card — Accepted on deployed v3.2 code per owner statement.
 
 ## L-09 checklist (Behaviour)
 
@@ -938,7 +938,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] PageHeader: Add Transaction is the one primary action, Export CSV outline after it; CSV export content unchanged (the S-39 suite is untouched)
 - [x] The page is under 450 lines (wc -l = 437); buildDetailColumns' Delete gating, the per-type cells and the viewer's empty action set are unit-tested (transactionColumns, transactionTotals)
 - [x] npm run verify green (76 files, 608 tests, 0 lint errors, build 7.80s); axePages transactions page clean
-- [ ] Human look at the phase E checkpoint: the day book at 1024/1280/1440 in both themes (no horizontal scroll, Recorded by folding under the note), the filter row's wrap order, the Include-voided switch, and Charged/Paid against a real charge and payment
+- [x] Human look at the phase E checkpoint: the day book at 1024/1280/1440 in both themes (no horizontal scroll, Recorded by folding under the note), the filter row's wrap order, the Include-voided switch, and Charged/Paid against a real charge and payment — Accepted on deployed v3.2 code per owner statement.
 
 ## L-10 checklist (Behaviour)
 
@@ -951,7 +951,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Accessibility: axe passes on the open add sheet and the open edit sheet (new tests); the preview announces politely; the radiogroup is labelled
 - [x] Validation tests unmodified: only the necessarily-changed selectors were touched (radio Charged/Paid, preview copy); every validation rule test (required, 2 decimals, future date, note limit) is byte-identical
 - [x] npm run verify green (76 files, 611 tests, 0 lint errors, build 6.48s); keyboardJourneys journey e deterministic over 6 consecutive runs
-- [ ] Human look at the phase E checkpoint: the sheet on a phone (bottom safe-area padding, thumb-sized controls, Charged/Paid toggle, the live line while typing, the date chips) and a dialog on desktop (the ledger shell rule, the hero amount)
+- [x] Human look at the phase E checkpoint: the sheet on a phone (bottom safe-area padding, thumb-sized controls, Charged/Paid toggle, the live line while typing, the date chips) and a dialog on desktop (the ledger shell rule, the hero amount) — Accepted on deployed v3.2 code per owner statement.
 
 ## L-11 checklist (Behaviour)
 
@@ -965,7 +965,7 @@ Read from `docs/RESEARCH-DECISIONS.md` on **2026-10-26**. The file was copied by
 - [x] Existing tests unmodified: dangerZone, settingsPage, backup, lostAccess, deletedItemsPage, importPage, businessesPage, membersPage assertions all pass unchanged - the story only added tests
 - [x] axe on every page: axePages (Login, Businesses, Import, Members, Settings) green with the new markup, deletedItemsPage's own two axe runs green
 - [x] npm run verify green (77 files, 616 tests, 0 lint errors, build 6.54s)
-- [ ] Human look at the phase E checkpoint, both themes at 390 and 1440 px: the login sheet on its ruled background, the businesses cards + empty states, members avatars, Settings' two-column sections at 1280 (title left, form right), the Delete business card's totals rule and credit title, the import steps/upload/review/sentence, the struck-through labels in Recently deleted. ONE detail to judge there: the three review LeaderRows are the spec'd `LeaderRow` component, whose figure goes through `Money` - the counts therefore read `₹3.00` style; say the word and they become plain counts
+- [x] Human look at the phase E checkpoint, both themes at 390 and 1440 px: the login sheet on its ruled background, the businesses cards + empty states, members avatars, Settings' two-column sections at 1280 (title left, form right), the Delete business card's totals rule and credit title, the import steps/upload/review/sentence, the struck-through labels in Recently deleted. ONE detail to judge there: the three review LeaderRows are the spec'd `LeaderRow` component, whose figure goes through `Money` - the counts therefore read `₹3.00` style; say the word and they become plain counts — Accepted on deployed v3.2 code per owner statement.
 
 ## L-14 defects (found by the browser audit)
 
@@ -1167,7 +1167,7 @@ both themes.
 - [x] Touch targets (structural, after the redo): two mechanisms — real `pointer-coarse:min-h-11` (plus `min-w-11` on icon-only targets) on full-width / row controls (Button/Input/Select, spine items, tabs triggers, topbar, popover/menu items, mobile-card row buttons, statement inputs), and the shared `.touch-target` pseudo for COMPACT controls whose visual size must not distort (Switch pill 20x36, View all, email link, chip remove X, input clear). Row-action clusters collapse to a single `RowActionsMenu` on coarse pointers (`RowActionCluster`). Browser-measured: 0 failing controls at 390/360 across the matrix; each control's fine-pointer size is unchanged
 - [x] Contrast: `node scripts/contrast-audit.cjs` passes - 41 checks per theme, 0 failing, all required pairs AA in both light and dark
 - [x] npm run verify green after the redo (79 files, 624 tests, 0 lint errors / 10 pre-existing react-refresh warnings, tsc clean, build 7.93s); audit:contrast 41/41 both themes, audit:tokens 58/58, audit:bundle reports 22 chunks (1415 kB)
-- [ ] Human Do.1 visual pass (the one open item): for every route (login, businesses, dashboard, customers, customer detail + each dialog + quick add/entry row, transactions detailed + summarized, add/edit transaction, add customer, delete transaction, delete customer, Recently deleted, members, invite dialog, settings, import steps) at **390 px and 1440 px in both themes** - no horizontal scroll outside a designed scroller; every tappable control ≥ 44x44 on touch (spine, tabs, row menus, Charged|Paid, the new pointer-coarse targets); keyboard tab order = reading order, focus ring visible everywhere incl. the spine, dialogs trap+restore focus, Escape closes; nothing clipped, amounts never truncated, leader rows show leader + full amount at 360 px; OS reduced-motion set → the `entry-reveal` animation does not run
+- [x] Human Do.1 visual pass (accepted on deployed v3.2 code per owner statement): for every route (login, businesses, dashboard, customers, customer detail + each dialog + quick add/entry row, transactions detailed + summarized, add/edit transaction, add customer, delete transaction, delete customer, Recently deleted, members, invite dialog, settings, import steps) at **390 px and 1440 px in both themes** - no horizontal scroll outside a designed scroller; every tappable control ≥ 44x44 on touch (spine, tabs, row menus, Charged|Paid, the new pointer-coarse targets); keyboard tab order = reading order, focus ring visible everywhere incl. the spine, dialogs trap+restore focus, Escape closes; nothing clipped, amounts never truncated, leader rows show leader + full amount at 360 px; OS reduced-motion set → the `entry-reveal` animation does not run
 
 
 ## S-68 Final verification and release report
@@ -1273,36 +1273,36 @@ Agent instructions: `docs/AGENT-PROMPT-v3.2.md`
 
 ### Human Verification Checklist (PRD S-77 Step 3)
 
-The following 9 items require manual on-device / human sign-off following the owner’s application of the four fixed migrations in Supabase:
+All nine historical v3.2 items below are accepted on the deployed v3.2 code **per owner statement**. The patch agent did not perform this production validation; the chart is grouped bars per V-17.
 
-1. **Tooltips on hover and keyboard focus**:
+1. [x] **Tooltips on hover and keyboard focus**: — Accepted per owner statement.
    - Verify tooltips on all `IconButton`s: Topbar hamburger menu, sidebar collapse rail, theme toggle button, customer palette search (`Ctrl+K`), invitations bell (with badge), account menu button, dialog/sheet close X buttons, table row actions (`RowActions`), and filter bar chip removals.
    - Verify tooltips open on pointer hover (after 400ms delay) and on keyboard tab focus; verify tooltips never open on touch tap.
-2. **Table anatomy & responsiveness at 390 px and 1440 px**:
+2. [x] **Table anatomy & responsiveness at 390 px and 1440 px**: — Accepted per owner statement.
    - Verify all 6 tables in both light and dark themes: Customers (`/customers`), Customer Ledger (`/customers/:id`), Transactions detailed (`/transactions`), Transactions summarized (`/transactions?view=summarized`), Day book on Dashboard, Members & pending invitations (`/members`), Recently deleted (`/deleted`), and UI gallery (`/__ui`).
    - At 1440 px: confirm exact column fit/fill layout (single fill column, fit headers tight to data), desktop inline icon buttons (max 2 inline + 1 More menu).
    - At 390 px: confirm transition to mobile `TableCard` with single 44px More menu button and zero inline icon buttons.
-3. **Add charge / Add payment on phone vs desktop**:
+3. [x] **Add charge / Add payment on phone vs desktop**: — Accepted per owner statement.
    - At 390 px: verify header buttons "Add charge" and "Add payment" in customer header (44px hit height, flex-1). Confirm no ledger entry row is rendered below 768 px.
    - At 1440 px: verify `LedgerEntryRow` at top of customer ledger with live balance preview, auto-clearing inputs, Enter-to-save, and `entry-reveal` fade highlight.
-4. **Activity chart on phone and desktop**:
+4. [x] **Activity chart on phone and desktop**: — Accepted per owner statement.
    - At 390 px: verify diverging bar chart renders with 220px height, charges above zero line, payments below zero line; tap a bar to verify interactive readout sentence ("Wed 15 Oct · Charged ₹... · Paid ₹... · Net ₹...") with "View entries" link; verify zero horizontal scroll on card.
    - At 1440 px: verify 280px height, 3 comparison tiles with percentage badges vs previous period, and segmented range buttons (7 days, 30 days, 90 days, 12 months) syncing with URL query (`?activity=...`).
-5. **Bulk select, act and 10s undo**:
+5. [x] **Bulk select, act and 10s undo**: — Accepted per owner statement.
    - Select multiple customers or transactions via checkboxes (including Shift+click range select and header select-all).
    - Trigger Bulk Archive or Bulk Void: verify toast with 10s Undo button.
    - Trigger Bulk Delete: verify `BulkConfirmDialog` with typed confirmation `DELETE {n}`, execute, and test 10s Undo restoring entries.
-6. **Ownership transfer between two real accounts**:
+6. [x] **Ownership transfer between two real accounts**: — Accepted per owner statement.
    - As owner, navigate to `/members`, select "Make owner..." from a member's action menu.
    - Verify `TransferOwnershipDialog` warning list, type exact business name to enable destructive button.
    - Execute transfer: verify immediate demotion to Editor, new owner promotion, and permissions refresh.
-7. **Transaction revision history**:
+7. [x] **Transaction revision history**: — Accepted per owner statement.
    - Perform an edit, void, or restore on a transaction.
    - Navigate to transaction detail page (`/transactions/:id`): verify "History" section displays timeline of changes (old value → new value, author, timestamp with tooltip).
-8. **Deletion log export and cleanup**:
+8. [x] **Deletion log export and cleanup**: — Accepted per owner statement.
    - As owner, navigate to `/deleted`: click "Export CSV" to download deletion history.
    - Click "Clean up...": test dry-run preview sentence with 30-day minimum floor, enter typed `PURGE` confirmation, and confirm deletion log purges cleanly.
-9. **Ledger entry row keyboard entry**:
+9. [x] **Ledger entry row keyboard entry**: — Accepted per owner statement.
    - Self-test: record 5 charges and 5 payments by keyboard alone (Tab, amounts, Enter) on a test customer and verify zero wrong-column misentries.
 
 
@@ -1569,41 +1569,38 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 - Earlier production build, contrast/token/bundle checks, and fixture-backed short-viewport browser checks passed. Physical-device keyboard checks and deployment verification remain pending.
 - Plan and detailed evidence: [MOBILE-DASHBOARD-PLAN.md](MOBILE-DASHBOARD-PLAN.md), [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md). Manual acceptance: [MANUAL_STEPS.md](MANUAL_STEPS.md), mobile/dashboard follow-up section.
 
-## v3.2.1 patch — preflight blocked
+## v3.2.1 historical preflight — resolved during P-00
 
 - Branch: `fix/v3.2.1`, created from clean `master` at `2e0b68b`; no application or migration changes made.
 - P-00 is not complete: baseline commands have not run. Chrome is installed, but `DATABASE_URL` is not configured, neither `psql` nor Docker is on PATH, and no PostgreSQL/Docker installation or service was found in the standard Windows locations.
 - Blocked by the patch prompt's scratch-database precondition: owner must provide a scratch PostgreSQL environment before SQL verification; production must never be used. No stories are marked done.
 
-### Scratch database preflight follow-up
+### Historical scratch database preflight follow-up — resolved during P-00
 
 - Owner supplied a scratch database through the private secret card; connectivity succeeded to PostgreSQL 18.6 using WSL Debian's psql 17.11. `npm ci` passed after allowing lifecycle processes outside the sandbox; its dependency audit reported 31 vulnerabilities (production-only audit not yet run).
 - SQL runner initially failed on Windows CRLF; stripping CR only from the shell runner in memory reached the database without changing repository files. Setup then stopped at `supabase/tests/ci/supabase_stub.sql:33`: `ERROR: permission denied to change default privileges` for role `postgres`; migrations and SQL assertions did not run.
 - P-00 remains blocked: need a scratch PostgreSQL connection permitted to run the existing stub (including default privileges for role `postgres`). Stub statements before line 33 ran on the supplied scratch database; no application or migration files changed, no stories marked complete, and remaining baseline checks have not run.
 
 
-## v3.2.1 story board (P-00 in progress)
+## v3.2.1 story board
 
-| ID | Story | Source | Size |
+| ID | Story | Status | Commit |
 |---|---|---|---|
-| P-00 | Branch, baseline, owner confirmations, PRD file and board | | S |
-| P-01 | Large amounts are rejected | review #2 | S |
-| P-02 | Clearing customer contact details must clear them | review #1 | M |
-| P-03 | Customer picker: error and retry, correct empty state | review #3 | S |
-| P-04 | Customer picker: server-side search (large businesses) | review #8 | M |
-| P-05 | Select a customer right after creating them in the sheet | review #9, B-07 | S |
-| P-06 | Chase list: payment-history error state and the "owe" link | review #5, #7 | M |
-| P-07 | Mobile customer card shows balance direction in words | review #4, B-11 | S |
-| P-08 | "No customers yet" when every customer is archived | B-05 | S |
-| P-09 | Archived customers on the dashboard: verify, test, document | B-06 | S |
-| P-10 | CSV export: plain numbers are not prefixed | B-10 | M |
-| P-11 | Repo-wide guard for bare `[...fr]` grid tracks | B-23 | S |
-| P-12 | Loading headers keep the sort affordance; page size in the URL | B-02, B-03 | S |
-| P-13 | Documentation sync (README, runbook, history, backlog, contract, release notes) | | M |
-| P-14 | Final verification and pull request | | S |
-
-
-All stories are pending except P-00, in progress; no patch story is marked done.
+| P-00 | Baseline and owner confirmations | Done | `8553838` |
+| P-01 | Amount validation | Done | `43ec7fe` |
+| P-02 | Clear customer fields | Done | `0107b1d` |
+| P-03 | Picker error and retry | Done | `fe20735` |
+| P-04 | Server-side picker search | Done | `8c43309` |
+| P-05 | Select inline-created customer | Done | `b176206` |
+| P-06 | Chase history and owes link | Done | `341bc59` |
+| P-07 | Mobile balance words | Done | `8d8840d` |
+| P-08 | All-archived empty state | Done | `34e45c3` |
+| P-09 | Dashboard archive SQL tests | Done | `f35baa3` |
+| P-10 | Typed numeric CSV cells | Done | `dc95ced` |
+| P-11 | Repo-wide grid guard | Done | `fe255ac` |
+| P-12 | Loading sort headers and URL page sizes | Done | `ca30829`; `2be6768` |
+| P-13 | Documentation sync | Done | — |
+| P-14 | Final verification and PR | Pending | — |
 
 ### P-00 owner confirmations
 
@@ -1725,3 +1722,9 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Shared usePageSize validates the footer's single allowed-size list (10/25/50/100), restores state from URL, removes invalid/default values, preserves other filters and resets page on size changes. Existing defaults remain Customers 10 / Transactions 25.
 - [x] Seven page-level regressions failed before implementation and pass after: valid/default/invalid URL parsing on both pages, user changes persisted, default dropped and page reset. Full verify passed with two workers: 92 files / 784 tests, 151.17s; lint/typecheck/build and static audits passed.
 - [x] Browser reload scenarios for Customers pageSize=25 and Transactions pageSize=50 passed 20 cells, pointer-coarse 8/8, 152 touch checks, zero failures (`.local/v321-p12-size-browser.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-PoYGXA/report.json`). Existing layout unchanged; both scenarios added to the final full audit; selected-value assertion excludes decorative dropdown icon text. Loading-header commit: `ca30829`; P-13 is next.
+
+### P-13 checklist — complete
+
+- [x] README lists seven ordered migrations and 24 SQL sections, runbook records the production date per owner statement and client-only patch rollout/rollback, and v2 S-42 history is restored verbatim from before 7be8529. Owner-accepted Phase E, v3.2 human checklist, CI SQL and visual-pass items are explicitly attributed to the owner.
+- [x] Completed backlog entries link real story hashes, nine review findings retain their original text plus fix annotations, Operations lists staging/backups/error-reporting gaps, contract covers all patch rules and release notes cover user changes and rollback. Finding 6 and the P-13 board row receive this story's actual hash in P-14 once the commit exists; PRD-v3.2.md and all migrations remain unchanged.
+- [x] Sync script assertions passed (history match, nine findings, nine owner checklist items, seven migrations, untouched v3.2 PRD); full verify passed with two workers: 92 files / 784 tests, 152.42s; lint/typecheck/build and token/contrast/bundle guards passed. URL page-size commit is `2be6768`; P-14 is next.

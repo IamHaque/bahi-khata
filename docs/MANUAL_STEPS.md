@@ -24,7 +24,7 @@ sections) is **history** - the record of how earlier builds were applied
 ## 0. How to apply migrations (v3.2 chain - current)
 
 Migrations live in `supabase/migrations/` and are applied in filename
-order (all seven are idempotent, safe to re-run after themselves):
+order on a fresh database. Apply the chain once; the four v3.2 files are verified as re-runnable after the full chain:
 
 | File | Story | Purpose |
 | --- | --- | --- |
@@ -1161,7 +1161,7 @@ from step (a).
 ## v3.2 database rollout runbook (S-76)
 
 ### Production status
-The owner applied the four v3.2 migrations in their fixed form on YYYY-MM-DD and verified the function definitions, anon privileges, policy roles, and policy count with the four read-only checks below. `HISTORY_START_DATE` (`2026-11-02T16:21:21.000Z`) is the real deployment time. The four files are frozen; put any further SQL in a new migration file.
+Per owner statement, the owner applied the four v3.2 migrations in their fixed form on 2026-11-02 (UTC, from the deployment time recorded in HISTORY_START_DATE; the owner corrects it if the migrations were applied on another day) and verified the function definitions, anon privileges, policy roles, and policy count with the four read-only checks below. `HISTORY_START_DATE` (`2026-11-02T16:21:21.000Z`) is the real deployment time. The four files are frozen; put any further SQL in a new migration file.
 
 ### Is production on the fixed version?
 Run these read-only checks in the SQL editor:
@@ -1414,3 +1414,15 @@ Run these checks against the updated branch, then repeat after deployment. These
 - [ ] After deployment, repeat the creation and chart-link smoke checks using a test business. Confirm no unexpected network/schema errors.
 
 Automated evidence and remaining defects: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md). The final hover/date fixes pass targeted tests and the full 731-test verification gate; their manual browser confirmation is pending.
+
+## v3.2.1 client rollout
+
+There are **no database changes** in v3.2.1. Deploy the client only after the
+patch PR is merged by the owner; all seven applied migrations remain frozen.
+The standing **Is production on the fixed version?** read-only checks above
+remain applicable. CI, the v3.2 deployment, deployed UI acceptance and the four
+production verification-query results are confirmed **per owner statement**;
+the patch agent did not inspect production.
+
+To roll back, redeploy the v3.2 client. There is nothing to undo in the database.
+Use the v3.2.1 human checklist in PROGRESS.md to accept the new client behavior.
