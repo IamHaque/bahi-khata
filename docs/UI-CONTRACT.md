@@ -240,3 +240,7 @@ Two guard rails keep the two layers honest:
 - Transactions custom dates represent local calendar days, with an exclusive query end at the next local midnight.
 
 Implementation evidence and manual verification limits: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md).
+
+## Archived customers (v3.2.1 P-09)
+
+Dashboard figures (Today, Position and Activity) exclude archived customers. Unarchiving restores their entries to the dashboard figures. The cross-customer Transactions page, including Today, also excludes archived customers; use the Archived customer list and each customer's ledger to see archived customers and their history.

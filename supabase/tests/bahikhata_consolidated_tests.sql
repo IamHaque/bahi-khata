@@ -3544,6 +3544,27 @@ select pg_temp.expect_sqlstate('an unknown timezone is rejected (the client fall
 select pg_temp.as_admin();
 
 select pg_temp.as_admin();
+-- P-09: dashboard Today and Activity agree before and after unarchiving.
+delete from public.transactions;
+insert into public.transactions (business_id, customer_id, type, amount, status, occurred_at, created_by) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'charge', 100, 'active', now(), '11111111-1111-1111-1111-111111111111'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000002', 'charge', 300, 'active', now(), '11111111-1111-1111-1111-111111111111');
+update public.customers set archived_at = now() where id = 'cccccccc-0000-0000-0000-000000000002';
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111', 'olivia@example.com');
+select pg_temp.expect_eq('P-09 archived entry excluded from today count',
+  (select today_count from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001', 'UTC')), 1);
+select pg_temp.expect_num('P-09 archived entry excluded from today net',
+  (select today_net from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001', 'UTC')), 100);
+select pg_temp.expect_num('P-09 archived entry excluded from daily activity',
+  (select charges from public.daily_activity('aaaaaaaa-0000-0000-0000-000000000001', 1, 'UTC') where activity_date = (now() at time zone 'UTC')::date), 100);
+update public.customers set archived_at = null where id = 'cccccccc-0000-0000-0000-000000000002';
+select pg_temp.expect_eq('P-09 unarchived entry restored to today count',
+  (select today_count from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001', 'UTC')), 2);
+select pg_temp.expect_num('P-09 unarchived entry restored to today net',
+  (select today_net from public.dashboard_summary('aaaaaaaa-0000-0000-0000-000000000001', 'UTC')), 400);
+select pg_temp.expect_num('P-09 unarchived entry restored to daily activity',
+  (select charges from public.daily_activity('aaaaaaaa-0000-0000-0000-000000000001', 1, 'UTC') where activity_date = (now() at time zone 'UTC')::date), 400);
+select pg_temp.as_admin();
 rollback to savepoint s18;   -- discard this section's fixtures
 release savepoint s18;
 

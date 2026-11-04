@@ -1694,3 +1694,10 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Tests cover all-archived navigation/actions, successful empty, probe error/retry, and axe. Full verify passed with two workers: 92 files / 765 tests, 157.22s; lint/typecheck/build and token/contrast/bundle audits passed.
 - [x] Full browser audit: 32 scenarios / 320 passing cells, pointer-coarse 128/128, 1,318 touch controls, zero failures; `.local/v321-p08-responsive.log`, JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-R44SIn/report.json`. Dev server was restarted after the resumed session; P-07 commit is `8d8840d`.
 - V-21: use the existing active allTotal=0 count as an additional archive-probe condition, avoiding false All archived copy when a balance filter hides active customers. P-09 is next.
+
+### P-09 checklist — complete
+
+- [x] Six assertions in SQL section 18 pin today's count/net and daily activity with an archived customer's current-day charge, then restoration after unarchiving. Fresh local scratch `bk_v321_p09` (PostgreSQL 17.11), unchanged seven-migration chain: 24 sections, final `==> SQL tests passed`; each of six expectations individually mutated and rejected at its own assertion, restored suite passed.
+- [x] Transactions query already inner-joins customers and filters customers.archived_at=null before applying any range; existing businessScoping test and Today page/date-range tests passed in the full suite. No Today label change or responsive rerun needed; no client layout changed.
+- [x] Contract/backlog rule corrected. Full verify with two workers: 92 files / 765 tests, 152.04s; lint/typecheck/build and token/contrast/bundle guards passed. P-08 commit: `34e45c3`; P-10 is next.
+- V-22: the prompt's suggested contract text implies Transactions shows archived customers, but source and API tests prove it excludes them too. Document the actual rule: Archived customer list and individual ledgers retain access to archived history; dashboard and cross-customer Transactions exclude it.
