@@ -38,7 +38,7 @@ post-v3.1 pass. B-01, B-04, B-06 and B-09 are done and kept as history.
 
 ## Mobile/dashboard review follow-ups
 
-All nine findings are fixed in v3.2.1: customer clearing `0107b1d`, amount validation `43ec7fe`, picker errors `fe20735`, mobile words `8d8840d`, payment history and owes link `341bc59`, server search `8c43309`, inline selection `b176206`, and README migration instructions in P-13 (commit reference recorded in P-14). Individual findings retain their original text and fix references in [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md).
+All nine findings are fixed in v3.2.1: customer clearing `0107b1d`, amount validation `43ec7fe`, picker errors `fe20735`, mobile words `8d8840d`, payment history and owes link `341bc59`, server search `8c43309`, inline selection `b176206`, and README migration instructions `afdbed1`. Individual findings retain their original text and fix references in [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md).
 
 ## Operations
 

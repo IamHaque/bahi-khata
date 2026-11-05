@@ -31,3 +31,13 @@ Physical-device keyboards, live OAuth and production acceptance remain owner che
 
 Redeploy the v3.2 client. There is nothing to undo in the database; do not roll
 back or edit the seven frozen migrations.
+
+## Release-candidate verification
+
+- Clean clone, no `.env`: two full verification runs passed, each 92 test files, 783 passed and one unchanged conditional hygiene test skipped; lint, typecheck and build passed.
+- Headless Chrome: 35 scenarios at 360, 390, 768, 1024 and 1440px in both themes; 350 passing cells and 1,538 touch checks with zero failures.
+- Scratch PostgreSQL 17.11: all 24 SQL sections passed; six new archive/unarchive expectations were individually mutation-tested.
+- Token/contrast/bundle guards passed; production dependency audit reports zero vulnerabilities.
+
+The audit uses synthetic fixtures and clicks. Physical-device focus restoration,
+real keyboards, live OAuth, deployed acceptance and PR CI/review remain owner checks.

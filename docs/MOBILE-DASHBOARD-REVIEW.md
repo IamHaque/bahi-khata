@@ -64,7 +64,7 @@ These are additional findings, not changes included in this branch. They are gro
    - **Fix:** update the checklist to all seven migrations in order and reconcile the linked rollout instructions. Verify schema-dependent features against a scratch database.
    - **If we skip it:** a new deployment can load successfully while history and administrative/bulk actions fail. Whether the deployed database is missing these migrations was not checked.
 
-   Fix implemented in P-13; its real commit reference is recorded in P-14.
+   Fixed in `afdbed1` (v3.2.1).
 
 ## Should fix
 

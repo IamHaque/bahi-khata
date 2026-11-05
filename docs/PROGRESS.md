@@ -1599,8 +1599,8 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 | P-10 | Typed numeric CSV cells | Done | `dc95ced` |
 | P-11 | Repo-wide grid guard | Done | `fe255ac` |
 | P-12 | Loading sort headers and URL page sizes | Done | `ca30829`; `2be6768` |
-| P-13 | Documentation sync | Done | — |
-| P-14 | Final verification and PR | Pending | — |
+| P-13 | Documentation sync | Done | `afdbed1` |
+| P-14 | Final verification and PR | Done | Final verification hash reported with the PR |
 
 ### P-00 owner confirmations
 
@@ -1728,3 +1728,44 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] README lists seven ordered migrations and 24 SQL sections, runbook records the production date per owner statement and client-only patch rollout/rollback, and v2 S-42 history is restored verbatim from before 7be8529. Owner-accepted Phase E, v3.2 human checklist, CI SQL and visual-pass items are explicitly attributed to the owner.
 - [x] Completed backlog entries link real story hashes, nine review findings retain their original text plus fix annotations, Operations lists staging/backups/error-reporting gaps, contract covers all patch rules and release notes cover user changes and rollback. Finding 6 and the P-13 board row receive this story's actual hash in P-14 once the commit exists; PRD-v3.2.md and all migrations remain unchanged.
 - [x] Sync script assertions passed (history match, nine findings, nine owner checklist items, seven migrations, untouched v3.2 PRD); full verify passed with two workers: 92 files / 784 tests, 152.42s; lint/typecheck/build and token/contrast/bundle guards passed. URL page-size commit is `2be6768`; P-14 is next.
+
+### P-14 owner acceptance checklist (v3.2.1 — pending)
+
+These checks apply to the new patch; earlier v3.2 owner acceptance does not imply this patch has been deployed or accepted.
+
+- [ ] Enter amount 1234567.89 and save it successfully.
+- [ ] Clear a customer's phone/email, save, reopen and confirm they stay empty.
+- [ ] Turn the network off in the customer picker, observe its error, then restore the network and Retry.
+- [ ] Find a customer outside the first result window in a large business.
+- [ ] Create a customer inside a transaction and confirm selection plus preservation of amount/type/date/time/note.
+- [ ] Fail the payment-history request: debtor balances remain, unavailable text and Retry replace never-paid text and flags.
+- [ ] Follow See all customers who owe and confirm only positive balances are listed.
+- [ ] On mobile, confirm owes you / you owe / Settled words for each balance direction.
+- [ ] With all customers archived, use Show archived and Add customer.
+- [ ] Open CSV in a spreadsheet and confirm a negative numeric amount participates in a sum while formula-like names/notes remain text.
+- [ ] Reload /customers?pageSize=25 and confirm the size persists; also share a non-default Transactions page-size URL.
+- [ ] Check physical-device keyboards, dialog focus restoration, live OAuth and deployed-client behavior.
+
+### P-14 final verification — complete
+
+Candidate tested: clean independent clone `.local/v321-clean` at `afdbed1`; no `.env` before or after either run, clean git status. Final commit adds only documentation references/results; its real hash is reported with the PR because a commit cannot contain its own hash.
+
+| Check | P-00 baseline | Final clean-clone candidate |
+|---|---|---|
+| npm ci | Passed | Passed, 577 packages installed |
+| Unit suite | 89 files / 731 passed with local .env | Two runs: 92 files / 783 passed / 1 skipped each, without .env |
+| Unit duration | 52.11s | 155.32s / 155.29s, VITEST_MAX_WORKERS=2 |
+| Lint / typecheck / build | Passed, 10 existing lint warnings | Passed twice, same 10 warnings |
+| Tokens | 58 matched | 58 matched |
+| Contrast | 41 checks per theme, zero failures | 41 checks per theme, zero failures |
+| Largest JS chunk | 343.0 KiB | 343.2 KiB, budget passed |
+| Production vulnerabilities | 0 | 0 |
+| Responsive | 28 scenarios / 280 passing cells | 35 scenarios / 350 passing cells, five widths / both themes |
+| Touch | 1,230 controls / zero failures | 1,538 controls / zero failures; coarse pointer asserted 140/140 |
+| SQL | 24 sections passed on local PostgreSQL 17.11 | 24 sections passed on fresh local `bk_v321_final_20261105`, PostgreSQL 17.11; final line `==> SQL tests passed` |
+
+- Both runs executed the full npm run verify gate; the sole skip is the unchanged conditional local-.env hygiene test. Business/component tests ran without environment credentials; no timeout or assertion was weakened.
+- Final browser run served the clean-clone client on port 5174 with existing public client configuration supplied only to that process. The audit script is byte-identical to the clean clone's tracked script; its existing configuration was read externally from the original workspace, without creating .env in the clone. Review screenshots: `.local/ui-checks/v321-final`; JSON `C:/Users/Haque/AppData/Local/Temp/responsive-audit-XfzRpv/report.json`; zero browser runtime errors.
+- Baseline supplemental limitations remain V-18: three legacy unmatched history/deletion-log requests received empty fixtures, and synthetic dialog clicks do not establish physical-device focus restoration. These are explicit measurement limits; all recorded layout, touch, trap/Escape and motion checks passed, and physical-device/live OAuth/deployed acceptance stays on the owner checklist.
+- SQL additions were individually mutation-tested in P-09 (6/6 rejected, restored suite green). All seven migrations, dependency manifests/lockfile, test timeout configuration, HISTORY_START_DATE and PRD-v3.2.md remain unchanged.
+- Evidence logs are `.local/v321-final-*` (ignored); P-13 documentation hash `afdbed1` is now linked under review finding 6 and the story board. PR targets master; merging, deployment and branch deletion remain owner actions.
