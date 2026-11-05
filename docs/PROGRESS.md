@@ -1600,7 +1600,7 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 | P-11 | Repo-wide grid guard | Done | `fe255ac` |
 | P-12 | Loading sort headers and URL page sizes | Done | `ca30829`; `2be6768` |
 | P-13 | Documentation sync | Done | `afdbed1` |
-| P-14 | Final verification and PR | Verification complete; publication branch approved | `6c2faba` |
+| P-14 | Final verification and PR | Done | Verified candidate `6c2faba`, published through `fix/v3.2.1-verified` and merged in PR #8 as `64037fc`; owner acceptance `14e5289` per owner statement. |
 
 ### P-00 owner confirmations
 
@@ -1776,3 +1776,10 @@ Candidate tested: clean independent clone `.local/v321-clean` at `afdbed1`; no `
 - Remote fix/v3.2.1 contains owner-authored `ab07dc99e26e5155dd5d476eafcdc9255774c977` (test: guard against bare fr tracks in grid classes) after shared P-10. Local history contains P-11 through P-14; the remote commit differs from the local P-11 guard.
 - Owner explicitly chose a new publication branch: `fix/v3.2.1-verified`, created from verified local head `6c2faba`. It contains all 16 patch story commits and preserves their hashes; remote `fix/v3.2.1` and owner commit `ab07dc9` remain unchanged.
 - Publication proceeds from the owner-approved branch into master. This follow-up changes only the publication record; application code, tests, configuration and migrations remain byte-identical to the verified candidate.
+
+### v3.2.1 closed
+
+PR #8 merged the verified patch into `master` as `64037fc`; owner acceptance is
+recorded in `14e5289` per owner statement. GitHub CI passed on `master` at
+`64037fc` and its Vercel production deployment is live, per owner statement;
+the agent did not inspect CI or production, and no database change was made.
