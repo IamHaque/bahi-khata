@@ -1600,7 +1600,7 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 | P-11 | Repo-wide grid guard | Done | `fe255ac` |
 | P-12 | Loading sort headers and URL page sizes | Done | `ca30829`; `2be6768` |
 | P-13 | Documentation sync | Done | `afdbed1` |
-| P-14 | Final verification and PR | Verification complete; publication branch approved | `6c2faba` |
+| P-14 | Final verification and PR | Done | Verified candidate `6c2faba`, published through `fix/v3.2.1-verified` and merged in PR #8 as `64037fc`; owner acceptance `14e5289` per owner statement. |
 
 ### P-00 owner confirmations
 
@@ -1707,6 +1707,8 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 
 ### P-11 checklist — complete
 
+The owner's `ab07dc9` is functionally equivalent to the P-11 guard in `master`; nothing to port.
+
 - [x] Repo-wide TSX source scan excludes tests and features/dev, removes minmax(0, ...) tracks, and reports each remaining fractional track as file:line; no allowlist needed. Existing Dashboard/Settings render assertions retained.
 - [x] Temporary GridGuardProbe bare 1fr failed at components/GridGuardProbe.tsx:2, then probe removed; underscores normalized before matching, and existing filesystem typings/JS target respected. Full verify passed with two workers: 92 files / 777 tests, 169.93s; lint/typecheck/build and token/contrast/bundle audits passed.
 - P-10 commit: `dc95ced`; owner explicitly requested both P-12 optional items. P-12 loading headers is next, then URL page sizes.
@@ -1729,22 +1731,22 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Completed backlog entries link real story hashes, nine review findings retain their original text plus fix annotations, Operations lists staging/backups/error-reporting gaps, contract covers all patch rules and release notes cover user changes and rollback. Finding 6 and the P-13 board row receive this story's actual hash in P-14 once the commit exists; PRD-v3.2.md and all migrations remain unchanged.
 - [x] Sync script assertions passed (history match, nine findings, nine owner checklist items, seven migrations, untouched v3.2 PRD); full verify passed with two workers: 92 files / 784 tests, 152.42s; lint/typecheck/build and token/contrast/bundle guards passed. URL page-size commit is `2be6768`; P-14 is next.
 
-### P-14 owner acceptance checklist (v3.2.1 — pending)
+### P-14 owner acceptance checklist (v3.2.1 — complete)
 
-These checks apply to the new patch; earlier v3.2 owner acceptance does not imply this patch has been deployed or accepted.
+The owner confirmed that all manual checks below passed for v3.2.1, including customer-picker failure/retry recovery and payment-history failure/retry recovery. Acceptance is based on the owner's manual verification.
 
-- [ ] Enter amount 1234567.89 and save it successfully.
-- [ ] Clear a customer's phone/email, save, reopen and confirm they stay empty.
-- [ ] Turn the network off in the customer picker, observe its error, then restore the network and Retry.
-- [ ] Find a customer outside the first result window in a large business.
-- [ ] Create a customer inside a transaction and confirm selection plus preservation of amount/type/date/time/note.
-- [ ] Fail the payment-history request: debtor balances remain, unavailable text and Retry replace never-paid text and flags.
-- [ ] Follow See all customers who owe and confirm only positive balances are listed.
-- [ ] On mobile, confirm owes you / you owe / Settled words for each balance direction.
-- [ ] With all customers archived, use Show archived and Add customer.
-- [ ] Open CSV in a spreadsheet and confirm a negative numeric amount participates in a sum while formula-like names/notes remain text.
-- [ ] Reload /customers?pageSize=25 and confirm the size persists; also share a non-default Transactions page-size URL.
-- [ ] Check physical-device keyboards, dialog focus restoration, live OAuth and deployed-client behavior.
+- [x] Enter amount 1234567.89 and save it successfully.
+- [x] Clear a customer's phone/email, save, reopen and confirm they stay empty.
+- [x] Turn the network off in the customer picker, observe its error, then restore the network and Retry.
+- [x] Find a customer outside the first result window in a large business.
+- [x] Create a customer inside a transaction and confirm selection plus preservation of amount/type/date/time/note.
+- [x] Fail the payment-history request: debtor balances remain, unavailable text and Retry replace never-paid text and flags.
+- [x] Follow See all customers who owe and confirm only positive balances are listed.
+- [x] On mobile, confirm owes you / you owe / Settled words for each balance direction.
+- [x] With all customers archived, use Show archived and Add customer.
+- [x] Open CSV in a spreadsheet and confirm a negative numeric amount participates in a sum while formula-like names/notes remain text.
+- [x] Reload /customers?pageSize=25 and confirm the size persists; also share a non-default Transactions page-size URL.
+- [x] Check physical-device keyboards, dialog focus restoration, live OAuth and deployed-client behavior.
 
 ### P-14 final verification — complete
 
@@ -1776,3 +1778,10 @@ Candidate tested: clean independent clone `.local/v321-clean` at `afdbed1`; no `
 - Remote fix/v3.2.1 contains owner-authored `ab07dc99e26e5155dd5d476eafcdc9255774c977` (test: guard against bare fr tracks in grid classes) after shared P-10. Local history contains P-11 through P-14; the remote commit differs from the local P-11 guard.
 - Owner explicitly chose a new publication branch: `fix/v3.2.1-verified`, created from verified local head `6c2faba`. It contains all 16 patch story commits and preserves their hashes; remote `fix/v3.2.1` and owner commit `ab07dc9` remain unchanged.
 - Publication proceeds from the owner-approved branch into master. This follow-up changes only the publication record; application code, tests, configuration and migrations remain byte-identical to the verified candidate.
+
+### v3.2.1 closed
+
+PR #8 merged the verified patch into `master` as `64037fc`; owner acceptance is
+recorded in `14e5289` per owner statement. GitHub CI passed on `master` at
+`64037fc` and its Vercel production deployment is live, per owner statement;
+the agent did not inspect CI or production, and no database change was made.

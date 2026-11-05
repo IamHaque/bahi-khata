@@ -5,9 +5,10 @@ file is the ordered, copy-paste procedure for everything that needs a human
 with dashboard or CLI access. Each entry names the exact files, the order,
 and how to verify success.
 
-**Current state (v3.2, 2026-11-02, branch `feat/v3.2`):** the database
+**Current state (v3.2.1, `master`):** the database
 schema is the **seven-file v3.2 chain** described in section 0 below
 (consolidated baseline + two v3/v3.1 migrations + four v3.2 migrations).
+v3.2.1 is client-only; the database chain did not change.
 The pre-v3 chain (v1 baselines + `0001`-`0010`) is **archived** in
 `supabase/migrations_archive/` - those files were consolidated into
 `20261017000000_bahikhata_consolidated_schema.sql` and must not be
@@ -1417,12 +1418,14 @@ Automated evidence and remaining defects: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DA
 
 ## v3.2.1 client rollout
 
-There are **no database changes** in v3.2.1. Deploy the client only after the
-patch PR is merged by the owner; all seven applied migrations remain frozen.
+There are **no database changes** in v3.2.1; all seven applied migrations remain frozen.
+The patch was merged into `master` in PR #8 as `64037fc` and accepted by the
+owner on the deployed client **per owner statement** (acceptance commit `14e5289`).
+GitHub CI passed on `master` at `64037fc`, and its Vercel production deployment
+is live, **per owner statement**. The agent did not inspect CI or production.
 The standing **Is production on the fixed version?** read-only checks above
-remain applicable. CI, the v3.2 deployment, deployed UI acceptance and the four
-production verification-query results are confirmed **per owner statement**;
-the patch agent did not inspect production.
+remain applicable; the earlier v3.2 production verification-query results remain
+confirmed **per owner statement**.
 
 To roll back, redeploy the v3.2 client. There is nothing to undo in the database.
-Use the v3.2.1 human checklist in PROGRESS.md to accept the new client behavior.
+The completed v3.2.1 human checklist is recorded in PROGRESS.md.
