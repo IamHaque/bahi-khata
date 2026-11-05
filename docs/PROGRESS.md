@@ -1707,6 +1707,8 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 
 ### P-11 checklist — complete
 
+The owner's `ab07dc9` is functionally equivalent to the P-11 guard in `master`; nothing to port.
+
 - [x] Repo-wide TSX source scan excludes tests and features/dev, removes minmax(0, ...) tracks, and reports each remaining fractional track as file:line; no allowlist needed. Existing Dashboard/Settings render assertions retained.
 - [x] Temporary GridGuardProbe bare 1fr failed at components/GridGuardProbe.tsx:2, then probe removed; underscores normalized before matching, and existing filesystem typings/JS target respected. Full verify passed with two workers: 92 files / 777 tests, 169.93s; lint/typecheck/build and token/contrast/bundle audits passed.
 - P-10 commit: `dc95ced`; owner explicitly requested both P-12 optional items. P-12 loading headers is next, then URL page sizes.
