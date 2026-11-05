@@ -1600,7 +1600,7 @@ Status: implemented and verified; submitted for PR review on `feat/mobile-layout
 | P-11 | Repo-wide grid guard | Done | `fe255ac` |
 | P-12 | Loading sort headers and URL page sizes | Done | `ca30829`; `2be6768` |
 | P-13 | Documentation sync | Done | `afdbed1` |
-| P-14 | Final verification and PR | Done | Final verification hash reported with the PR |
+| P-14 | Final verification and PR | Verification complete; publication branch approved | `6c2faba` |
 
 ### P-00 owner confirmations
 
@@ -1769,3 +1769,10 @@ Candidate tested: clean independent clone `.local/v321-clean` at `afdbed1`; no `
 - Baseline supplemental limitations remain V-18: three legacy unmatched history/deletion-log requests received empty fixtures, and synthetic dialog clicks do not establish physical-device focus restoration. These are explicit measurement limits; all recorded layout, touch, trap/Escape and motion checks passed, and physical-device/live OAuth/deployed acceptance stays on the owner checklist.
 - SQL additions were individually mutation-tested in P-09 (6/6 rejected, restored suite green). All seven migrations, dependency manifests/lockfile, test timeout configuration, HISTORY_START_DATE and PRD-v3.2.md remain unchanged.
 - Evidence logs are `.local/v321-final-*` (ignored); P-13 documentation hash `afdbed1` is now linked under review finding 6 and the story board. PR targets master; merging, deployment and branch deletion remain owner actions.
+
+### P-14 publication branch (V-24 — resolved by owner)
+
+- Verified local head is `6c2faba273e078315e2931e6e48fae329d00a1ff`; regular push was rejected as non-fast-forward, so no remote branch was changed and no PR was created.
+- Remote fix/v3.2.1 contains owner-authored `ab07dc99e26e5155dd5d476eafcdc9255774c977` (test: guard against bare fr tracks in grid classes) after shared P-10. Local history contains P-11 through P-14; the remote commit differs from the local P-11 guard.
+- Owner explicitly chose a new publication branch: `fix/v3.2.1-verified`, created from verified local head `6c2faba`. It contains all 16 patch story commits and preserves their hashes; remote `fix/v3.2.1` and owner commit `ab07dc9` remain unchanged.
+- Publication proceeds from the owner-approved branch into master. This follow-up changes only the publication record; application code, tests, configuration and migrations remain byte-identical to the verified candidate.
