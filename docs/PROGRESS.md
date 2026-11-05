@@ -1729,22 +1729,22 @@ verify them yourself). Do not change `HISTORY_START_DATE`.
 - [x] Completed backlog entries link real story hashes, nine review findings retain their original text plus fix annotations, Operations lists staging/backups/error-reporting gaps, contract covers all patch rules and release notes cover user changes and rollback. Finding 6 and the P-13 board row receive this story's actual hash in P-14 once the commit exists; PRD-v3.2.md and all migrations remain unchanged.
 - [x] Sync script assertions passed (history match, nine findings, nine owner checklist items, seven migrations, untouched v3.2 PRD); full verify passed with two workers: 92 files / 784 tests, 152.42s; lint/typecheck/build and token/contrast/bundle guards passed. URL page-size commit is `2be6768`; P-14 is next.
 
-### P-14 owner acceptance checklist (v3.2.1 — pending)
+### P-14 owner acceptance checklist (v3.2.1 — complete)
 
-These checks apply to the new patch; earlier v3.2 owner acceptance does not imply this patch has been deployed or accepted.
+The owner confirmed that all manual checks below passed for v3.2.1, including customer-picker failure/retry recovery and payment-history failure/retry recovery. Acceptance is based on the owner's manual verification.
 
-- [ ] Enter amount 1234567.89 and save it successfully.
-- [ ] Clear a customer's phone/email, save, reopen and confirm they stay empty.
-- [ ] Turn the network off in the customer picker, observe its error, then restore the network and Retry.
-- [ ] Find a customer outside the first result window in a large business.
-- [ ] Create a customer inside a transaction and confirm selection plus preservation of amount/type/date/time/note.
-- [ ] Fail the payment-history request: debtor balances remain, unavailable text and Retry replace never-paid text and flags.
-- [ ] Follow See all customers who owe and confirm only positive balances are listed.
-- [ ] On mobile, confirm owes you / you owe / Settled words for each balance direction.
-- [ ] With all customers archived, use Show archived and Add customer.
-- [ ] Open CSV in a spreadsheet and confirm a negative numeric amount participates in a sum while formula-like names/notes remain text.
-- [ ] Reload /customers?pageSize=25 and confirm the size persists; also share a non-default Transactions page-size URL.
-- [ ] Check physical-device keyboards, dialog focus restoration, live OAuth and deployed-client behavior.
+- [x] Enter amount 1234567.89 and save it successfully.
+- [x] Clear a customer's phone/email, save, reopen and confirm they stay empty.
+- [x] Turn the network off in the customer picker, observe its error, then restore the network and Retry.
+- [x] Find a customer outside the first result window in a large business.
+- [x] Create a customer inside a transaction and confirm selection plus preservation of amount/type/date/time/note.
+- [x] Fail the payment-history request: debtor balances remain, unavailable text and Retry replace never-paid text and flags.
+- [x] Follow See all customers who owe and confirm only positive balances are listed.
+- [x] On mobile, confirm owes you / you owe / Settled words for each balance direction.
+- [x] With all customers archived, use Show archived and Add customer.
+- [x] Open CSV in a spreadsheet and confirm a negative numeric amount participates in a sum while formula-like names/notes remain text.
+- [x] Reload /customers?pageSize=25 and confirm the size persists; also share a non-default Transactions page-size URL.
+- [x] Check physical-device keyboards, dialog focus restoration, live OAuth and deployed-client behavior.
 
 ### P-14 final verification — complete
 
