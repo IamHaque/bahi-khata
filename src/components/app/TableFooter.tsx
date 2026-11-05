@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { PAGE_SIZES } from "@/hooks/usePageSize";
 
 export interface TableFooterProps {
   mode?: "pagination" | "more";
@@ -24,8 +25,6 @@ export interface TableFooterProps {
   className?: string;
 }
 
-const DEFAULT_PAGE_SIZES = [10, 25, 50, 100];
-
 export function TableFooter({
   mode = "pagination",
   page = 1,
@@ -34,7 +33,7 @@ export function TableFooter({
   displayedCount,
   onPageChange,
   onPageSizeChange,
-  pageSizes = DEFAULT_PAGE_SIZES,
+  pageSizes = PAGE_SIZES,
   onShowMore,
   hasMore = false,
   loadingMore = false,

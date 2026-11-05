@@ -5,10 +5,11 @@ import { RowActions, type RowAction } from "@/components/app/RowActions";
 import { actionLabels } from "@/lib/actionLabels";
 import { toast } from "sonner";
 import { toAppError } from "@/lib/AppError";
-import { formatDate, formatRelative } from "@/lib/format";
+import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { paths } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
+import { usePageSize } from "@/hooks/usePageSize";
 import { usePermissions } from "@/features/business/hooks";
 import {
   useBulkDeleteCustomers,
@@ -213,7 +214,7 @@ export function CustomersPage() {
   const { sort, dir } = parseSort(searchParams.get("sort"));
   const pageParam = Number(searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam >= 1 ? pageParam : 1;
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePageSize(10);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
@@ -253,6 +254,10 @@ export function CustomersPage() {
   );
 
   const { data, isPending, error, refetch } = useCustomerList(businessId, params);
+  const checkArchived = !!data && !error && data.items.length === 0 && data.allTotal === 0 && q.trim() === "" && status !== "archived";
+  const archived = useCustomerList(businessId, { status: "archived", pageSize: 1 }, { enabled: checkArchived });
+  const allArchived = checkArchived && (archived.data?.items.length ?? 0) > 0;
+  const listError = error ?? (checkArchived ? archived.error : null);
   const { data: balances, isSuccess: balancesLoaded } =
     useAllCustomerBalances(businessId);
   // Restore has no dialog — the menu acts directly (S-30).
@@ -420,7 +425,7 @@ export function CustomersPage() {
   // A stale URL page beyond the count (before the clamp effect above
   // corrects it) is a no-results situation, not "there are no customers".
   const showNoResults =
-    hasFilters || (data !== undefined && data.allTotal > 0 && rows.length === 0);
+    !allArchived && (hasFilters || (data !== undefined && data.allTotal > 0 && rows.length === 0));
 
   const chips: FilterChip[] = [];
   if (q !== "") {
@@ -586,18 +591,19 @@ export function CustomersPage() {
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
-        loading={isPending}
-        error={error ? toAppError(error).message : null}
-        onRetry={() => void refetch()}
+        loading={isPending || (checkArchived && archived.isPending)}
+        error={listError ? toAppError(listError).message : null}
+        onRetry={() => void (checkArchived && archived.isError ? archived.refetch() : refetch())}
         emptyState={
           !showNoResults ? (
             <EmptyState
-              title="No customers yet"
-              description="Add your first customer to get started."
+              title={allArchived ? "All your customers are archived" : "No customers yet"}
+              description={allArchived ? "Show archived customers or add a customer." : "Add your first customer to get started."}
             >
+              {allArchived && <Button variant="outline" onClick={() => updateParams({ status: "archived" })}>Show archived</Button>}
               {can("manageCustomers") && (
                 <Button onClick={() => setDialog({ kind: "form", mode: "add", customer: null })}>
-                  <Plus className="size-4" /> Add your first customer
+                  <Plus className="size-4" /> {allArchived ? "Add customer" : "Add your first customer"}
                 </Button>
               )}
             </EmptyState>
@@ -619,10 +625,7 @@ export function CustomersPage() {
         pageSize={pageSize}
         totalCount={data?.total}
         onPageChange={(next) => updateParams({ page: String(next) })}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          updateParams({ page: null });
-        }}
+        onPageSizeChange={setPageSize}
         onRowClick={(row) => navigate(paths.customerDetail(businessId, row.id))}
         renderRowActions={renderRowActions}
         mobile={(row) => ({
@@ -631,10 +634,13 @@ export function CustomersPage() {
           subtitle: row.phone ?? undefined,
           meta: row.archived_at ? "Archived" : undefined,
           trailing: (
+            <div role="group" aria-label={`${balanceWords(row.balance)}: ${formatMoney(Math.abs(row.balance))}`}>
             <Money
               amount={Math.abs(row.balance)}
               className={toneClass[balanceTone(row.balance)]}
             />
+            <div className="text-xs font-normal text-muted-foreground">{balanceWords(row.balance)}</div>
+            </div>
           ),
         })}
       />

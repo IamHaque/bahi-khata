@@ -7,6 +7,7 @@ import { ChaseList } from "../components/ChaseList";
 import { formatLastPaymentSub } from "../chase";
 import { getLastPayments } from "../api";
 import { supabase } from "@/lib/supabase";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -91,6 +92,29 @@ describe("ChaseList component (L-13 / U-07)", () => {
     expect(screen.getByText("₹19,531.00")).toBeTruthy();
   });
 
+  it("keeps debtor balances visible on history failure and retries", async () => {
+    vi.useRealTimers();
+    const request = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: new Error("Offline") })
+      .mockResolvedValue({ data: [{ id: "c1", last_payment_at: null }], error: null });
+    vi.mocked(supabase.from).mockReturnValue({ select: () => ({ in: request }) } as unknown as ReturnType<typeof supabase.from>);
+    renderChaseList({ businessId: "b1", customers: [{ id: "c1", name: "Debtor", balance: 500 }] });
+    expect(await screen.findByText("Payment history unavailable")).toBeTruthy();
+    expect(screen.getByText("₹500.00")).toBeTruthy();
+    expect(screen.queryByText("no payments yet")).toBeNull();
+    expect(screen.queryByText(/\+ days/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("no payments yet")).toBeTruthy();
+  });
+
+  it("does not report never paid while history is loading", () => {
+    vi.mocked(supabase.from).mockReturnValue({ select: () => ({ in: () => new Promise(() => {}) }) } as unknown as ReturnType<typeof supabase.from>);
+    renderChaseList({ businessId: "b1", customers: [{ id: "c1", name: "Debtor", balance: 500 }] });
+    expect(screen.queryByText("no payments yet")).toBeNull();
+    expect(screen.getByText("—")).toBeTruthy();
+    expect(screen.queryByText(/\+ days/)).toBeNull();
+  });
+
   it("Scenario: Recent payers are not flagged (paid yesterday)", () => {
     const yesterday = new Date("2026-10-31T12:00:00Z").toISOString();
     renderChaseList({
@@ -143,7 +167,7 @@ describe("ChaseList component (L-13 / U-07)", () => {
     });
 
     const link = screen.getByRole("link", { name: /see all customers who owe/i });
-    expect(link.getAttribute("href")).toBe("/b/b1/customers?sort=balance-desc");
+    expect(link.getAttribute("href")).toBe("/b/b1/customers?status=owes&sort=balance-desc");
   });
 
   it("renders empty state when there are no debtors", () => {

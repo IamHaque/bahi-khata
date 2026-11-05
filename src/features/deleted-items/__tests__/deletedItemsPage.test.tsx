@@ -10,7 +10,8 @@ import { DeletedItemsPage } from "../pages/DeletedItemsPage";
 import { formatRelative } from "@/lib/format";
 import { AppError } from "@/lib/AppError";
 import type { Memberships } from "@/features/business/api";
-import type { DeletionLogEntry, LastPurgeInfo } from "../api";
+import type { DeletionLogEntry, DeletionLogExportRow, LastPurgeInfo } from "../api";
+import { downloadCsv } from "@/features/import-export/csv";
 
 // v3 (S-56) — the owner's Recently deleted page: newest-first log,
 // per-row Restore with its own spinner, the database's message on a
@@ -21,7 +22,7 @@ const deletedApi = vi.hoisted(() => ({
   listDeletionLog: vi.fn(),
   restoreDeleted: vi.fn(),
   getLastPurge: vi.fn(async (): Promise<LastPurgeInfo | null> => null),
-  exportDeletionLog: vi.fn(async () => []),
+  exportDeletionLog: vi.fn(async (): Promise<DeletionLogExportRow[]> => []),
   purgeDeletionLog: vi.fn(),
 }));
 
@@ -32,6 +33,10 @@ vi.mock("../api", () => deletedApi);
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+vi.mock("@/features/import-export/csv", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/import-export/csv")>();
+  return { ...actual, downloadCsv: vi.fn() };
+});
 
 const session = {
   user: { email: "asha@example.com" },
@@ -317,6 +322,21 @@ describe("S-56 Recently deleted page", () => {
     await expectNoSeriousViolations(screen.getByRole("table"));
   });
 describe("S-73 deletion log export and purge (B-12)", () => {
+  it("exports numeric amounts while protecting deletion-log text", async () => {
+    deletedApi.exportDeletionLog.mockResolvedValueOnce([{
+      id: "log1", entity_type: "transaction", label: "=1+1", reason: "-5",
+      deleted_at: "2026-01-01", deleted_by: "u1", deleter_name: "Owner",
+      restored_at: null, restored_by: null, restorer_name: null, amount: -500,
+    }]);
+    vi.mocked(downloadCsv).mockClear();
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Export CSV" }));
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalled());
+    expect(vi.mocked(downloadCsv).mock.calls[0]![1]).toMatchInlineSnapshot(`
+      "Deleted at,Type,Item,Deleted by,Reason,Restored at,Restored by,Amount
+      2026-01-01,Transaction,'=1+1,Owner,'-5,,,-500"
+    `);
+  });
   beforeEach(() => {
     businessApi.getMemberships.mockResolvedValue(membershipsFor("owner"));
     deletedApi.listDeletionLog.mockResolvedValue([customerEntry, transactionEntry]);

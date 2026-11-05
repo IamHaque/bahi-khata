@@ -8,6 +8,7 @@ import type { FilterChip } from "@/components/app/FilterBar";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useSort } from "@/hooks/useSort";
+import { usePageSize } from "@/hooks/usePageSize";
 import { usePermissions } from "@/features/business/hooks";
 import { useScopedBusinessId } from "@/features/business/useScopedBusinessId";
 import { useCustomer, useCustomers } from "@/features/customers/hooks";
@@ -113,7 +114,7 @@ export function TransactionsPage() {
     groupParam === "week" || groupParam === "month" ? groupParam : "day";
   const pageParam = Number(searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam >= 1 ? pageParam : 1;
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = usePageSize(25);
 
   // Local affordances the PRD does not put in the URL. Both money
   // columns hand the DataTable the one amount sort key (L-09).
@@ -528,7 +529,7 @@ export function TransactionsPage() {
             pageSize={pageSize}
             totalCount={list.data?.total}
             onPageChange={(next) => updateParams({ page: String(next) })}
-            onPageSizeChange={(size) => setPageSize(size)}
+            onPageSizeChange={setPageSize}
           />
         </>
       ) : (

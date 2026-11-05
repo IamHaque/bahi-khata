@@ -74,6 +74,7 @@ export function TransactionSheet({
   const update = useUpdateTransaction(businessId);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newCustomerQuery, setNewCustomerQuery] = useState('');
+  const [createdCustomer, setCreatedCustomer] = useState<SheetCustomer | null>(null);
 
   const isEdit = mode === 'edit' && transaction != null;
   const edited = isEdit ? transaction : null;
@@ -84,6 +85,7 @@ export function TransactionSheet({
   const wasOpen = useRef(open);
   useEffect(() => {
     if (wasOpen.current && !open) {
+      setCreatedCustomer(null);
       const { trigger } = getTransactionSheetState();
       if (trigger?.isConnected) trigger.focus();
     }
@@ -147,7 +149,7 @@ export function TransactionSheet({
           <FixedCustomer customer={customer ?? null} />
         ) : (
           <CustomerField
-            customer={customer ?? null}
+            customer={createdCustomer ?? customer ?? null}
             onAddNew={(query) => {
               setNewCustomerQuery(query);
               setAddCustomerOpen(true);
@@ -184,16 +186,14 @@ export function TransactionSheet({
         />
       </EntityDialog>
 
-      {/* Inline "create the customer I was searching for": the v2 form
-          dialog, prefilled with the combobox query (BACKLOG B-04's
-          sibling stretch). Saving it refreshes the picker's list; the
-          new customer shows up there to select. */}
+      {/* Select the created customer without resetting the transaction draft. */}
       <CustomerFormDialog
         open={addCustomerOpen}
         onOpenChange={setAddCustomerOpen}
         businessId={businessId}
         mode="add"
         defaultName={newCustomerQuery}
+        onCreated={setCreatedCustomer}
       />
     </>
   );
@@ -234,10 +234,10 @@ function CustomerField({
   // The sheet can be handed a customer while it is already open (the
   // "Customer added" toast action) — the form value follows the prop.
   useEffect(() => {
-    if (customer && customer.id !== customerId) {
+    if (customer) {
       setValue('customer_id', customer.id);
     }
-  }, [customer, customerId, setValue]);
+  }, [customer, setValue]);
 
   return (
     <div className="space-y-1.5">

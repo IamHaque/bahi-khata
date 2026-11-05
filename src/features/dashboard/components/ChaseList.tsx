@@ -3,6 +3,7 @@ import { LeaderRow } from "@/components/app/LeaderRow";
 import { Monogram } from "@/components/app/Monogram";
 import { AgeFlag } from "@/components/app/AgeFlag";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { paths } from "@/lib/paths";
 import { CHASE_AFTER_DAYS, formatLastPaymentSub } from "../chase";
 import { useLastPayments } from "../hooks";
@@ -22,11 +23,13 @@ export function ChaseList({
   const topDebtors = customers.slice(0, 5);
   const ids = topDebtors.map((c) => c.id);
 
-  const { data: queriedPayments } = useLastPayments(
+  const history = useLastPayments(
     businessId,
     lastPaymentsOverride ? [] : ids,
   );
-  const payments = lastPaymentsOverride ?? queriedPayments ?? {};
+  const payments = lastPaymentsOverride ?? history.data ?? {};
+  const historyFailed = !lastPaymentsOverride && history.isError;
+  const historyReady = !!lastPaymentsOverride || history.isSuccess;
 
   return (
     <Card className="p-6 min-w-0">
@@ -36,6 +39,9 @@ export function ChaseList({
       <p className="mt-1 text-xs text-muted-foreground">
         Largest balances first. Flagged when nothing was paid for {CHASE_AFTER_DAYS} days.
       </p>
+      {historyFailed && topDebtors.length > 0 && (
+        <Button type="button" variant="outline" className="mt-2" onClick={() => void history.refetch()}>Retry</Button>
+      )}
 
       {topDebtors.length === 0 ? (
         <div className="mt-3 rounded-lg bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
@@ -46,7 +52,9 @@ export function ChaseList({
           <div className="mt-1" role="list" aria-label="Who to chase">
             {topDebtors.map((customer) => {
               const lastPaymentAt = payments[customer.id];
-              const { sub, days } = formatLastPaymentSub(lastPaymentAt);
+              const { sub, days } = historyReady && lastPaymentAt !== undefined
+                ? formatLastPaymentSub(lastPaymentAt)
+                : { sub: historyFailed ? "Payment history unavailable" : "—", days: null };
 
               return (
                 <LeaderRow
@@ -73,7 +81,7 @@ export function ChaseList({
 
           <div className="mt-4 border-t border-border pt-3">
             <Link
-              to={`${paths.customers(businessId)}?sort=balance-desc`}
+              to={`${paths.customers(businessId)}?status=owes&sort=balance-desc`}
               className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground touch-target"
             >
               See all customers who owe &rarr;

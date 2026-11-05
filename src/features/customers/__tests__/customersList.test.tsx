@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { renderApp } from "@/test/app-render";
+import { expectNoSeriousViolations } from "@/test/a11y";
 import { __setMatchMedia } from "@/test/setup";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
 import { AppError } from "@/lib/AppError";
@@ -180,6 +181,35 @@ beforeEach(() => {
 });
 
 describe("S-28 customers list", () => {
+  it.each([["25", 25], ["10", 10], ["invalid", 10]] as const)("restores pageSize=%s from a shared URL", async (raw, expected) => {
+    renderPage(`${paths.customers("b1")}?pageSize=${raw}`);
+    await screen.findByText("Asha");
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", expect.objectContaining({ pageSize: expected }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(expected === 10 ? "" : "?pageSize=25"));
+  });
+
+  it("saves changed page sizes in the URL, drops the default, and resets the page", async () => {
+    customersApi.queryCustomers.mockResolvedValue(result(threeCustomers, 60));
+    renderPage(`${paths.customers("b1")}?pageSize=25&page=2`);
+    await screen.findByText("Asha");
+    await userEvent.click(screen.getByLabelText("Rows per page"));
+    await userEvent.click(await screen.findByRole("option", { name: "50" }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe("?pageSize=50"));
+    await userEvent.click(screen.getByLabelText("Rows per page"));
+    await userEvent.click(await screen.findByRole("option", { name: "10" }));
+    await waitFor(() => expect(screen.getByTestId("search").textContent).toBe(""));
+  });
+  it("the chase destination requests only customers who owe", async () => {
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => {
+      const items = params.status === "owes" ? threeCustomers.filter((row) => row.balance > 0) : threeCustomers;
+      return result(items, items.length);
+    });
+    renderPage(`${paths.customers("b1")}?status=owes&sort=balance-desc`);
+    expect(await screen.findByText("Asha")).toBeTruthy();
+    expect(screen.queryByText("Rahim")).toBeNull();
+    expect(screen.queryByText("Chand")).toBeNull();
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", expect.objectContaining({ status: "owes", sort: "balance", dir: "desc" }));
+  });
   it("renders the shared table with a monogram, the phone beneath the name, the tone balance and the dates", async () => {
     renderPage();
 
@@ -477,6 +507,37 @@ describe("S-28 customers list", () => {
     ).toBeTruthy();
   });
 
+  it("explains when all customers are archived and opens the archived view", async () => {
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => ({
+      items: params.status === "archived" ? [listRow({ name: "Archived customer", archived_at: "2026-01-01" })] : [],
+      total: params.status === "archived" ? 1 : 0, allTotal: 0,
+    }));
+    const { container } = renderPage();
+    expect(await screen.findByText("All your customers are archived")).toBeTruthy();
+    expect(screen.queryByText("No customers yet")).toBeNull();
+    expect(customersApi.queryCustomers).toHaveBeenCalledWith("b1", { status: "archived", pageSize: 1 });
+    expect(screen.getAllByRole("button", { name: "Add customer" })).toHaveLength(2);
+    await expectNoSeriousViolations(container);
+    await userEvent.click(screen.getByRole("button", { name: "Show archived" }));
+    expect(await screen.findByText("Archived customer")).toBeTruthy();
+    expect(screen.getByTestId("search").textContent).toContain("status=archived");
+  });
+
+  it("retries a failed archive probe before claiming the business is empty", async () => {
+    let archiveAttempts = 0;
+    customersApi.queryCustomers.mockImplementation(async (_businessId: string, params: { status?: string }) => {
+      if (params.status === "archived" && archiveAttempts++ === 0) throw new AppError("network", "Archive probe failed");
+      return { items: [], total: 0, allTotal: 0 };
+    });
+    const { container } = renderPage();
+    expect(await screen.findByText("Archive probe failed")).toBeTruthy();
+    expect(screen.queryByText("No customers yet")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("No customers yet")).toBeTruthy();
+    await expectNoSeriousViolations(container);
+    expect(archiveAttempts).toBe(2);
+  });
+
   it("keeps the empty state text-only for a Viewer", async () => {
     businessApi.getMemberships.mockImplementation(async () =>
       membershipsFor("viewer"),
@@ -577,6 +638,20 @@ describe("S-39 export CSV on the customers list", () => {
 });
 
 describe("L-08 scanning the list", () => {
+  it("mobile balances say who owes whom, including settled", async () => {
+    __setMatchMedia(true);
+    try {
+      renderPage();
+      await screen.findByText("Asha");
+      for (const [name, amount, words] of [["Asha", 500, "owes you"], ["Rahim", 200, "you owe"], ["Chand", 0, "Settled"]] as const) {
+        const card = screen.getByText(name).closest('[role="listitem"]') as HTMLElement;
+        expect(within(card).getByText(words)).toBeTruthy();
+        expect(within(card).getByRole("group", { name: `${words}: ${formatMoney(amount)}` })).toBeTruthy();
+      }
+    } finally {
+      __setMatchMedia(false);
+    }
+  });
   it("shows only Last activity when it and Added fall on the same calendar day", async () => {
     customersApi.queryCustomers.mockImplementation(async () =>
       result(

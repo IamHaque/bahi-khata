@@ -8,7 +8,7 @@ import {
   type TransactionListParams,
   type TransactionListRow,
 } from "@/features/transactions/api";
-import { downloadCsv, toCsv } from "./csv";
+import { csvNumber, downloadCsv, toCsv } from "./csv";
 
 // S-39 — every export downloads EXACTLY what the current filters match,
 // never just the visible page: the reads page through the server in
@@ -59,7 +59,7 @@ export async function exportCustomersCsv(
     items.map((customer) => [
       customer.name,
       customer.phone ?? "",
-      customer.balance,
+      csvNumber(customer.balance),
       customer.last_activity ?? "",
       customer.created_at,
     ]),
@@ -97,7 +97,7 @@ export async function exportTransactionsCsv(
       row.occurred_at,
       row.type,
       row.customer.name,
-      row.amount,
+      csvNumber(row.amount),
       row.note ?? "",
       row.status,
     ]),

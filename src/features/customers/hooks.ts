@@ -65,10 +65,11 @@ export function useCustomerList(
   });
 }
 
-export function useCustomer(id: string, businessId: string) {
+export function useCustomer(id: string, businessId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customerKeys.detail(id, businessId),
     queryFn: () => getCustomer(id, businessId),
+    enabled: options?.enabled ?? true,
   });
 }
 

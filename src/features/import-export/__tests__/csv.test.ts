@@ -1,10 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { escapeCsvCell, toCsv } from "@/features/import-export/csv";
+import { csvNumber, escapeCsvCell, toCsv } from "@/features/import-export/csv";
 
 // S-39 — the safe-CSV rule the PRD pins: any cell beginning with =, +,
 // - or @ is prefixed so no spreadsheet executes it on open.
 
 describe("escapeCsvCell (S-39)", () => {
+  it.each(["=1+1", "+SUM(A1)", "-cmd|' /C calc'!A0", "@x", "-5", "\t=1", "\r=1"])("protects text %s", (text) => {
+    expect(escapeCsvCell(text)).toBe(text.includes("\r") ? `"'${text}"` : `'${text}`);
+  });
+  it("writes explicit numeric cells as numbers that sum after parsing", () => {
+    const csv = toCsv(["amount"], [[csvNumber(-500)], [csvNumber(200)]]);
+    expect(csv).toBe("amount\n-500\n200");
+    expect(csv.split("\n").slice(1).map(Number).reduce((sum, n) => sum + n, 0)).toBe(-300);
+    expect(escapeCsvCell(csvNumber(1234.5))).toBe("1234.5");
+    expect(() => escapeCsvCell(csvNumber(Infinity))).toThrow();
+    expect(() => escapeCsvCell(csvNumber(NaN))).toThrow();
+  });
   it("prefixes the four formula markers", () => {
     expect(escapeCsvCell("=SUM(A1)")).toBe("'=SUM(A1)");
     expect(escapeCsvCell("+1+cmd|' /C calc'!A0")).toBe("'+1+cmd|' /C calc'!A0");
@@ -15,9 +26,7 @@ describe("escapeCsvCell (S-39)", () => {
   it("leaves ordinary cells and bare numbers alone", () => {
     expect(escapeCsvCell("Asha Verma")).toBe("Asha Verma");
     expect(escapeCsvCell(1500)).toBe("1500");
-    // NOTE: a plain negative number also gets the apostrophe — the PRD
-    // asks for every leading "-", and a leading "-" can start a
-    // formula ("=1+1" style) just as "=" can. Logged as B-10.
+    // Unmarked cells default to text; numeric columns opt in with csvNumber.
     expect(escapeCsvCell(-500)).toBe("'-500");
   });
 

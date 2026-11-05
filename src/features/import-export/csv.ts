@@ -4,9 +4,20 @@
 // Settings backup and the delete dialog all share.
 
 /** A leading =, +, - or @ marks a cell as a would-be formula. */
-const FORMULA_PREFIX = /^[=+\-@]/;
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
 
-export function escapeCsvCell(value: string | number): string {
+interface CsvNumber { kind: "number"; value: number }
+type CsvCell = string | number | CsvNumber;
+
+export function csvNumber(value: number): CsvNumber {
+  return { kind: "number", value };
+}
+
+export function escapeCsvCell(value: CsvCell): string {
+  if (typeof value === "object") {
+    if (!Number.isFinite(value.value)) throw new Error("CSV numbers must be finite");
+    return String(value.value);
+  }
   let text = String(value);
   // Spreadsheet formula injection: prefix first, THEN quote — the
   // apostrophe must survive inside the quotes.
@@ -17,7 +28,7 @@ export function escapeCsvCell(value: string | number): string {
 
 export function toCsv(
   headers: string[],
-  rows: Array<Array<string | number>>,
+  rows: Array<Array<CsvCell>>,
 ): string {
   const lines = [headers.map(escapeCsvCell).join(",")];
   for (const row of rows) lines.push(row.map(escapeCsvCell).join(","));

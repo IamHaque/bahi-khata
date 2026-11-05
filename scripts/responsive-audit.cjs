@@ -139,6 +139,7 @@ const SCENARIOS = [
 
   // Dashboard: with data, empty (first-run) and loading (skeleton) states.
   { id: "dashboard-data", path: "/b/b1", marker: "Where you stand", focus: true },
+  { id: "chase-history-error", path: "/b/b1", marker: "Payment history unavailable", mode: "history-error" },
   {
     id: "dashboard-chart-7",
     path: "/b/b1",
@@ -173,8 +174,11 @@ const SCENARIOS = [
   },
 
   // Customers: with results and with none.
-  { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business" },
+  { id: "customers", path: "/b/b1/customers", marker: "Everyone in this business", cardWords: ["owes you", "you owe", "Settled"] },
   { id: "customers-empty", path: "/b/b1/customers", marker: "Add your first customer", mode: "empty" },
+  { id: "customers-all-archived", path: "/b/b1/customers", marker: "All your customers are archived", mode: "all-archived" },
+  { id: "customers-loading", path: "/b/b1/customers", marker: "Everyone in this business", mode: "customers-hold", focus: true },
+  { id: "customers-page-size", path: "/b/b1/customers?pageSize=25", marker: "Everyone in this business", expectedPageSize: 25 },
 
   // Customer detail: with ledger entries and with none. ("Current Balance"
   // was L-07-renamed to "Owes you / You owe / Settled" — the marker tracks
@@ -191,11 +195,12 @@ const SCENARIOS = [
 
   // Transactions: detailed and summarized views.
   { id: "transactions-detailed", path: "/b/b1/transactions", marker: "Every entry across customers" },
+  { id: "transactions-page-size", path: "/b/b1/transactions?pageSize=50", marker: "Every entry across customers", expectedPageSize: 50 },
   {
     id: "transactions-summarized",
     path: "/b/b1/transactions",
     marker: "Every entry across customers",
-    open: [{ role: "tab", name: /Summarized/ }],
+    open: [{ role: "button", name: /^Summarized$/ }],
   },
   { id: "transaction-detail", path: "/b/b1/transactions/t1", marker: "Transaction Detail" },
 
@@ -222,11 +227,35 @@ const SCENARIOS = [
     dialog: true,
   },
   {
+    id: "customer-picker-results",
+    path: "/b/b1",
+    marker: "Where you stand",
+    expectedText: "Type to search all customers",
+    open: [
+      { role: "button", name: /^Add transaction$/ },
+      { role: "button", name: /^Select customer\.\.\.$/ },
+    ],
+  },
+  {
+    id: "customer-picker-error",
+    path: "/b/b1",
+    marker: "Where you stand",
+    mode: "picker-error",
+    expectedText: "Could not load customers. Try again.",
+    open: [
+      { role: "button", name: /^Add transaction$/ },
+      { role: "button", name: /^Select customer\.\.\.$/ },
+    ],
+  },
+  {
     id: "dialog-delete-transaction",
     path: "/b/b1/transactions",
     marker: "Every entry across customers",
     role: "owner",
-    open: [{ role: "button", name: /^Delete (charge|payment)/ }],
+    open: [
+      { role: "button", name: /^Transaction actions$/ },
+      { role: "menuitem", name: /^Delete$/ },
+    ],
     dialog: true,
   },
   {
@@ -792,6 +821,11 @@ function routeRest(urlObj, method, headers, postData) {
   // carries a body and must be answered with rows plus Content-Range.
   const isCountHead = method === "HEAD";
 
+  if (fixtureMode === "picker-error" && pathname === "/customers") {
+    // Use a terminal error; the SDK retries 503 before exposing the error state.
+    return { ...jsonResult({ message: "Customer request failed" }), status: 400 };
+  }
+
   // --- rpc endpoints -------------------------------------------------------
   if (pathname.startsWith("/rpc/")) {
     const rpc = pathname.slice("/rpc/".length);
@@ -907,6 +941,11 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customers": {
+      if (fixtureMode === "all-archived" && !wantsObject) {
+        const archivedRows = q.get("archived_at") === "not.is.null"
+          ? [customerListRow({ ...CUSTOMERS[0], archived_at: "2026-10-01T00:00:00Z" })] : [];
+        return isCountHead ? headCount(0) : jsonResult(archivedRows, countHeaders(archivedRows.length));
+      }
       // L-14 empty: no customers in the lists, but a detail page's
       // single-object read still resolves — so the empty LEDGER state is
       // audited rather than a 404.
@@ -943,7 +982,11 @@ function routeRest(urlObj, method, headers, postData) {
     }
 
     case "/customer_balances": {
+      if (fixtureMode === "all-archived") return jsonResult([]);
       if (select.includes("last_payment_at")) {
+        if (fixtureMode === "history-error") {
+          return { ...jsonResult({ message: "Payment history request failed" }), status: 400 };
+        }
         if (fixtureMode === "empty") return jsonResult([]);
         return jsonResult(
           CUSTOMERS.map((c) => ({
@@ -1070,6 +1113,9 @@ function fixtureFor(urlString, method, headers, postData) {
       // shell, boot gate and page chrome render and only the summary/activity
       // skeleton stays on screen. Everything else passes through.
       if (fixtureMode === "hold" && urlObj.pathname.startsWith("/rest/v1/rpc/")) {
+        return { hold: true };
+      }
+      if (fixtureMode === "customers-hold" && urlObj.pathname === "/rest/v1/customers" && (urlObj.searchParams.get("select") || "").includes("customer_balances!inner")) {
         return { hold: true };
       }
       fixture = routeRest(urlObj, method, headers, postData);
@@ -1336,7 +1382,7 @@ const HITTEST_SOURCE = `(() => {
   const modalRoot =
     document.querySelector("[data-slot$='-content'][data-open], [data-slot='sheet-content'][data-open], [role='dialog']:not([hidden])") ||
     null;
-  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"]';
+  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="columnheader"][tabindex]';
   const els = Array.from(document.querySelectorAll(SEL));
   const failures = [];
   let checked = 0;
@@ -1968,13 +2014,29 @@ async function main() {
       // Reach tabs / menus / dialogs / sheets listed in `open`.
       if (scenario.open) {
         for (const step of scenario.open) {
-          await evaluate(cdp, CLICK_SOURCE(step));
+          const clicked = await evaluate(cdp, CLICK_SOURCE(step));
+          if (!clicked?.found) throw new Error(`Trigger missing: ${step.role} ${step.name}`);
           await sleep(500);
         }
         if (!found) found = await waitFor(cdp, markerWait, 5000);
         await sleep(400);
       }
       if (!found) found = await waitFor(cdp, markerWait, 5000);
+      if (scenario.expectedText && !(await waitFor(cdp,
+        `document.body.innerText.includes(${JSON.stringify(scenario.expectedText)})`, 5000))) {
+        throw new Error(`Expected state missing: ${scenario.expectedText}`);
+      }
+      if (scenario.cardWords && width < 768) {
+        const wordsPresent = await evaluate(cdp, `(() => {
+          const labels = Array.from(document.querySelectorAll('[role="listitem"] [role="group"][aria-label]')).map(el => el.getAttribute('aria-label'));
+          return ${JSON.stringify(scenario.cardWords)}.every(word => labels.some(label => label.startsWith(word + ':')));
+        })()`);
+        if (!wordsPresent) throw new Error("Customer cards are missing balance direction words");
+      }
+      if (scenario.expectedPageSize) {
+        const selectedSize = await evaluate(cdp, `({ search: location.search, text: document.querySelector('[aria-label="Rows per page"] [data-slot="select-value"]')?.textContent.trim() })`);
+        if (selectedSize?.text !== String(scenario.expectedPageSize)) throw new Error(`URL page size was not restored: ${JSON.stringify(selectedSize)}`);
+      }
       return { ok: true, found, themeApplied, transientOverflow };
     };
 

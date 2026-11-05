@@ -240,3 +240,19 @@ Two guard rails keep the two layers honest:
 - Transactions custom dates represent local calendar days, with an exclusive query end at the next local midnight.
 
 Implementation evidence and manual verification limits: [MOBILE-DASHBOARD-REVIEW.md](MOBILE-DASHBOARD-REVIEW.md).
+
+## Archived customers (v3.2.1 P-09)
+
+Dashboard figures (Today, Position and Activity) exclude archived customers. Unarchiving restores their entries to the dashboard figures. The cross-customer Transactions page, including Today, also excludes archived customers; use the Archived customer list and each customer's ledger to see archived customers and their history.
+
+## v3.2.1 form, list and export rules
+
+- Amounts must be finite, above zero, at most two decimal places and no greater than ₹99,99,99,999.99 (`MAX_AMOUNT = 999_999_999.99`). Forms, ledger entry and CSV import share the same amount validation; money messages use the money formatter.
+- Editing a customer sends explicit `null` for cleared phone, email, address, alternate contact name/phone, notes and an empty tag list. Whitespace-only means cleared; create still omits empty fields.
+- Lists and pickers distinguish errors from empty results and provide a retry action. The customer picker shows Retry, uses a 300ms server search over active customers (20 alphabetically sorted results), and resolves selected customers separately by id. Empty search says Type to search all customers.
+- Inline customer creation selects the new customer in the transaction sheet and preserves its amount, type, date, time and note.
+- Chase history loading uses a neutral dash; errors say Payment history unavailable with Retry while debtor balances remain visible. Only confirmed null history means no payments yet; unavailable history has no age flag. The owes link uses status=owes and descending balance.
+- Mobile customer cards visibly state owes you, you owe or Settled and include direction in the balance's accessible name.
+- With no active customers, an archive probe distinguishes All your customers are archived from No customers yet. Show archived opens the archived filter; Add customer remains permission-gated. Probe errors/loading use normal list states.
+- CSV numeric cells are explicitly marked and serialize finite amounts/balances as unquoted numbers, including negatives. Unmarked cells default to protected text; strings beginning =, +, -, @, tab or carriage return receive the formula guard even when they look numeric.
+- Loading table headers preserve the data headers' sort direction, affordance and keyboard behavior. Customers and Transactions accept pageSize=10/25/50/100; defaults (10 and 25 respectively) and invalid values are omitted from the URL. Changing size resets the page and preserves filters.

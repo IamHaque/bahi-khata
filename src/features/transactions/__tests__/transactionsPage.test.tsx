@@ -329,6 +329,11 @@ beforeEach(() => {
 });
 
 describe("S-35 transactions page v2", () => {
+  it.each([["50", 50], ["25", 25], ["invalid", 25]] as const)("restores pageSize=%s from a shared URL", async (raw, expected) => {
+    renderPage(`${paths.transactions("b1")}?pageSize=${raw}`);
+    await waitFor(() => expect(transactionsApi.queryTransactions).toHaveBeenCalledWith("b1", expect.objectContaining({ pageSize: expected })));
+    await waitFor(() => expect(screen.getByTestId("url").textContent).toBe(expected === 25 ? "" : "?pageSize=50"));
+  });
   it("detailed view: columns, newest first, linked customer, recorded by and status/source badges on the default This-month range; sortable headers re-query server-side", async () => {
     renderPage();
     // The list resolves asynchronously — settle before querying rows.
