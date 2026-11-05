@@ -35,6 +35,19 @@ post-v3.1 pass. B-01, B-04, B-06 and B-09 are done and kept as history.
 | B-27 | Revision history for customers | S-72 (v3.2) — history tracks transaction changes | Add a `customer_revisions` table and trigger to track changes to customer name, phone, address, and notes. |
 | B-28 | Per-business chase threshold setting | S-71 / U-07 (v3.2) — CHASE_AFTER_DAYS is hardcoded to 30 | Store `chase_after_days` on the `businesses` table so each business can configure its own overdue threshold. |
 | B-29 | Cross-page selection | S-75 (v3.2) — page navigation clears active selection | Retain selected row IDs across page changes so users can build a selection across multiple pages before taking action. |
+| B-30 | Preserve international phone numbers in CSV | Final v3.2.1 review: the text formula guard prefixes phone numbers beginning with `+` with an apostrophe, visible in spreadsheets. | **Open.** Candidate: a phone cell type kept as text without a prefix only for leading `+` followed by digits; needs its own test. |
+| B-31 | One payment-history error notice above the chase list | Final v3.2.1 review: every row repeats "Payment history unavailable" beside a single Retry button. | **Open.** Move the notice above the list. |
+| B-32 | Scope P-09 SQL fixture deletion | Final v3.2.1 review: P-09 uses `delete from public.transactions;` to build its fixtures. | **Open.** Delete only rows it creates so later assertions cannot depend on the broad deletion. |
+| B-33 | Close browser audit measurement gaps | [V-18 in PROGRESS.md](PROGRESS.md#p-00-responsive-baseline-result): three legacy history/deletion-log requests receive empty fixtures; dialog focus restoration is checked synthetically only. | **Open.** Cover real requests and focus restoration through B-15 and the staging Supabase project in [Operations](#operations). |
+
+## Next minor release (v3.3) candidates
+
+Candidates for the owner to confirm, not commitments:
+
+1. Staging Supabase project and Playwright smoke suite (B-15); never run end-to-end tests against production.
+2. WhatsApp reminder from "Who to chase" (B-18), after deciding phone normalisation, for example a per-business default country code.
+3. Printable ledger-style statement (B-17).
+4. Per-business chase threshold (B-28), only after real usage data or the S-71 analysis result.
 
 ## Mobile/dashboard review follow-ups
 
